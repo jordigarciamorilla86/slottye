@@ -26,13 +26,12 @@ export async function GET(request: Request) {
     // Como ejecutaremos el cron cada hora:
     // desde dentro de 24 h hasta dentro de 25 h.
     const from = new Date(
-      now.getTime() + 24 * 60 * 60 * 1000
-    );
-
-    const to = new Date(
-      now.getTime() + 25 * 60 * 60 * 1000
-    );
-
+        now.getTime() + 23 * 60 * 60 * 1000
+      );
+      
+      const to = new Date(
+        now.getTime() + 47 * 60 * 60 * 1000
+      );
     const { data: bookings, error } = await admin
       .from("bookings")
       .select(`
