@@ -1,0 +1,100 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Header } from "@/components/Header";
+import { createClient } from "@/lib/supabase/server";
+import BookingsManager from "./BookingsManager";
+
+export default async function BookingsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: bookings, error } = await supabase
+    .from("bookings")
+    .select(`
+      id,
+      status,
+      created_at,
+      cancelled_at,
+      slots (
+        id,
+        start_at,
+        end_at
+      ),
+      businesses (
+        id,
+        name,
+        slug,
+        address,
+        city
+      ),
+      services (
+        id,
+        name,
+        duration_minutes
+      )
+    `)
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error loading bookings:", error);
+  }
+
+  return (
+    <>
+      <Header />
+
+      <main
+        className="shell detail"
+        style={{ maxWidth: 900 }}
+      >
+        <section className="panel">
+          <div className="kicker">
+            Mi Slottye
+          </div>
+
+          <h1 className="business-title">
+            Mis citas
+          </h1>
+
+          <p className="muted">
+            Consulta tus próximas citas y tu historial.
+          </p>
+
+          <BookingsManager
+  initialBookings={(bookings ?? []).map((booking) => ({
+    ...booking,
+    slots: Array.isArray(booking.slots)
+      ? booking.slots[0] ?? null
+      : booking.slots,
+
+    businesses: Array.isArray(booking.businesses)
+      ? booking.businesses[0] ?? null
+      : booking.businesses,
+
+    services: Array.isArray(booking.services)
+      ? booking.services[0] ?? null
+      : booking.services,
+  }))}
+/>
+        </section>
+
+        <section style={{ marginTop: 20 }}>
+          <Link
+            href="/account"
+            className="btn"
+          >
+            ← Volver a mi cuenta
+          </Link>
+        </section>
+      </main>
+    </>
+  );
+}

@@ -1,4 +1,279 @@
-import { Header } from "@/components/Header";
-import { businesses, slots } from "@/lib/mock-data";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-export default async function BusinessPage({params}:{params:Promise<{slug:string}>}){ const {slug}=await params; const business=businesses.find(b=>b.slug===slug); if(!business) notFound(); return <><Header/><main className="shell detail"><div className="detail-grid"><section className="panel"><div className="kicker">{business.category}</div><h1 className="business-title">{business.name}</h1><div className="meta"><span>⭐ {business.rating}</span><span>·</span><span>📍 {business.distance}</span></div><p className="muted">{business.address}<br/>☎ {business.phone}</p><div className="actions"><button className="btn">♡ Guardar</button><button className="btn">🔔 Avísame de nuevas citas</button><button className="btn">🗺 Cómo llegar</button></div><h2>Citas disponibles</h2>{slots.map(group=><div key={group.day}><div className="day">{group.day}</div><div className="slots">{group.times.map(t=><button className="slot" key={t}>{t}</button>)}</div></div>)}</section><aside className="panel"><h3 style={{marginTop:0}}>Servicios</h3><p><strong>Primera visita</strong><br/><span className="muted">45 min</span></p><p><strong>Consulta</strong><br/><span className="muted">30 min</span></p><p><strong>Revisión</strong><br/><span className="muted">30 min</span></p><hr style={{border:0,borderTop:"1px solid var(--border)",margin:"22px 0"}}/><h3>¿Sin huecos?</h3><p className="muted">Suscríbete y te avisaremos por email cuando este negocio publique nuevas citas.</p><button className="btn primary" style={{width:"100%"}}>🔔 Avisarme</button></aside></div></main></> }
+import { Header } from "@/components/Header";
+import { createClient } from "@/lib/supabase/server";
+import { AvailableSlots } from "@/components/AvailableSlots";
+import { BusinessSubscriptionButton } from "@/components/BusinessSubscriptionButton";
+
+type Props = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
+export default async function BusinessPage({
+  params,
+}: Props) {
+  const { slug } = await params;
+
+  const supabase = await createClient();
+
+  const { data: business, error } = await supabase
+    .from("businesses")
+    .select(`
+      id,
+      name,
+      slug,
+      description,
+      address,
+      city,
+      postal_code,
+      phone,
+      email,
+      website,
+      category_id
+    `)
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error loading business:", error);
+  }
+
+  if (!business) {
+    notFound();
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let subscribed = false;
+
+if (user) {
+  const { data: subscription } = await supabase
+    .from("business_subscriptions")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("business_id", business.id)
+    .maybeSingle();
+
+  subscribed = !!subscription;
+}
+
+  const { data: category } = business.category_id
+    ? await supabase
+        .from("categories")
+        .select("name")
+        .eq("id", business.category_id)
+        .maybeSingle()
+    : { data: null };
+
+  const { data: services } = await supabase
+    .from("services")
+    .select(`
+      id,
+      name,
+      description,
+      duration_minutes
+    `)
+    .eq("business_id", business.id)
+    .eq("active", true)
+    .order("name");
+
+    const { data: slots } = await supabase
+    .from("slots")
+    .select(`
+      id,
+      service_id,
+      start_at,
+      end_at,
+      status
+    `)
+    .eq("business_id", business.id)
+    .eq("status", "AVAILABLE")
+    .gte("start_at", new Date().toISOString())
+    .order("start_at", { ascending: true });
+
+  const fullAddress = [
+    business.address,
+    business.postal_code,
+    business.city,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <>
+      <Header />
+
+      <main
+        className="shell detail"
+        style={{ maxWidth: 950 }}
+      >
+        <section className="panel">
+          {category?.name && (
+            <div className="kicker">
+              {category.name}
+            </div>
+          )}
+
+          <h1 className="business-title">
+            {business.name}
+          </h1>
+
+          {business.description && (
+            <p className="lead">
+              {business.description}
+            </p>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gap: 10,
+              marginTop: 22,
+            }}
+          >
+            {fullAddress && (
+              <div>
+                📍 {fullAddress}
+              </div>
+            )}
+
+            {business.phone && (
+              <div>
+                ☎{" "}
+                <a href={`tel:${business.phone}`}>
+                  {business.phone}
+                </a>
+              </div>
+            )}
+
+            {business.email && (
+              <div>
+                ✉{" "}
+                <a href={`mailto:${business.email}`}>
+                  {business.email}
+                </a>
+              </div>
+            )}
+
+            {business.website && (
+              <div>
+                🌐{" "}
+                <a
+                  href={business.website}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Web del negocio
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              marginTop: 24,
+            }}
+          >
+            <button className="btn" disabled>
+              ♡ Guardar
+            </button>
+
+            <BusinessSubscriptionButton
+  businessId={business.id}
+  userId={user?.id ?? null}
+  initialSubscribed={subscribed}
+/>
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="section-head">
+            <div>
+              <h2>Servicios</h2>
+
+              <p className="muted">
+                Selecciona un servicio para consultar disponibilidad.
+              </p>
+            </div>
+          </div>
+
+          {services && services.length > 0 ? (
+            <div className="cards">
+              {services.map((service) => (
+                <div
+                  className="card"
+                  key={service.id}
+                >
+                  <div className="card-body">
+                    <h3>{service.name}</h3>
+
+                    {service.description && (
+                      <p className="muted">
+                        {service.description}
+                      </p>
+                    )}
+
+                    <div
+                      className="meta"
+                      style={{ marginTop: 12 }}
+                    >
+                      ⏱ {service.duration_minutes} min
+                    </div>
+
+                    <div
+                      style={{ marginTop: 18 }}
+                    >
+                      <span className="btn primary">
+                        Ver citas
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="panel">
+              <h3>Todavía no hay servicios publicados</h3>
+
+              <p className="muted">
+                Este negocio aún no ha configurado sus servicios.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="section">
+  <div className="section-head">
+    <div>
+      <h2>Citas disponibles</h2>
+
+      <p className="muted">
+        Elige el día y la hora que mejor te vaya.
+      </p>
+    </div>
+  </div>
+
+  <AvailableSlots
+    slots={slots ?? []}
+    services={services ?? []}
+    loggedIn={!!user}
+  />
+</section>
+
+        <section className="section">
+          <Link href="/" className="btn">
+            ← Volver a Slottye
+          </Link>
+        </section>
+      </main>
+    </>
+  );
+}

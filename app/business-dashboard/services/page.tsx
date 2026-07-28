@@ -1,0 +1,88 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Header } from "@/components/Header";
+import { createClient } from "@/lib/supabase/server";
+import ServicesManager from "./ServicesManager";
+
+export default async function ServicesPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "business") {
+    redirect("/account");
+  }
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("id,name")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!business) {
+    redirect("/business-dashboard/create");
+  }
+
+  const { data: services } = await supabase
+    .from("services")
+    .select(`
+      id,
+      name,
+      description,
+      duration_minutes,
+      active
+    `)
+    .eq("business_id", business.id)
+    .order("created_at", { ascending: false });
+
+  return (
+    <>
+      <Header />
+
+      <main
+        className="shell detail"
+        style={{ maxWidth: 900 }}
+      >
+        <section className="panel">
+          <div className="kicker">
+            Slottye Business
+          </div>
+
+          <h1 className="business-title">
+            Servicios
+          </h1>
+
+          <p className="muted">
+            Gestiona los servicios que ofrece {business.name}.
+          </p>
+
+          <ServicesManager
+            businessId={business.id}
+            initialServices={services ?? []}
+          />
+        </section>
+
+        <section style={{ marginTop: 20 }}>
+          <Link
+            href="/business-dashboard"
+            className="btn"
+          >
+            ← Volver al panel
+          </Link>
+        </section>
+      </main>
+    </>
+  );
+}

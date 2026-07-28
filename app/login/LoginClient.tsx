@@ -11,8 +11,14 @@ type Role = "customer" | "business";
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<Mode>("login");
-  const [role, setRole] = useState<Role>("customer");
+  const initialMode: Mode =
+  searchParams.get("mode") === "signup" ? "signup" : "login";
+
+  const initialRole: Role =
+  searchParams.get("role") === "business" ? "business" : "customer";
+
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [role, setRole] = useState<Role>(initialRole);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

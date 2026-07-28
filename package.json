@@ -14,7 +14,8 @@
     "lucide-react": "latest",
     "next": "16.2.11",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "resend": "^6.18.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

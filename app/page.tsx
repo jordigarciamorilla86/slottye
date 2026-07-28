@@ -1,20 +1,40 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { BusinessCard } from "@/components/BusinessCard";
-import { businesses } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
 
-  const { data: categories, error } = await supabase
+  const { data: categories, error: categoriesError } = await supabase
     .from("categories")
     .select("id, name, slug, icon")
     .eq("active", true)
     .order("name");
 
-  if (error) {
-    console.error("Error loading categories:", error);
+  const { data: businesses, error: businessesError } = await supabase
+    .from("businesses")
+    .select(`
+      id,
+      name,
+      slug,
+      description,
+      address,
+      city,
+      phone,
+      website,
+      category_id
+    `)
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (categoriesError) {
+    console.error("Error loading categories:", categoriesError);
+  }
+
+  if (businessesError) {
+    console.error("Error loading businesses:", businessesError);
   }
 
   return (
@@ -75,7 +95,7 @@ export default async function Home() {
             <div>
               <h2>Negocios cerca de ti</h2>
               <div className="muted">
-                Disponibilidad próxima en tu zona.
+                Descubre negocios disponibles en Slottye.
               </div>
             </div>
 
@@ -84,14 +104,30 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="cards">
-            {businesses.map((business) => (
-              <BusinessCard
-                business={business}
-                key={business.slug}
-              />
-            ))}
-          </div>
+          {businesses && businesses.length > 0 ? (
+            <div className="cards">
+              {businesses.map((business) => (
+                <BusinessCard
+                  business={{
+                    slug: business.slug,
+                    name: business.name,
+                    description: business.description ?? "",
+                    address: business.address ?? "",
+                    city: business.city ?? "",
+                    phone: business.phone ?? "",
+                    website: business.website ?? "",
+                  }}
+                  key={business.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="panel">
+              <p className="muted">
+                Todavía no hay negocios publicados.
+              </p>
+            </div>
+          )}
         </section>
       </main>
 
