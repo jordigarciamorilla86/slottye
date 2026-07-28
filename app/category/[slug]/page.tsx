@@ -1,0 +1,4 @@
+import { Header } from "@/components/Header";
+import { BusinessCard } from "@/components/BusinessCard";
+import { businesses, categories } from "@/lib/mock-data";
+export default async function Category({params}:{params:Promise<{slug:string}>}){ const {slug}=await params; const cat=categories.find(c=>c.slug===slug); const filtered=!cat||slug==="todos"?businesses:businesses.filter(b=>b.category===cat.name); return <><Header/><main className="shell detail"><div className="section-head"><div><div className="kicker">Cerca de ti</div><h1 style={{fontSize:48,textAlign:"left",margin:"14px 0"}}>{cat?.name ?? "Negocios"}</h1><div className="muted">Ordenados por proximidad y disponibilidad.</div></div></div><div className="cards">{filtered.map(b=><BusinessCard business={b} key={b.slug}/>)}</div></main></> }
