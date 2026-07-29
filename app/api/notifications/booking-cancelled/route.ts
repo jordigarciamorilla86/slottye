@@ -157,7 +157,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Slottye <onboarding@resend.dev>",
+          from: "Slottye <reservas@slottye.com>",
           to: [profile.email],
           subject: `Tu cita en ${businessName} ha sido cancelada`,
           html: `

@@ -259,7 +259,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           from:
-            "Slottye <onboarding@resend.dev>",
+            "Slottye <reservas@slottye.com>",
 
           to: [
             clientProfile.email,
@@ -390,7 +390,7 @@ export async function POST(request: Request) {
 
             body: JSON.stringify({
               from:
-                "Slottye <onboarding@resend.dev>",
+                "Slottye <reservas@slottye.com>",
 
               to: [
                 businessEmail,

@@ -158,7 +158,7 @@ export async function GET(request: Request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Slottye <onboarding@resend.dev>",
+            from: "Slottye <reservas@slottye.com>",
             to: [profile.email],
             subject: `Recordatorio de tu cita en ${businessName}`,
             html: `

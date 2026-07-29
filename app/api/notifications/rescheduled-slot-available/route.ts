@@ -514,7 +514,7 @@ export async function POST(
         await resend.emails.send(
           {
             from:
-              "Slottye <onboarding@resend.dev>",
+              "Slottye <reservas@slottye.com>",
 
             to:
               subscriberProfile.email,

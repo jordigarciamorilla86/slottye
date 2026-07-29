@@ -163,7 +163,7 @@ export async function POST(request: Request) {
 
       const result = await resend.emails.send(
         {
-          from: "Slottye <onboarding@resend.dev>",
+          from: "Slottye <reservas@slottye.com>",
           to: profile.email,
           subject: `Nuevas citas disponibles en ${business.name}`,
           html: `
