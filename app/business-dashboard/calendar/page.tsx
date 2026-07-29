@@ -53,6 +53,31 @@ export default async function CalendarPage() {
     .gte("start_at", new Date().toISOString())
     .order("start_at");
 
+    const { data: businessHours } = await supabase
+    .from("business_hours")
+    .select(`
+      day_of_week,
+      open_time,
+      close_time,
+      open_time_2,
+      close_time_2,
+      closed
+    `)
+    .eq("business_id", business.id)
+    .order("day_of_week");
+
+    const { data: businessBlocks } = await supabase
+  .from("business_blocks")
+    .select(`
+      id,
+      start_at,
+      end_at,
+      reason
+    `)
+    .eq("business_id", business.id)
+    .gte("end_at", new Date().toISOString())
+    .order("start_at");
+
   return (
     <>
       <Header />
@@ -70,10 +95,12 @@ export default async function CalendarPage() {
           </p>
 
           <CalendarManager
-            businessId={business.id}
-            services={services ?? []}
-            initialSlots={slots ?? []}
-          />
+  businessId={business.id}
+  services={services ?? []}
+  initialSlots={slots ?? []}
+  businessHours={businessHours ?? []}
+  initialBlocks={businessBlocks ?? []}
+/>
         </section>
 
         <section style={{ marginTop: 20 }}>

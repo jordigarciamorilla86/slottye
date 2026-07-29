@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
-import { BusinessCard } from "@/components/BusinessCard";
+import { NearbyBusinesses } from "@/components/NearbyBusinesses";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
   params: Promise<{
     slug: string;
   }>;
+
   searchParams: Promise<{
     q?: string;
   }>;
@@ -20,56 +21,392 @@ export default async function CategoryPage({
   const { slug } = await params;
   const { q } = await searchParams;
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
-  let categoryName = "Todos los negocios";
-  let categoryId: string | null = null;
+  let categoryName =
+    "Todos los negocios";
+
+  let categoryId:
+    | string
+    | null = null;
+
+  /*
+   * ============================================================
+   * CATEGORÍA ACTUAL
+   * ============================================================
+   */
 
   if (slug !== "todos") {
-    const { data: category } = await supabase
+    const {
+      data: category,
+      error: categoryError,
+    } = await supabase
       .from("categories")
-      .select("id,name")
+      .select(`
+        id,
+        name
+      `)
       .eq("slug", slug)
       .eq("active", true)
       .maybeSingle();
+
+    if (categoryError) {
+      console.error(
+        "Error loading category:",
+        categoryError
+      );
+    }
 
     if (!category) {
       notFound();
     }
 
-    categoryName = category.name;
-    categoryId = category.id;
+    categoryName =
+      category.name;
+
+    categoryId =
+      category.id;
   }
 
-  let query = supabase
-    .from("businesses")
-    .select(`
-      id,
-      name,
-      slug,
-      description,
-      address,
-      city,
-      phone,
-      website,
-      category_id
-    `)
-    .eq("active", true)
-    .order("name");
+  /*
+   * ============================================================
+   * CARGAMOS NEGOCIOS
+   * ============================================================
+   *
+   * Incluimos también el nombre de la categoría
+   * para poder buscar por cosas como:
+   *
+   * "dentista"
+   * "peluquería"
+   * "psicología"
+   * etc.
+   */
+
+  let query =
+    supabase
+      .from("businesses")
+      .select(`
+        id,
+        name,
+        slug,
+        description,
+        address,
+        city,
+        phone,
+        website,
+        latitude,
+        longitude,
+        category_id,
+
+        categories (
+          name
+        ),
+
+        business_images (
+          image_url,
+          position
+        ),
+
+        reviews (
+          rating
+        ),
+
+        slots (
+          id,
+          status,
+          start_at
+        )
+      `)
+      .eq(
+        "active",
+        true
+      )
+      .order("name");
+
+  /*
+   * Si estamos dentro de una categoría
+   * concreta, mantenemos ese filtro.
+   */
 
   if (categoryId) {
-    query = query.eq("category_id", categoryId);
+    query =
+      query.eq(
+        "category_id",
+        categoryId
+      );
   }
 
-  if (q?.trim()) {
-    query = query.ilike("name", `%${q.trim()}%`);
-  }
-
-  const { data: businesses, error } = await query;
+  const {
+    data: businesses,
+    error,
+  } = await query;
 
   if (error) {
-    console.error("Error loading businesses:", error);
+    console.error(
+      "Error loading businesses:",
+      error
+    );
   }
+
+  /*
+   * ============================================================
+   * BUSCADOR
+   * ============================================================
+   */
+
+  const searchText =
+    q?.trim()
+      .toLocaleLowerCase(
+        "es"
+      ) ?? "";
+
+  /*
+   * Normalizamos textos para que:
+   *
+   * "Mataró"
+   * "mataro"
+   *
+   * puedan coincidir.
+   */
+
+  function normalizeText(
+    value:
+      | string
+      | null
+      | undefined
+  ) {
+    return (
+      value ?? ""
+    )
+      .toLocaleLowerCase(
+        "es"
+      )
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      );
+  }
+
+  const normalizedSearch =
+    normalizeText(
+      searchText
+    );
+
+  const filteredBusinesses =
+    (businesses ?? []).filter(
+      (business) => {
+        /*
+         * Sin búsqueda:
+         * mostramos todo.
+         */
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        /*
+         * Supabase puede devolver la relación
+         * como objeto o array según los tipos
+         * generados, así que cubrimos ambos.
+         */
+
+        const category =
+          Array.isArray(
+            business.categories
+          )
+            ? business.categories[0] ??
+              null
+            : business.categories;
+
+        const searchableText = [
+          business.name,
+          business.description,
+          business.address,
+          business.city,
+          category?.name,
+        ]
+          .filter(Boolean)
+          .map(
+            (value) =>
+              normalizeText(
+                value
+              )
+          )
+          .join(" ");
+
+        /*
+         * También soportamos varias palabras.
+         *
+         * Ejemplo:
+         *
+         * "dentista mataro"
+         *
+         * exige que aparezcan las dos palabras
+         * en algún lugar de la ficha.
+         */
+
+        const terms =
+          normalizedSearch
+            .split(/\s+/)
+            .filter(Boolean);
+
+        return terms.every(
+          (term) =>
+            searchableText.includes(
+              term
+            )
+        );
+      }
+    );
+
+  /*
+   * ============================================================
+   * NORMALIZAMOS LOS NEGOCIOS
+   * ============================================================
+   */
+
+  const now =
+    new Date();
+
+  const normalizedBusinesses =
+    filteredBusinesses.map(
+      (business) => {
+        /*
+         * ========================================================
+         * IMAGEN
+         * ========================================================
+         */
+
+        const images =
+          Array.isArray(
+            business.business_images
+          )
+            ? business.business_images
+            : [];
+
+        const imageUrl =
+          [...images]
+            .sort(
+              (a, b) =>
+                a.position -
+                b.position
+            )[0]
+            ?.image_url ??
+          null;
+
+        /*
+         * ========================================================
+         * RESEÑAS
+         * ========================================================
+         */
+
+        const reviews =
+          Array.isArray(
+            business.reviews
+          )
+            ? business.reviews
+            : [];
+
+        const reviewCount =
+          reviews.length;
+
+        const averageRating =
+          reviewCount > 0
+            ? reviews.reduce(
+                (
+                  total,
+                  review
+                ) =>
+                  total +
+                  review.rating,
+                0
+              ) /
+              reviewCount
+            : null;
+
+        /*
+         * ========================================================
+         * CITAS DISPONIBLES
+         * ========================================================
+         */
+
+        const slots =
+          Array.isArray(
+            business.slots
+          )
+            ? business.slots
+            : [];
+
+        const hasAvailableSlots =
+          slots.some(
+            (slot) =>
+              slot.status ===
+                "AVAILABLE" &&
+              new Date(
+                slot.start_at
+              ) > now
+          );
+
+        /*
+         * ========================================================
+         * OBJETO PARA NearbyBusinesses
+         * ========================================================
+         */
+
+        return {
+          id:
+            business.id,
+
+          slug:
+            business.slug,
+
+          name:
+            business.name,
+
+          description:
+            business.description ??
+            "",
+
+          address:
+            business.address ??
+            "",
+
+          city:
+            business.city ??
+            "",
+
+          phone:
+            business.phone ??
+            "",
+
+          website:
+            business.website ??
+            "",
+
+          latitude:
+            business.latitude,
+
+          longitude:
+            business.longitude,
+
+          imageUrl,
+
+          averageRating,
+
+          reviewCount,
+
+          hasAvailableSlots,
+        };
+      }
+    );
+
+  /*
+   * ============================================================
+   * UI
+   * ============================================================
+   */
 
   return (
     <>
@@ -90,41 +427,86 @@ export default async function CategoryPage({
               </h1>
 
               <p className="muted">
-                {businesses?.length ?? 0} negocio
-                {(businesses?.length ?? 0) === 1 ? "" : "s"} encontrado
-                {(businesses?.length ?? 0) === 1 ? "" : "s"}.
+                {
+                  normalizedBusinesses.length
+                }{" "}
+                negocio
+                {normalizedBusinesses.length ===
+                1
+                  ? ""
+                  : "s"}{" "}
+                encontrado
+                {normalizedBusinesses.length ===
+                1
+                  ? ""
+                  : "s"}
+                .
               </p>
             </div>
 
-            <Link href="/" className="btn">
-              Volver
+            <Link
+              href="/"
+              className="btn"
+            >
+              ← Volver
             </Link>
           </div>
 
-          {businesses && businesses.length > 0 ? (
-            <div className="cards">
-              {businesses.map((business) => (
-                <BusinessCard
-                  key={business.id}
-                  business={{
-                    slug: business.slug,
-                    name: business.name,
-                    description: business.description ?? "",
-                    address: business.address ?? "",
-                    city: business.city ?? "",
-                    phone: business.phone ?? "",
-                    website: business.website ?? "",
-                  }}
-                />
-              ))}
-            </div>
+          {/* BUSCADOR EN RESULTADOS */}
+
+          <form
+            className="search"
+            action={`/category/${slug}`}
+            style={{
+              marginBottom: 24,
+            }}
+          >
+            <input
+              name="q"
+              defaultValue={
+                q ?? ""
+              }
+              placeholder="Negocio, servicio, ciudad, categoría..."
+            />
+
+            <button>
+              Buscar
+            </button>
+          </form>
+
+          {/* RESULTADOS */}
+
+          {normalizedBusinesses.length >
+          0 ? (
+            <NearbyBusinesses
+              businesses={
+                normalizedBusinesses
+              }
+            />
           ) : (
             <div className="panel">
-              <h3>No hemos encontrado negocios</h3>
+              <h3>
+                No hemos encontrado
+                negocios
+              </h3>
 
               <p className="muted">
-                Prueba otra categoría o realiza una búsqueda diferente.
+                Prueba con otro nombre,
+                ciudad, categoría o
+                término de búsqueda.
               </p>
+
+              {q?.trim() && (
+                <Link
+                  href={`/category/${slug}`}
+                  className="btn"
+                  style={{
+                    marginTop: 12,
+                  }}
+                >
+                  Limpiar búsqueda
+                </Link>
+              )}
             </div>
           )}
         </section>

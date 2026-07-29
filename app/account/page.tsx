@@ -72,12 +72,12 @@ export default async function AccountPage() {
   Mis suscripciones
 </Link>
 
-  <button
-    className="btn"
-    disabled
-  >
-    Mis favoritos · Próximamente
-  </button>
+<Link
+  href="/account/favorites"
+  className="btn"
+>
+  ♥ Mis favoritos
+</Link>
 </>
             )}
 
