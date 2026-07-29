@@ -235,47 +235,6 @@ export default async function Home() {
           </form>
         </section>
 
-        {/* ======================================================
-            QUÉ ES SLOTTYE
-            ====================================================== */}
-
-        <section className="shell section">
-          <div
-            className="panel"
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <div className="kicker">
-              Qué es Slottye
-            </div>
-
-            <h2
-              style={{
-                marginTop: 16,
-                marginBottom: 12,
-              }}
-            >
-              Encuentra, reserva y gestiona tus citas online
-            </h2>
-
-            <p
-              className="lead"
-              style={{
-                margin:
-                  "0 auto",
-                maxWidth: 780,
-              }}
-            >
-              Slottye es una plataforma online para encontrar
-              negocios y profesionales, consultar sus citas
-              disponibles y reservar directamente por Internet.
-              Los usuarios pueden gestionar sus reservas y seguir
-              sus negocios favoritos, mientras que los negocios
-              pueden publicar servicios, horarios y disponibilidad.
-            </p>
-          </div>
-        </section>
 
         {/* ======================================================
             CATEGORÍAS
@@ -357,6 +316,49 @@ export default async function Home() {
             </div>
           )}
         </section>
+        {/* ======================================================
+    SOBRE SLOTTYE
+    ====================================================== */}
+
+<section
+  className="shell section"
+  style={{
+    paddingTop: 20,
+    paddingBottom: 20,
+  }}
+>
+  <div
+    style={{
+      borderTop: "1px solid var(--border)",
+      paddingTop: 24,
+      maxWidth: 800,
+    }}
+  >
+    <h2
+      style={{
+        fontSize: 18,
+        marginBottom: 8,
+      }}
+    >
+      ¿Qué es Slottye?
+    </h2>
+
+    <p
+      className="muted"
+      style={{
+        margin: 0,
+        fontSize: 14,
+        lineHeight: 1.7,
+      }}
+    >
+      Slottye es una plataforma online para encontrar negocios
+      y profesionales, consultar sus citas disponibles y reservar
+      directamente por Internet. Los usuarios pueden gestionar sus
+      reservas y seguir sus negocios favoritos, mientras que los
+      negocios pueden publicar servicios, horarios y disponibilidad.
+    </p>
+  </div>
+</section>
       </main>
 
       <footer className="footer">
