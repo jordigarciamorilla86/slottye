@@ -316,47 +316,85 @@ export default async function Home() {
             </div>
           )}
         </section>
-        {/* ======================================================
-    SOBRE SLOTTYE
+{/* ======================================================
+    INFORMACIÓN DE SLOTTYE
     ====================================================== */}
 
 <section
-  className="shell section"
+  className="shell"
   style={{
-    paddingTop: 20,
-    paddingBottom: 20,
+    marginTop: 40,
+    paddingTop: 28,
+    paddingBottom: 28,
+    borderTop: "1px solid var(--border)",
+    borderBottom: "1px solid var(--border)",
   }}
 >
   <div
     style={{
-      borderTop: "1px solid var(--border)",
-      paddingTop: 24,
-      maxWidth: 800,
+      maxWidth: 900,
+      margin: "0 auto",
     }}
   >
     <h2
       style={{
         fontSize: 18,
-        marginBottom: 8,
+        margin: "0 0 10px",
+        letterSpacing: "-0.02em",
       }}
     >
-      ¿Qué es Slottye?
+      Slottye — plataforma de reservas online
     </h2>
 
     <p
       className="muted"
       style={{
-        margin: 0,
         fontSize: 14,
-        lineHeight: 1.7,
+        lineHeight: 1.65,
+        margin: "0 0 12px",
       }}
     >
-      Slottye es una plataforma online para encontrar negocios
-      y profesionales, consultar sus citas disponibles y reservar
-      directamente por Internet. Los usuarios pueden gestionar sus
-      reservas y seguir sus negocios favoritos, mientras que los
-      negocios pueden publicar servicios, horarios y disponibilidad.
+      Slottye es una plataforma online para encontrar negocios y
+      profesionales, consultar sus citas disponibles y reservar
+      directamente por Internet.
     </p>
+
+    <p
+      className="muted"
+      style={{
+        fontSize: 14,
+        lineHeight: 1.65,
+        margin: 0,
+      }}
+    >
+      Puedes crear una cuenta o iniciar sesión con Google para
+      identificarte de forma segura y gestionar tus reservas,
+      negocios favoritos y citas desde tu cuenta de Slottye. Al
+      iniciar sesión con Google, Slottye utiliza la información
+      básica de tu cuenta necesaria para identificarte, como tu
+      dirección de correo electrónico y los datos básicos de tu
+      perfil proporcionados durante el inicio de sesión.
+    </p>
+
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 14,
+        fontSize: 13,
+      }}
+    >
+      <Link href="/privacy">
+        Política de privacidad
+      </Link>
+
+      <span className="muted">·</span>
+
+      <Link href="/terms">
+        Términos y condiciones
+      </Link>
+    </div>
   </div>
 </section>
       </main>
