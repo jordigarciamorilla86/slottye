@@ -68,8 +68,7 @@ export default async function Home() {
     );
   }
 
-  const now =
-    new Date();
+  const now = new Date();
 
   const normalizedBusinesses =
     (businesses ?? []).map(
@@ -234,6 +233,48 @@ export default async function Home() {
               Buscar
             </button>
           </form>
+        </section>
+
+        {/* ======================================================
+            QUÉ ES SLOTTYE
+            ====================================================== */}
+
+        <section className="shell section">
+          <div
+            className="panel"
+            style={{
+              textAlign: "center",
+            }}
+          >
+            <div className="kicker">
+              Qué es Slottye
+            </div>
+
+            <h2
+              style={{
+                marginTop: 16,
+                marginBottom: 12,
+              }}
+            >
+              Encuentra, reserva y gestiona tus citas online
+            </h2>
+
+            <p
+              className="lead"
+              style={{
+                margin:
+                  "0 auto",
+                maxWidth: 780,
+              }}
+            >
+              Slottye es una plataforma online para encontrar
+              negocios y profesionales, consultar sus citas
+              disponibles y reservar directamente por Internet.
+              Los usuarios pueden gestionar sus reservas y seguir
+              sus negocios favoritos, mientras que los negocios
+              pueden publicar servicios, horarios y disponibilidad.
+            </p>
+          </div>
         </section>
 
         {/* ======================================================
