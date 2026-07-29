@@ -362,9 +362,37 @@ export default async function Home() {
       </main>
 
       <footer className="footer">
-        © 2026 Slottye · Reserva.
-        Confirma. Listo.
-      </footer>
+  <div>
+    © 2026 Slottye · Reserva. Confirma. Listo.
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: 14,
+      flexWrap: "wrap",
+      marginTop: 12,
+      fontSize: 14,
+    }}
+  >
+    <Link href="/privacy">
+      Política de privacidad
+    </Link>
+
+    <Link href="/terms">
+      Condiciones de uso
+    </Link>
+
+    <Link href="/legal">
+      Aviso legal
+    </Link>
+
+    <Link href="/cookies">
+      Cookies
+    </Link>
+  </div>
+</footer>
     </>
   );
 }
