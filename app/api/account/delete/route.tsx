@@ -42,7 +42,8 @@ export async function DELETE() {
     ) {
       return NextResponse.json(
         {
-          error: "No autorizado.",
+          error:
+            "No autorizado.",
         },
         {
           status: 401,
@@ -52,7 +53,7 @@ export async function DELETE() {
 
     /*
      * ============================================================
-     * PERFIL
+     * PERFIL / ROL
      * ============================================================
      */
 
@@ -72,7 +73,10 @@ export async function DELETE() {
         )
         .maybeSingle();
 
-    if (profileError) {
+    if (
+      profileError ||
+      !profile
+    ) {
       console.error(
         "Error loading profile:",
         profileError
@@ -91,245 +95,74 @@ export async function DELETE() {
 
     /*
      * ============================================================
-     * RESERVAS QUE VAMOS A LIBERAR
-     * ============================================================
-     */
-
-    const releasedSlots:
-      ReleasedSlot[] = [];
-
-    /*
-     * ============================================================
      * CLIENTE
      *
-     * Antes de eliminarlo:
-     *
-     * 1. Buscamos reservas CONFIRMED
-     * 2. Comprobamos que sean futuras
-     * 3. Comprobamos que el slot siga BOOKED
-     * 4. Liberamos el slot
-     * 5. Guardamos información para notificar
+     * Liberamos sus reservas CONFIRMED futuras
+     * antes de eliminar su cuenta.
      * ============================================================
      */
 
     if (
-      profile?.role ===
+      profile.role ===
       "customer"
     ) {
-      const {
-        data: bookings,
-        error: bookingsError,
-      } =
-        await admin
-          .from("bookings")
-          .select(`
-            id,
-            slot_id,
-            business_id,
-            service_id,
-            status,
+      const result =
+        await prepareCustomerDeletion({
+          admin,
+          userId:
+            user.id,
+        });
 
-            slots (
-              id,
-              start_at,
-              status
-            )
-          `)
-          .eq(
-            "user_id",
-            user.id
-          )
-          .eq(
-            "status",
-            "CONFIRMED"
-          );
-
-      if (bookingsError) {
-        console.error(
-          "Error loading bookings:",
-          bookingsError
-        );
-
+      if (!result.success) {
         return NextResponse.json(
           {
             error:
-              "No se han podido comprobar las reservas activas.",
+              result.error,
           },
           {
             status: 500,
           }
         );
       }
+    }
 
-      const now =
-        new Date();
+    /*
+     * ============================================================
+     * NEGOCIO
+     *
+     * Antes de eliminar:
+     *
+     * 1. Buscar reservas CONFIRMED futuras.
+     * 2. Enviar email a TODOS los clientes afectados.
+     * 3. Solo si los emails se procesan correctamente,
+     *    continuar con la eliminación.
+     *
+     * No liberamos slots porque el negocio entero
+     * va a desaparecer.
+     * ============================================================
+     */
 
-      for (
-        const booking of
-        bookings ?? []
-      ) {
-        const slot =
-          Array.isArray(
-            booking.slots
-          )
-            ? booking.slots[0] ??
-              null
-            : booking.slots;
-
-        if (!slot) {
-          continue;
-        }
-
-        /*
-         * No liberamos slots pasados.
-         */
-
-        if (
-          new Date(
-            slot.start_at
-          ) <= now
-        ) {
-          continue;
-        }
-
-        /*
-         * Solo slots realmente reservados.
-         */
-
-        if (
-          slot.status !==
-          "BOOKED"
-        ) {
-          continue;
-        }
-
-        /*
-         * Liberamos UNO POR UNO.
-         *
-         * Esto nos permite saber exactamente
-         * cuáles se han liberado correctamente.
-         */
-
-        const {
-          data: updatedSlot,
-          error:
-            slotUpdateError,
-        } =
-          await admin
-            .from("slots")
-            .update({
-              status:
-                "AVAILABLE",
-
-              updated_at:
-                new Date()
-                  .toISOString(),
-            })
-            .eq(
-              "id",
-              booking.slot_id
-            )
-            .eq(
-              "status",
-              "BOOKED"
-            )
-            .select(`
-              id,
-              start_at
-            `)
-            .maybeSingle();
-
-        if (
-          slotUpdateError
-        ) {
-          console.error(
-            "Error releasing slot:",
-            booking.slot_id,
-            slotUpdateError
-          );
-
-          /*
-           * No seguimos con la eliminación.
-           *
-           * Evitamos borrar la reserva dejando
-           * accidentalmente un slot bloqueado.
-           */
-
-          return NextResponse.json(
-            {
-              error:
-                "No se han podido liberar todas las citas reservadas.",
-            },
-            {
-              status: 500,
-            }
-          );
-        }
-
-        /*
-         * Si no se actualizó significa que el
-         * slot dejó de estar BOOKED mientras
-         * procesábamos la petición.
-         */
-
-        if (
-          !updatedSlot
-        ) {
-          continue;
-        }
-
-        releasedSlots.push({
-          bookingId:
-            booking.id,
-
-          slotId:
-            booking.slot_id,
-
-          businessId:
-            booking.business_id,
-
-          serviceId:
-            booking.service_id,
-
-          startAt:
-            updatedSlot.start_at,
+    if (
+      profile.role ===
+      "business"
+    ) {
+      const result =
+        await prepareBusinessDeletion({
+          admin,
+          ownerId:
+            user.id,
         });
-      }
 
-      /*
-       * ==========================================================
-       * NOTIFICAR SLOTS LIBERADOS
-       *
-       * Lo hacemos ANTES de eliminar profile,
-       * porque después las bookings desaparecerán
-       * por CASCADE.
-       * ==========================================================
-       */
-
-      for (
-        const released of
-        releasedSlots
-      ) {
-        try {
-          await notifyReleasedSlot({
-            admin,
-            released,
-            deletedUserId:
-              user.id,
-          });
-        } catch (error) {
-          /*
-           * Un fallo de email NO debe impedir
-           * que el usuario pueda eliminar
-           * su cuenta.
-           */
-
-          console.error(
-            "Error notifying released slot:",
-            released.slotId,
-            error
-          );
-        }
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            error:
+              result.error,
+          },
+          {
+            status: 500,
+          }
+        );
       }
     }
 
@@ -337,16 +170,23 @@ export async function DELETE() {
      * ============================================================
      * ELIMINAR PROFILE
      *
-     * CASCADE eliminará sus datos relacionados.
+     * Gracias a los CASCADE:
      *
-     * Si es negocio, businesses también caerá
-     * en cascada junto con:
+     * CLIENTE:
+     * - bookings
+     * - favoritos
+     * - suscripciones
+     * - reviews
+     * - notifications
      *
+     * NEGOCIO:
+     * - businesses
      * - slots
      * - services
      * - business_hours
      * - business_images
      * - business_blocks
+     * - bookings
      * - etc.
      * ============================================================
      */
@@ -384,7 +224,7 @@ export async function DELETE() {
 
     /*
      * ============================================================
-     * ELIMINAR AUTH USER
+     * ELIMINAR USUARIO DE AUTH
      * ============================================================
      */
 
@@ -421,9 +261,6 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-
-      releasedSlots:
-        releasedSlots.length,
     });
   } catch (error) {
     console.error(
@@ -445,7 +282,605 @@ export async function DELETE() {
 
 /*
  * ==============================================================
- * NOTIFICAR SLOT LIBERADO
+ * PREPARAR ELIMINACIÓN DE CLIENTE
+ * ==============================================================
+ */
+
+async function prepareCustomerDeletion({
+  admin,
+  userId,
+}: {
+  admin: ReturnType<
+    typeof createAdminClient
+  >;
+
+  userId: string;
+}): Promise<
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      error: string;
+    }
+> {
+  const {
+    data: bookings,
+    error: bookingsError,
+  } =
+    await admin
+      .from("bookings")
+      .select(`
+        id,
+        slot_id,
+        business_id,
+        service_id,
+        status,
+
+        slots (
+          id,
+          start_at,
+          status
+        )
+      `)
+      .eq(
+        "user_id",
+        userId
+      )
+      .eq(
+        "status",
+        "CONFIRMED"
+      );
+
+  if (bookingsError) {
+    console.error(
+      "Error loading customer bookings:",
+      bookingsError
+    );
+
+    return {
+      success: false,
+      error:
+        "No se han podido comprobar las reservas activas.",
+    };
+  }
+
+  const now =
+    new Date();
+
+  const releasedSlots:
+    ReleasedSlot[] = [];
+
+  /*
+   * ============================================================
+   * LIBERAR SLOTS FUTUROS
+   * ============================================================
+   */
+
+  for (
+    const booking of
+    bookings ?? []
+  ) {
+    const slot =
+      Array.isArray(
+        booking.slots
+      )
+        ? booking.slots[0] ??
+          null
+        : booking.slots;
+
+    if (!slot) {
+      continue;
+    }
+
+    if (
+      new Date(
+        slot.start_at
+      ) <= now
+    ) {
+      continue;
+    }
+
+    if (
+      slot.status !==
+      "BOOKED"
+    ) {
+      continue;
+    }
+
+    const {
+      data: updatedSlot,
+      error:
+        updateError,
+    } =
+      await admin
+        .from("slots")
+        .update({
+          status:
+            "AVAILABLE",
+
+          updated_at:
+            new Date()
+              .toISOString(),
+        })
+        .eq(
+          "id",
+          booking.slot_id
+        )
+        .eq(
+          "status",
+          "BOOKED"
+        )
+        .select(`
+          id,
+          start_at
+        `)
+        .maybeSingle();
+
+    if (updateError) {
+      console.error(
+        "Error releasing slot:",
+        booking.slot_id,
+        updateError
+      );
+
+      return {
+        success: false,
+        error:
+          "No se han podido liberar todas las citas reservadas.",
+      };
+    }
+
+    if (!updatedSlot) {
+      continue;
+    }
+
+    releasedSlots.push({
+      bookingId:
+        booking.id,
+
+      slotId:
+        booking.slot_id,
+
+      businessId:
+        booking.business_id,
+
+      serviceId:
+        booking.service_id,
+
+      startAt:
+        updatedSlot.start_at,
+    });
+  }
+
+  /*
+   * ============================================================
+   * AVISAR SUSCRIPTORES
+   *
+   * El email es best-effort:
+   * un fallo de Resend no bloquea el derecho
+   * del cliente a eliminar su cuenta.
+   * ============================================================
+   */
+
+  for (
+    const released of
+    releasedSlots
+  ) {
+    try {
+      await notifyReleasedSlot({
+        admin,
+        released,
+        deletedUserId:
+          userId,
+      });
+    } catch (error) {
+      console.error(
+        "Error notifying released slot:",
+        released.slotId,
+        error
+      );
+    }
+  }
+
+  return {
+    success: true,
+  };
+}
+
+/*
+ * ==============================================================
+ * PREPARAR ELIMINACIÓN DE NEGOCIO
+ * ==============================================================
+ */
+
+async function prepareBusinessDeletion({
+  admin,
+  ownerId,
+}: {
+  admin: ReturnType<
+    typeof createAdminClient
+  >;
+
+  ownerId: string;
+}): Promise<
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      error: string;
+    }
+> {
+  /*
+   * ============================================================
+   * NEGOCIOS DEL PROPIETARIO
+   *
+   * Aunque actualmente probablemente haya uno,
+   * soportamos varios por seguridad futura.
+   * ============================================================
+   */
+
+  const {
+    data: businesses,
+    error:
+      businessesError,
+  } =
+    await admin
+      .from("businesses")
+      .select(`
+        id,
+        name,
+        slug
+      `)
+      .eq(
+        "owner_id",
+        ownerId
+      );
+
+  if (businessesError) {
+    console.error(
+      "Error loading businesses:",
+      businessesError
+    );
+
+    return {
+      success: false,
+      error:
+        "No se han podido comprobar los negocios asociados a la cuenta.",
+    };
+  }
+
+  if (
+    !businesses?.length
+  ) {
+    return {
+      success: true,
+    };
+  }
+
+  const businessIds =
+    businesses.map(
+      (business) =>
+        business.id
+    );
+
+  /*
+   * ============================================================
+   * RESERVAS CONFIRMADAS
+   * ============================================================
+   */
+
+  const {
+    data: bookings,
+    error: bookingsError,
+  } =
+    await admin
+      .from("bookings")
+      .select(`
+        id,
+        user_id,
+        business_id,
+        service_id,
+        status,
+
+        profiles (
+          email,
+          name
+        ),
+
+        services (
+          name
+        ),
+
+        slots (
+          start_at
+        )
+      `)
+      .in(
+        "business_id",
+        businessIds
+      )
+      .eq(
+        "status",
+        "CONFIRMED"
+      );
+
+  if (bookingsError) {
+    console.error(
+      "Error loading business bookings:",
+      bookingsError
+    );
+
+    return {
+      success: false,
+      error:
+        "No se han podido comprobar las reservas del negocio.",
+    };
+  }
+
+  const now =
+    new Date();
+
+  const futureBookings =
+    (bookings ?? [])
+      .filter(
+        (booking) => {
+          const slot =
+            Array.isArray(
+              booking.slots
+            )
+              ? booking.slots[0] ??
+                null
+              : booking.slots;
+
+          if (!slot) {
+            return false;
+          }
+
+          return (
+            new Date(
+              slot.start_at
+            ) > now
+          );
+        }
+      );
+
+  /*
+   * ============================================================
+   * AVISAR A TODOS LOS CLIENTES
+   *
+   * Para eliminación de negocio sí exigimos
+   * que los emails puedan procesarse antes
+   * de borrar definitivamente el negocio.
+   *
+   * La idempotencyKey evita duplicados
+   * si el propietario vuelve a intentarlo.
+   * ============================================================
+   */
+
+  for (
+    const booking of
+    futureBookings
+  ) {
+    const profile =
+      Array.isArray(
+        booking.profiles
+      )
+        ? booking
+            .profiles[0] ??
+          null
+        : booking.profiles;
+
+    const service =
+      Array.isArray(
+        booking.services
+      )
+        ? booking
+            .services[0] ??
+          null
+        : booking.services;
+
+    const slot =
+      Array.isArray(
+        booking.slots
+      )
+        ? booking
+            .slots[0] ??
+          null
+        : booking.slots;
+
+    if (
+      !profile?.email ||
+      !slot
+    ) {
+      continue;
+    }
+
+    const business =
+      businesses.find(
+        (item) =>
+          item.id ===
+          booking.business_id
+      );
+
+    if (!business) {
+      continue;
+    }
+
+    const formattedDate =
+      new Intl.DateTimeFormat(
+        "es-ES",
+        {
+          weekday:
+            "long",
+
+          day:
+            "numeric",
+
+          month:
+            "long",
+
+          year:
+            "numeric",
+
+          hour:
+            "2-digit",
+
+          minute:
+            "2-digit",
+
+          timeZone:
+            "Europe/Madrid",
+        }
+      ).format(
+        new Date(
+          slot.start_at
+        )
+      );
+
+    const baseUrl =
+      process.env
+        .NEXT_PUBLIC_APP_URL ??
+      "http://localhost:3000";
+
+    const result =
+      await resend.emails.send(
+        {
+          from:
+            "Slottye <reservas@slottye.com>",
+
+          to:
+            profile.email,
+
+          subject:
+            `Tu cita en ${business.name} ha sido cancelada`,
+
+          html: `
+            <div
+              style="
+                font-family:Arial,sans-serif;
+                max-width:600px;
+                margin:auto;
+                color:#111827;
+              "
+            >
+              <h2>
+                Tu cita ha sido cancelada
+              </h2>
+
+              <p>
+                Hola${
+                  profile.name
+                    ? ` ${profile.name}`
+                    : ""
+                },
+              </p>
+
+              <p>
+                Tu cita en
+                <strong>${business.name}</strong>
+                ha sido cancelada porque este negocio
+                ya no está disponible en Slottye.
+              </p>
+
+              <div
+                style="
+                  padding:16px;
+                  background:#f5f5f5;
+                  border-radius:10px;
+                  margin:20px 0;
+                "
+              >
+                ${
+                  service?.name
+                    ? `
+                      <strong>
+                        ${service.name}
+                      </strong>
+                      <br>
+                    `
+                    : ""
+                }
+
+                ${formattedDate}
+              </div>
+
+              <p>
+                Puedes consultar otros negocios y
+                citas disponibles en Slottye.
+              </p>
+
+              <p
+                style="
+                  margin-top:28px;
+                "
+              >
+                <a
+                  href="${baseUrl}"
+                  style="
+                    display:inline-block;
+                    padding:12px 18px;
+                    background:#6955ff;
+                    color:#ffffff;
+                    text-decoration:none;
+                    border-radius:10px;
+                    font-weight:bold;
+                  "
+                >
+                  Buscar otras citas
+                </a>
+              </p>
+
+              <p
+                style="
+                  margin-top:30px;
+                  font-size:12px;
+                  color:#6b7280;
+                "
+              >
+                Este correo se ha enviado porque
+                tenías una reserva activa en
+                ${business.name}.
+              </p>
+            </div>
+          `,
+        },
+        {
+          idempotencyKey:
+            `business-deletion-booking/${booking.id}`,
+        }
+      );
+
+    if (result.error) {
+      console.error(
+        "Error sending business deletion email:",
+        booking.id,
+        result.error
+      );
+
+      /*
+       * No eliminamos todavía el negocio:
+       * queremos evitar que desaparezca una
+       * reserva sin poder avisar al cliente.
+       */
+
+      return {
+        success: false,
+        error:
+          "No se ha podido avisar a todos los clientes con reservas activas. Inténtalo de nuevo.",
+      };
+    }
+  }
+
+  return {
+    success: true,
+  };
+}
+
+/*
+ * ==============================================================
+ * NOTIFICAR SLOT LIBERADO POR ELIMINACIÓN DE CLIENTE
  * ==============================================================
  */
 
@@ -464,12 +899,6 @@ async function notifyReleasedSlot({
   deletedUserId:
     string;
 }) {
-  /*
-   * ============================================================
-   * NEGOCIO
-   * ============================================================
-   */
-
   const {
     data: business,
     error: businessError,
@@ -490,27 +919,11 @@ async function notifyReleasedSlot({
 
   if (
     businessError ||
-    !business
-  ) {
-    console.error(
-      "Business not found while notifying released slot:",
-      businessError
-    );
-
-    return;
-  }
-
-  if (
+    !business ||
     !business.active
   ) {
     return;
   }
-
-  /*
-   * ============================================================
-   * SERVICIO
-   * ============================================================
-   */
 
   let serviceName:
     string | null = null;
@@ -538,12 +951,6 @@ async function notifyReleasedSlot({
       null;
   }
 
-  /*
-   * ============================================================
-   * SUSCRIPTORES
-   * ============================================================
-   */
-
   const {
     data: subscriptions,
     error:
@@ -569,38 +976,17 @@ async function notifyReleasedSlot({
         "email_enabled",
         true
       )
-      /*
-       * Nunca intentamos notificar
-       * al usuario que está eliminando
-       * su cuenta.
-       */
       .neq(
         "user_id",
         deletedUserId
       );
 
   if (
-    subscriptionsError
-  ) {
-    console.error(
-      "Error loading subscriptions:",
-      subscriptionsError
-    );
-
-    return;
-  }
-
-  if (
+    subscriptionsError ||
     !subscriptions?.length
   ) {
     return;
   }
-
-  /*
-   * ============================================================
-   * FECHA
-   * ============================================================
-   */
 
   const formattedDate =
     new Intl.DateTimeFormat(
@@ -638,12 +1024,6 @@ async function notifyReleasedSlot({
       .NEXT_PUBLIC_APP_URL ??
     "http://localhost:3000";
 
-  /*
-   * ============================================================
-   * ENVIAR A CADA SUSCRIPTOR
-   * ============================================================
-   */
-
   for (
     const subscription of
     subscriptions
@@ -664,9 +1044,7 @@ async function notifyReleasedSlot({
     }
 
     /*
-     * ==========================================================
-     * NOTIFICACIÓN
-     * ==========================================================
+     * Creamos la notificación antes del email.
      */
 
     const {
@@ -710,10 +1088,6 @@ async function notifyReleasedSlot({
             start_at:
               released.startAt,
 
-            /*
-             * Diferenciamos este caso
-             * de una cancelación normal.
-             */
             reason:
               "ACCOUNT_DELETION",
           },
@@ -726,18 +1100,12 @@ async function notifyReleasedSlot({
       !notification
     ) {
       console.error(
-        "Error creating notification:",
+        "Error creating released slot notification:",
         notificationError
       );
 
       continue;
     }
-
-    /*
-     * ==========================================================
-     * EMAIL
-     * ==========================================================
-     */
 
     const result =
       await resend.emails.send(
@@ -802,11 +1170,7 @@ async function notifyReleasedSlot({
                     : ""
                 }
 
-                <div
-                  style="
-                    font-size:16px;
-                  "
-                >
+                <div>
                   📅 ${formattedDate}
                 </div>
               </div>
@@ -827,7 +1191,7 @@ async function notifyReleasedSlot({
                     display:inline-block;
                     padding:12px 18px;
                     background:#6955ff;
-                    color:white;
+                    color:#ffffff;
                     text-decoration:none;
                     border-radius:10px;
                     font-weight:bold;
@@ -850,22 +1214,11 @@ async function notifyReleasedSlot({
             </div>
           `,
         },
-
-        /*
-         * Clave distinta de la cancelación normal.
-         */
-
         {
           idempotencyKey:
             `account-deletion-slot-available/${released.bookingId}/${subscription.user_id}`,
         }
       );
-
-    /*
-     * ==========================================================
-     * RESULTADO RESEND
-     * ==========================================================
-     */
 
     if (
       result.error
