@@ -1411,6 +1411,58 @@ export default async function BusinessDashboardPage() {
             </Link>
           </div>
         </section>
+                {/* ======================================================
+            ZONA DE PELIGRO
+            ====================================================== */}
+
+<section className="section">
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 24,
+              borderTop:
+                "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#b91c1c",
+                marginBottom: 6,
+              }}
+            >
+              Zona de peligro
+            </div>
+
+            <p
+              className="muted"
+              style={{
+                fontSize: 13,
+                lineHeight: 1.6,
+                marginBottom: 14,
+                maxWidth: 650,
+              }}
+            >
+              Elimina permanentemente tu cuenta de Slottye,
+              tu negocio y todos los datos asociados. Las
+              reservas futuras de tus clientes serán canceladas
+              y recibirán un aviso por correo electrónico.
+            </p>
+
+            <Link
+              href="/account/delete"
+              className="btn"
+              style={{
+                color: "#b91c1c",
+                borderColor: "#fecaca",
+                background: "#fff",
+              }}
+            >
+              Eliminar cuenta y negocio
+            </Link>
+          </div>
+        </section>
       </main>
     </>
   );
