@@ -35,11 +35,6 @@ function translateAuthError(
   const text =
     message.toLowerCase();
 
-  /*
-   * Contraseña que no cumple
-   * los requisitos configurados
-   * en Supabase.
-   */
   if (
     text.includes(
       "password should be at least"
@@ -51,9 +46,6 @@ function translateAuthError(
     return "La contraseña debe tener al menos 8 caracteres e incluir una letra mayúscula, una minúscula, un número y un símbolo.";
   }
 
-  /*
-   * Login incorrecto.
-   */
   if (
     text.includes(
       "invalid login credentials"
@@ -62,9 +54,6 @@ function translateAuthError(
     return "El correo electrónico o la contraseña no son correctos.";
   }
 
-  /*
-   * Email todavía sin confirmar.
-   */
   if (
     text.includes(
       "email not confirmed"
@@ -73,9 +62,6 @@ function translateAuthError(
     return "Debes confirmar tu correo electrónico antes de iniciar sesión.";
   }
 
-  /*
-   * Usuario ya registrado.
-   */
   if (
     text.includes(
       "user already registered"
@@ -87,9 +73,6 @@ function translateAuthError(
     return "Ya existe una cuenta registrada con este correo electrónico.";
   }
 
-  /*
-   * Email inválido.
-   */
   if (
     text.includes(
       "invalid email"
@@ -98,9 +81,6 @@ function translateAuthError(
     return "Introduce una dirección de correo electrónico válida.";
   }
 
-  /*
-   * Demasiados emails.
-   */
   if (
     text.includes(
       "email rate limit exceeded"
@@ -109,9 +89,6 @@ function translateAuthError(
     return "Has solicitado demasiados correos. Espera unos minutos e inténtalo de nuevo.";
   }
 
-  /*
-   * Demasiados intentos.
-   */
   if (
     text.includes(
       "rate limit"
@@ -123,9 +100,6 @@ function translateAuthError(
     return "Has realizado demasiados intentos. Espera unos minutos e inténtalo de nuevo.";
   }
 
-  /*
-   * Contraseña débil.
-   */
   if (
     text.includes(
       "weak password"
@@ -134,10 +108,45 @@ function translateAuthError(
     return "La contraseña no cumple los requisitos de seguridad.";
   }
 
-  /*
-   * Fallback.
-   */
   return "No se ha podido completar la operación. Inténtalo de nuevo.";
+}
+
+/*
+ * ============================================================
+ * ICONO GOOGLE
+ * ============================================================
+ */
+
+function GoogleIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.39a4.61 4.61 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.97-4.33 2.97-7.38Z"
+      />
+
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.97-.89 6.63-2.39l-3.24-2.51c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.59A10 10 0 0 0 12 22Z"
+      />
+
+      <path
+        fill="#FBBC05"
+        d="M6.39 13.93A6.02 6.02 0 0 1 6.08 12c0-.67.11-1.32.31-1.93V7.48H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.52l3.35-2.59Z"
+      />
+
+      <path
+        fill="#EA4335"
+        d="M12 5.94c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 2.95 14.7 2 12 2a10 10 0 0 0-8.96 5.48l3.35 2.59C7.18 7.7 9.39 5.94 12 5.94Z"
+      />
+    </svg>
+  );
 }
 
 export default function Login() {
@@ -320,11 +329,6 @@ export default function Login() {
         return;
       }
 
-      /*
-       * Si Supabase devuelve sesión,
-       * no necesitamos esperar
-       * confirmación de email.
-       */
       if (data.session) {
         router.push(
           destination
@@ -335,10 +339,6 @@ export default function Login() {
         return;
       }
 
-      /*
-       * Si no hay sesión, Supabase
-       * requiere confirmación por email.
-       */
       router.push(
         `/check-email?email=${encodeURIComponent(
           email.trim()
@@ -531,8 +531,24 @@ export default function Login() {
             className="btn"
             style={{
               width: "100%",
-              marginBottom:
-                16,
+              marginBottom: 16,
+
+              display:
+                "flex",
+
+              alignItems:
+                "center",
+
+              justifyContent:
+                "center",
+
+              gap: 10,
+
+              background:
+                "#ffffff",
+
+              color:
+                "#1f2937",
             }}
             onClick={
               handleGoogle
@@ -541,9 +557,15 @@ export default function Login() {
               loading
             }
           >
-            {loading
-              ? "Procesando…"
-              : "Continuar con Google"}
+            {!loading && (
+              <GoogleIcon />
+            )}
+
+            <span>
+              {loading
+                ? "Procesando…"
+                : "Continuar con Google"}
+            </span>
           </button>
 
           <div

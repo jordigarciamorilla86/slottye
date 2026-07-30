@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000";
+    "https://slottye.com";
 
   const supabase =
     await createClient();
@@ -58,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   /*
    * ============================================================
-   * PÁGINAS PRINCIPALES
+   * PÁGINAS ESTÁTICAS
    * ============================================================
    */
 
@@ -81,6 +81,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency:
           "daily",
         priority: 0.9,
+      },
+
+      {
+        url:
+          `${baseUrl}/privacy`,
+        changeFrequency:
+          "monthly",
+        priority: 0.3,
+      },
+
+      {
+        url:
+          `${baseUrl}/terms`,
+        changeFrequency:
+          "monthly",
+        priority: 0.3,
+      },
+
+      {
+        url:
+          `${baseUrl}/cookies`,
+        changeFrequency:
+          "monthly",
+        priority: 0.3,
+      },
+
+      {
+        url:
+          `${baseUrl}/legal`,
+        changeFrequency:
+          "monthly",
+        priority: 0.3,
       },
     ];
 

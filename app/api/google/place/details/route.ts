@@ -1,18 +1,70 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
-    const { placeId } = await request.json();
+    /*
+     * ============================================================
+     * USUARIO AUTENTICADO
+     * ============================================================
+     */
 
-    if (!placeId) {
+    const supabase =
+      await createClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } =
+      await supabase.auth.getUser();
+
+    if (
+      userError ||
+      !user
+    ) {
       return NextResponse.json(
-        { error: "Falta placeId" },
-        { status: 400 }
+        {
+          error:
+            "No autorizado",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
+    /*
+     * ============================================================
+     * INPUT
+     * ============================================================
+     */
+
+    const {
+      placeId,
+    } =
+      await request.json();
+
+    if (!placeId) {
+      return NextResponse.json(
+        {
+          error:
+            "Falta placeId",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * API KEY
+     * ============================================================
+     */
+
     const apiKey =
-      process.env.GOOGLE_MAPS_API_KEY;
+      process.env
+        .GOOGLE_MAPS_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
@@ -20,39 +72,50 @@ export async function POST(request: Request) {
           error:
             "GOOGLE_MAPS_API_KEY no está configurada",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
-    const response = await fetch(
-      `https://places.googleapis.com/v1/places/${encodeURIComponent(
-        placeId
-      )}`,
-      {
-        method: "GET",
+    /*
+     * ============================================================
+     * GOOGLE PLACE DETAILS
+     * ============================================================
+     */
 
-        headers: {
-          "X-Goog-Api-Key":
-            apiKey,
+    const response =
+      await fetch(
+        `https://places.googleapis.com/v1/places/${encodeURIComponent(
+          placeId
+        )}`,
+        {
+          method: "GET",
 
-          "X-Goog-FieldMask": [
-            "id",
-            "displayName",
-            "formattedAddress",
-            "postalAddress",
-            "nationalPhoneNumber",
-            "internationalPhoneNumber",
-            "websiteUri",
-            "location",
-            "rating",
-            "userRatingCount",
-            "googleMapsUri",
-          ].join(","),
-        },
+          headers: {
+            "X-Goog-Api-Key":
+              apiKey,
 
-        cache: "no-store",
-      }
-    );
+            "X-Goog-FieldMask":
+              [
+                "id",
+                "displayName",
+                "formattedAddress",
+                "postalAddress",
+                "nationalPhoneNumber",
+                "internationalPhoneNumber",
+                "websiteUri",
+                "location",
+                "rating",
+                "userRatingCount",
+                "googleMapsUri",
+              ].join(","),
+          },
+
+          cache:
+            "no-store",
+        }
+      );
 
     if (!response.ok) {
       const googleError =
@@ -67,18 +130,25 @@ export async function POST(request: Request) {
         {
           error:
             "No se pudieron obtener los datos de Google Maps",
-          details:
-            googleError,
         },
-        { status: 502 }
+        {
+          status: 502,
+        }
       );
     }
+
+    /*
+     * ============================================================
+     * NORMALIZAR RESPUESTA
+     * ============================================================
+     */
 
     const place =
       await response.json();
 
     const postalAddress =
-      place.postalAddress ?? {};
+      place.postalAddress ??
+      {};
 
     return NextResponse.json({
       success: true,
@@ -89,31 +159,38 @@ export async function POST(request: Request) {
 
         name:
           place.displayName
-            ?.text ?? null,
+            ?.text ??
+          null,
 
         formattedAddress:
           place.formattedAddress ??
           null,
 
         addressLines:
-          postalAddress.addressLines ??
+          postalAddress
+            .addressLines ??
           [],
 
         city:
-          postalAddress.locality ??
+          postalAddress
+            .locality ??
           null,
 
         postalCode:
-          postalAddress.postalCode ??
+          postalAddress
+            .postalCode ??
           null,
 
         region:
-          postalAddress.administrativeArea ??
+          postalAddress
+            .administrativeArea ??
           null,
 
         phone:
-          place.nationalPhoneNumber ??
-          place.internationalPhoneNumber ??
+          place
+            .nationalPhoneNumber ??
+          place
+            .internationalPhoneNumber ??
           null,
 
         website:
@@ -122,21 +199,26 @@ export async function POST(request: Request) {
 
         latitude:
           place.location
-            ?.latitude ?? null,
+            ?.latitude ??
+          null,
 
         longitude:
           place.location
-            ?.longitude ?? null,
+            ?.longitude ??
+          null,
 
         rating:
-          place.rating ?? null,
+          place.rating ??
+          null,
 
         reviewCount:
-          place.userRatingCount ??
+          place
+            .userRatingCount ??
           0,
 
         googleMapsUrl:
-          place.googleMapsUri ??
+          place
+            .googleMapsUri ??
           null,
       },
     });
@@ -151,7 +233,9 @@ export async function POST(request: Request) {
         error:
           "Error consultando Google Maps",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
