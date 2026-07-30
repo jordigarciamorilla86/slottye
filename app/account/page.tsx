@@ -78,6 +78,12 @@ export default async function AccountPage() {
 >
   ♥ Mis favoritos
 </Link>
+<Link
+  href="/account/password"
+  className="btn"
+>
+  Cambiar contraseña
+</Link>
 </>
             )}
 
