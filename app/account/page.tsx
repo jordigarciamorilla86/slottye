@@ -84,6 +84,22 @@ export default async function AccountPage() {
 >
   Cambiar contraseña
 </Link>
+<Link
+  href="/account/email"
+  className="btn"
+>
+  Cambiar correo electrónico
+</Link>
+<Link
+  href="/account/delete"
+  className="btn"
+  style={{
+    color: "#b91c1c",
+    borderColor: "#fecaca",
+  }}
+>
+  Eliminar cuenta
+</Link>
 </>
             )}
 
