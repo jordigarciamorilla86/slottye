@@ -43,54 +43,102 @@ type SortMode =
   | "rating"
   | "name";
 
+type LocationPermission =
+  | "granted"
+  | "prompt"
+  | "denied"
+  | "unsupported"
+  | "unknown";
+
 function calculateDistance(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number
 ) {
-  const earthRadiusKm = 6371;
+  const earthRadiusKm =
+    6371;
 
   const toRadians = (
     degrees: number
-  ) => (degrees * Math.PI) / 180;
+  ) =>
+    (degrees *
+      Math.PI) /
+    180;
 
   const dLat =
-    toRadians(lat2 - lat1);
+    toRadians(
+      lat2 -
+        lat1
+    );
 
   const dLon =
-    toRadians(lon2 - lon1);
+    toRadians(
+      lon2 -
+        lon1
+    );
 
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    Math.sin(
+      dLat /
+        2
+    ) **
+      2 +
+    Math.cos(
+      toRadians(
+        lat1
+      )
+    ) *
+      Math.cos(
+        toRadians(
+          lat2
+        )
+      ) *
+      Math.sin(
+        dLon /
+          2
+      ) **
+        2;
 
   const c =
     2 *
     Math.atan2(
-      Math.sqrt(a),
-      Math.sqrt(1 - a)
+      Math.sqrt(
+        a
+      ),
+      Math.sqrt(
+        1 -
+          a
+      )
     );
 
-  return earthRadiusKm * c;
+  return (
+    earthRadiusKm *
+    c
+  );
 }
 
 function formatDistance(
   km: number
 ) {
-  if (km < 1) {
+  if (
+    km <
+    1
+  ) {
     return `${Math.round(
-      km * 1000
+      km *
+        1000
     )} m`;
   }
 
   return `${km.toLocaleString(
     "es-ES",
     {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
+      minimumFractionDigits:
+        1,
+
+      maximumFractionDigits:
+        1,
     }
   )} km`;
 }
@@ -109,18 +157,30 @@ export function NearbyBusinesses({
   const [
     locating,
     setLocating,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     message,
     setMessage,
-  ] = useState("");
+  ] =
+    useState("");
+
+  const [
+    locationPermission,
+    setLocationPermission,
+  ] =
+    useState<LocationPermission>(
+      "unknown"
+    );
 
   /*
-   * Evita que la petición automática
-   * de ubicación se ejecute dos veces.
+   * Evita comprobaciones duplicadas
+   * durante desarrollo con React Strict Mode.
    */
-  const locationRequested =
+  const permissionChecked =
     useRef(false);
 
   const [
@@ -134,38 +194,176 @@ export function NearbyBusinesses({
   const [
     onlyRated,
     setOnlyRated,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     minimumFourStars,
     setMinimumFourStars,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     onlyAvailable,
     setOnlyAvailable,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     maxDistanceKm,
     setMaxDistanceKm,
-  ] = useState<
-    number | null
-  >(null);
+  ] =
+    useState<
+      number | null
+    >(
+      null
+    );
 
   /*
    * ============================================================
-   * UBICACIÓN
+   * GUARDAR UBICACIÓN
    * ============================================================
    */
 
-  function requestLocation(
-    automatic = false
+  function saveLocation(
+    position:
+      GeolocationPosition
+  ) {
+    setUserLocation({
+      latitude:
+        position
+          .coords
+          .latitude,
+
+      longitude:
+        position
+          .coords
+          .longitude,
+    });
+
+    setLocating(
+      false
+    );
+
+    setMessage(
+      ""
+    );
+
+    setLocationPermission(
+      "granted"
+    );
+
+    /*
+     * Cuando conocemos la ubicación,
+     * ordenamos automáticamente
+     * por distancia.
+     */
+    setSortMode(
+      "distance"
+    );
+  }
+
+  /*
+   * ============================================================
+   * ERROR DE UBICACIÓN
+   * ============================================================
+   */
+
+  function handleLocationError(
+    error:
+      GeolocationPositionError,
+    automatic:
+      boolean
+  ) {
+    setLocating(
+      false
+    );
+
+    if (
+      error.code ===
+      error.PERMISSION_DENIED
+    ) {
+      setLocationPermission(
+        "denied"
+      );
+
+      /*
+       * Si estábamos comprobando un permiso
+       * ya concedido y ha cambiado,
+       * no mostramos un aviso intrusivo.
+       */
+      if (
+        automatic
+      ) {
+        return;
+      }
+
+      setMessage(
+        "No has permitido acceder a tu ubicación. Puedes activarla en los permisos del navegador y volver a intentarlo."
+      );
+
+      return;
+    }
+
+    if (
+      automatic
+    ) {
+      return;
+    }
+
+    if (
+      error.code ===
+      error.POSITION_UNAVAILABLE
+    ) {
+      setMessage(
+        "No hemos podido determinar tu ubicación en este momento."
+      );
+
+      return;
+    }
+
+    if (
+      error.code ===
+      error.TIMEOUT
+    ) {
+      setMessage(
+        "La ubicación está tardando demasiado. Puedes volver a intentarlo."
+      );
+
+      return;
+    }
+
+    setMessage(
+      "No hemos podido acceder a tu ubicación. Puedes seguir viendo los negocios igualmente."
+    );
+  }
+
+  /*
+   * ============================================================
+   * OBTENER UBICACIÓN
+   * ============================================================
+   */
+
+  function getLocation(
+    automatic =
+      false
   ) {
     if (
       !navigator.geolocation
     ) {
-      if (!automatic) {
+      setLocationPermission(
+        "unsupported"
+      );
+
+      if (
+        !automatic
+      ) {
         setMessage(
           "Tu navegador no permite obtener la ubicación."
         );
@@ -174,90 +372,34 @@ export function NearbyBusinesses({
       return;
     }
 
-    setLocating(true);
+    setLocating(
+      true
+    );
 
-    if (!automatic) {
-      setMessage("");
+    if (
+      !automatic
+    ) {
+      setMessage(
+        ""
+      );
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          latitude:
-            position.coords
-              .latitude,
+      saveLocation,
 
-          longitude:
-            position.coords
-              .longitude,
-        });
-
-        setLocating(false);
-
-        setMessage("");
-
-        /*
-         * Cuando conocemos la ubicación,
-         * ordenamos automáticamente
-         * por distancia.
-         */
-        setSortMode(
-          "distance"
-        );
-      },
-
-      (error) => {
-        setLocating(false);
-
-        /*
-         * Si la petición automática falla,
-         * no mostramos un mensaje molesto.
-         *
-         * El botón manual seguirá disponible.
-         */
-        if (automatic) {
-          return;
-        }
-
-        if (
-          error.code ===
-          error.PERMISSION_DENIED
-        ) {
-          setMessage(
-            "No has permitido acceder a tu ubicación. Puedes activarla en los permisos del navegador y volver a intentarlo."
-          );
-
-          return;
-        }
-
-        if (
-          error.code ===
-          error.POSITION_UNAVAILABLE
-        ) {
-          setMessage(
-            "No hemos podido determinar tu ubicación en este momento."
-          );
-
-          return;
-        }
-
-        if (
-          error.code ===
-          error.TIMEOUT
-        ) {
-          setMessage(
-            "La ubicación está tardando demasiado. Puedes volver a intentarlo."
-          );
-
-          return;
-        }
-
-        setMessage(
-          "No hemos podido acceder a tu ubicación. Puedes seguir viendo los negocios igualmente."
-        );
-      },
+      (
+        error
+      ) =>
+        handleLocationError(
+          error,
+          automatic
+        ),
 
       {
+        /*
+         * No necesitamos precisión GPS extrema
+         * para ordenar negocios cercanos.
+         */
         enableHighAccuracy:
           false,
 
@@ -272,21 +414,175 @@ export function NearbyBusinesses({
 
   /*
    * ============================================================
-   * UBICACIÓN AUTOMÁTICA AL ENTRAR
+   * BOTÓN "USAR MI UBICACIÓN"
+   * ============================================================
+   */
+
+  async function requestLocation() {
+    /*
+     * Si sabemos que está denegado,
+     * evitamos hacer una petición que el
+     * navegador rechazará inmediatamente.
+     */
+    if (
+      locationPermission ===
+      "denied"
+    ) {
+      setMessage(
+        "La ubicación está bloqueada para Slottye. Actívala en los permisos del navegador y vuelve a intentarlo."
+      );
+
+      return;
+    }
+
+    /*
+     * Si está en prompt, esta llamada se realiza
+     * como consecuencia directa del clic del usuario,
+     * por lo que el navegador puede mostrar:
+     *
+     * "slottye.com quiere usar tu ubicación"
+     */
+    getLocation(
+      false
+    );
+  }
+
+  /*
+   * ============================================================
+   * COMPROBAR PERMISO AL ENTRAR
    * ============================================================
    */
 
   useEffect(() => {
     if (
-      locationRequested.current
+      permissionChecked.current
     ) {
       return;
     }
 
-    locationRequested.current =
+    permissionChecked.current =
       true;
 
-    requestLocation(true);
+    async function checkLocationPermission() {
+      /*
+       * Sin geolocalización disponible.
+       */
+      if (
+        !navigator.geolocation
+      ) {
+        setLocationPermission(
+          "unsupported"
+        );
+
+        return;
+      }
+
+      /*
+       * Algunos navegadores no implementan
+       * navigator.permissions correctamente.
+       *
+       * En ese caso no pedimos ubicación
+       * automáticamente y dejamos el botón.
+       */
+      if (
+        !navigator.permissions
+      ) {
+        setLocationPermission(
+          "unsupported"
+        );
+
+        return;
+      }
+
+      try {
+        const permission =
+          await navigator.permissions.query({
+            name:
+              "geolocation",
+          });
+
+        setLocationPermission(
+          permission.state
+        );
+
+        /*
+         * Si ya nos había dado permiso,
+         * usamos la ubicación automáticamente.
+         *
+         * Aquí NO aparecerá ningún popup,
+         * porque ya está concedido.
+         */
+        if (
+          permission.state ===
+          "granted"
+        ) {
+          getLocation(
+            true
+          );
+        }
+
+        /*
+         * prompt:
+         *
+         * No pedimos nada automáticamente.
+         * Esperamos a que pulse
+         * "Usar mi ubicación".
+         *
+         * denied:
+         *
+         * Tampoco hacemos una llamada.
+         */
+
+        permission.onchange =
+          () => {
+            setLocationPermission(
+              permission.state
+            );
+
+            if (
+              permission.state ===
+              "granted" &&
+              !userLocation
+            ) {
+              getLocation(
+                true
+              );
+            }
+
+            if (
+              permission.state ===
+              "denied"
+            ) {
+              setUserLocation(
+                null
+              );
+
+              setMaxDistanceKm(
+                null
+              );
+
+              if (
+                sortMode ===
+                "distance"
+              ) {
+                setSortMode(
+                  "default"
+                );
+              }
+            }
+          };
+      } catch {
+        /*
+         * Si Permissions API falla,
+         * dejamos simplemente el botón manual.
+         */
+        setLocationPermission(
+          "unsupported"
+        );
+      }
+    }
+
+    checkLocationPermission();
   }, []);
 
   /*
@@ -299,7 +595,9 @@ export function NearbyBusinesses({
     useMemo(() => {
       let result =
         businesses.map(
-          (business) => {
+          (
+            business
+          ) => {
             if (
               !userLocation ||
               business.latitude ===
@@ -341,7 +639,9 @@ export function NearbyBusinesses({
       ) {
         result =
           result.filter(
-            (business) =>
+            (
+              business
+            ) =>
               business.distanceKm !==
                 null &&
               business.distanceKm <=
@@ -357,7 +657,9 @@ export function NearbyBusinesses({
       ) {
         result =
           result.filter(
-            (business) =>
+            (
+              business
+            ) =>
               business.hasAvailableSlots
           );
       }
@@ -365,10 +667,14 @@ export function NearbyBusinesses({
       /*
        * Solo con opiniones.
        */
-      if (onlyRated) {
+      if (
+        onlyRated
+      ) {
         result =
           result.filter(
-            (business) =>
+            (
+              business
+            ) =>
               business.reviewCount >
               0
           );
@@ -382,7 +688,9 @@ export function NearbyBusinesses({
       ) {
         result =
           result.filter(
-            (business) =>
+            (
+              business
+            ) =>
               business.averageRating !==
                 null &&
               business.averageRating >=
@@ -397,13 +705,20 @@ export function NearbyBusinesses({
         sortMode ===
         "distance"
       ) {
-        if (!userLocation) {
+        if (
+          !userLocation
+        ) {
           return result;
         }
 
         result =
-          [...result].sort(
-            (a, b) => {
+          [
+            ...result,
+          ].sort(
+            (
+              a,
+              b
+            ) => {
               if (
                 a.distanceKm ===
                   null &&
@@ -443,8 +758,13 @@ export function NearbyBusinesses({
         "rating"
       ) {
         result =
-          [...result].sort(
-            (a, b) => {
+          [
+            ...result,
+          ].sort(
+            (
+              a,
+              b
+            ) => {
               const ratingA =
                 a.averageRating ??
                 -1;
@@ -479,8 +799,13 @@ export function NearbyBusinesses({
         "name"
       ) {
         result =
-          [...result].sort(
-            (a, b) =>
+          [
+            ...result,
+          ].sort(
+            (
+              a,
+              b
+            ) =>
               a.name.localeCompare(
                 b.name,
                 "es",
@@ -528,23 +853,28 @@ export function NearbyBusinesses({
     <>
       <div
         style={{
-          padding: 16,
+          padding:
+            16,
 
           border:
             "1px solid var(--border)",
 
-          borderRadius: 16,
+          borderRadius:
+            16,
 
-          marginBottom: 20,
+          marginBottom:
+            20,
         }}
       >
         {/* UBICACIÓN + ORDEN */}
 
         <div
           style={{
-            display: "flex",
+            display:
+              "flex",
 
-            gap: 10,
+            gap:
+              10,
 
             alignItems:
               "center",
@@ -562,8 +892,8 @@ export function NearbyBusinesses({
                 : "btn"
             }
 
-            onClick={() =>
-              requestLocation(false)
+            onClick={
+              requestLocation
             }
 
             disabled={
@@ -582,7 +912,8 @@ export function NearbyBusinesses({
               className="muted"
 
               style={{
-                marginRight: 8,
+                marginRight:
+                  8,
               }}
             >
               Ordenar:
@@ -593,7 +924,9 @@ export function NearbyBusinesses({
                 sortMode
               }
 
-              onChange={(e) => {
+              onChange={(
+                e
+              ) => {
                 const value =
                   e.target
                     .value as SortMode;
@@ -611,7 +944,9 @@ export function NearbyBusinesses({
                     "Activa tu ubicación para ordenar los negocios por distancia."
                   );
                 } else {
-                  setMessage("");
+                  setMessage(
+                    ""
+                  );
                 }
               }}
 
@@ -660,7 +995,8 @@ export function NearbyBusinesses({
               className="muted"
 
               style={{
-                marginRight: 8,
+                marginRight:
+                  8,
               }}
             >
               Distancia máxima:
@@ -672,11 +1008,16 @@ export function NearbyBusinesses({
                 ""
               }
 
-              onChange={(e) => {
+              onChange={(
+                e
+              ) => {
                 const value =
-                  e.target.value;
+                  e.target
+                    .value;
 
-                if (!value) {
+                if (
+                  !value
+                ) {
                   setMaxDistanceKm(
                     null
                   );
@@ -703,7 +1044,9 @@ export function NearbyBusinesses({
                 }
 
                 setMaxDistanceKm(
-                  Number(value)
+                  Number(
+                    value
+                  )
                 );
 
                 setMessage(
@@ -766,9 +1109,11 @@ export function NearbyBusinesses({
 
         <div
           style={{
-            display: "flex",
+            display:
+              "flex",
 
-            gap: 16,
+            gap:
+              16,
 
             flexWrap:
               "wrap",
@@ -776,16 +1121,19 @@ export function NearbyBusinesses({
             alignItems:
               "center",
 
-            marginTop: 14,
+            marginTop:
+              14,
           }}
         >
           {/* DISPONIBILIDAD */}
 
           <label
             style={{
-              display: "flex",
+              display:
+                "flex",
 
-              gap: 7,
+              gap:
+                7,
 
               alignItems:
                 "center",
@@ -801,7 +1149,9 @@ export function NearbyBusinesses({
                 onlyAvailable
               }
 
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setOnlyAvailable(
                   e.target
                     .checked
@@ -816,9 +1166,11 @@ export function NearbyBusinesses({
 
           <label
             style={{
-              display: "flex",
+              display:
+                "flex",
 
-              gap: 7,
+              gap:
+                7,
 
               alignItems:
                 "center",
@@ -834,7 +1186,9 @@ export function NearbyBusinesses({
                 minimumFourStars
               }
 
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setMinimumFourStars(
                   e.target
                     .checked
@@ -849,9 +1203,11 @@ export function NearbyBusinesses({
 
           <label
             style={{
-              display: "flex",
+              display:
+                "flex",
 
-              gap: 7,
+              gap:
+                7,
 
               alignItems:
                 "center",
@@ -867,7 +1223,9 @@ export function NearbyBusinesses({
                 onlyRated
               }
 
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setOnlyRated(
                   e.target
                     .checked
@@ -924,11 +1282,11 @@ export function NearbyBusinesses({
             className="muted"
 
             style={{
-              marginTop: 12,
+              marginTop:
+                12,
             }}
           >
-            📍 Distancias calculadas
-            desde tu ubicación actual.
+            📍 Distancias calculadas desde tu ubicación actual.
           </div>
         )}
       </div>
@@ -957,7 +1315,10 @@ export function NearbyBusinesses({
               12,
           }}
         >
-          ℹ️ {message}
+          ℹ️{" "}
+          {
+            message
+          }
         </div>
       )}
 
@@ -971,7 +1332,9 @@ export function NearbyBusinesses({
             14,
         }}
       >
-        {visibleBusinesses.length}{" "}
+        {
+          visibleBusinesses.length
+        }{" "}
 
         {visibleBusinesses.length ===
         1
@@ -985,7 +1348,9 @@ export function NearbyBusinesses({
       0 ? (
         <div className="cards">
           {visibleBusinesses.map(
-            (business) => (
+            (
+              business
+            ) => (
               <BusinessCard
                 key={
                   business.id
@@ -1037,14 +1402,11 @@ export function NearbyBusinesses({
       ) : (
         <div className="panel">
           <h3>
-            No hay negocios que
-            coincidan con los filtros
+            No hay negocios que coincidan con los filtros
           </h3>
 
           <p className="muted">
-            Prueba a ampliar la
-            distancia o quitar alguno
-            de los filtros.
+            Prueba a ampliar la distancia o quitar alguno de los filtros.
           </p>
         </div>
       )}
