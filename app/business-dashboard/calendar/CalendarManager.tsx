@@ -1,6 +1,11 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
+
 import { createClient } from "@/lib/supabase/client";
 
 type Service = {
@@ -54,114 +59,212 @@ export default function CalendarManager({
   businessHours,
   initialBlocks,
 }: Props) {
-  const supabase = createClient();
+  const supabase =
+    createClient();
 
-  // Cita individual
-  const [slots, setSlots] =
-    useState(initialSlots);
+  // ============================================================
+  // CITA INDIVIDUAL
+  // ============================================================
 
-  const [serviceId, setServiceId] =
+  const [
+    slots,
+    setSlots,
+  ] =
+    useState(
+      initialSlots
+    );
+
+  const [
+    serviceId,
+    setServiceId,
+  ] =
     useState("");
 
-  const [date, setDate] =
+  const [
+    date,
+    setDate,
+  ] =
     useState("");
 
-  const [time, setTime] =
+  const [
+    time,
+    setTime,
+  ] =
     useState("");
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(false);
 
-  // Mensajes
-  const [message, setMessage] =
+  // ============================================================
+  // MENSAJES
+  // ============================================================
+
+  const [
+    message,
+    setMessage,
+  ] =
     useState("");
 
-  const [messageType, setMessageType] =
-    useState<MessageType>(null);
+  const [
+    messageType,
+    setMessageType,
+  ] =
+    useState<MessageType>(
+      null
+    );
 
-  // Generación en bloque
+  // ============================================================
+  // GENERACIÓN EN BLOQUE
+  // ============================================================
+
   const [
     bulkServiceId,
     setBulkServiceId,
-  ] = useState("");
+  ] =
+    useState("");
 
-  const [bulkDate, setBulkDate] =
+  const [
+    bulkDate,
+    setBulkDate,
+  ] =
     useState("");
 
   const [
     bulkStartTime,
     setBulkStartTime,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     bulkEndTime,
     setBulkEndTime,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     bulkLoading,
     setBulkLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
-  // Generación semanal
+  // ============================================================
+  // GENERACIÓN SEMANAL
+  // ============================================================
+
   const [
     weekServiceId,
     setWeekServiceId,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     weekStartDate,
     setWeekStartDate,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     weekLoading,
     setWeekLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
-  // Días desplegados
+  // ============================================================
+  // DÍAS DESPLEGADOS
+  // ============================================================
+
   const [
     expandedDays,
     setExpandedDays,
-  ] = useState<
-    Record<string, boolean>
-  >({});
+  ] =
+    useState<
+      Record<
+        string,
+        boolean
+      >
+    >({});
 
-  // Bloqueos
-  const [blocks, setBlocks] =
-    useState<BusinessBlock[]>(
+  // ============================================================
+  // BLOQUEOS
+  // ============================================================
+
+  const [
+    blocks,
+    setBlocks,
+  ] =
+    useState<
+      BusinessBlock[]
+    >(
       initialBlocks
     );
 
   const [
     blockDate,
     setBlockDate,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     blockStartTime,
     setBlockStartTime,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     blockEndTime,
     setBlockEndTime,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     blockReason,
     setBlockReason,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     blockAllDay,
     setBlockAllDay,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     blockLoading,
     setBlockLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
+
+  /*
+   * ============================================================
+   * CIERRE AUTOMÁTICO DEL TOAST
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timeout =
+      window.setTimeout(
+        () => {
+          setMessage("");
+          setMessageType(
+            null
+          );
+        },
+        4000
+      );
+
+    return () => {
+      window.clearTimeout(
+        timeout
+      );
+    };
+  }, [message]);
 
   /*
    * ============================================================
@@ -171,28 +274,45 @@ export default function CalendarManager({
 
   function clearMessage() {
     setMessage("");
-    setMessageType(null);
+    setMessageType(
+      null
+    );
   }
 
   function showSuccess(
     text: string
   ) {
-    setMessage(text);
-    setMessageType("success");
+    setMessage(
+      text
+    );
+
+    setMessageType(
+      "success"
+    );
   }
 
   function showError(
     text: string
   ) {
-    setMessage(text);
-    setMessageType("error");
+    setMessage(
+      text
+    );
+
+    setMessageType(
+      "error"
+    );
   }
 
   function showWarning(
     text: string
   ) {
-    setMessage(text);
-    setMessageType("warning");
+    setMessage(
+      text
+    );
+
+    setMessageType(
+      "warning"
+    );
   }
 
   /*
@@ -218,8 +338,10 @@ export default function CalendarManager({
           );
 
         return (
-          start < blockEnd &&
-          end > blockStart
+          start <
+            blockEnd &&
+          end >
+            blockStart
         );
       }
     );
@@ -232,7 +354,8 @@ export default function CalendarManager({
    */
 
   async function createSlot(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -249,6 +372,7 @@ export default function CalendarManager({
       showError(
         "Selecciona un servicio."
       );
+
       return;
     }
 
@@ -259,6 +383,7 @@ export default function CalendarManager({
       showError(
         "Selecciona fecha y hora."
       );
+
       return;
     }
 
@@ -274,6 +399,7 @@ export default function CalendarManager({
       showError(
         "La cita debe ser posterior a la fecha actual."
       );
+
       return;
     }
 
@@ -294,61 +420,72 @@ export default function CalendarManager({
       showError(
         "No puedes crear esta cita porque coincide con un horario bloqueado."
       );
+
       return;
     }
 
-    setLoading(true);
+    setLoading(
+      true
+    );
 
     const {
       data,
       error,
-    } = await supabase
-      .from("slots")
-      .insert({
-        business_id:
-          businessId,
+    } =
+      await supabase
+        .from("slots")
+        .insert({
+          business_id:
+            businessId,
 
-        service_id:
-          service.id,
+          service_id:
+            service.id,
 
-        start_at:
-          start.toISOString(),
+          start_at:
+            start.toISOString(),
 
-        end_at:
-          end.toISOString(),
+          end_at:
+            end.toISOString(),
 
-        status:
-          "AVAILABLE",
-      })
-      .select(`
-        id,
-        service_id,
-        start_at,
-        end_at,
-        status
-      `)
-      .single();
+          status:
+            "AVAILABLE",
+        })
+        .select(`
+          id,
+          service_id,
+          start_at,
+          end_at,
+          status
+        `)
+        .single();
 
     if (error) {
       showError(
         error.message
       );
 
-      setLoading(false);
+      setLoading(
+        false
+      );
+
       return;
     }
 
     fetch(
       "/api/notifications/new-slots",
       {
-        method: "POST",
+        method:
+          "POST",
+
         headers: {
           "Content-Type":
             "application/json",
         },
+
         body:
           JSON.stringify({
             businessId,
+
             slotIds: [
               data.id,
             ],
@@ -383,10 +520,12 @@ export default function CalendarManager({
     setTime("");
 
     showSuccess(
-      "✓ Cita disponible creada correctamente."
+      "Cita disponible creada correctamente."
     );
 
-    setLoading(false);
+    setLoading(
+      false
+    );
   }
 
   /*
@@ -405,6 +544,7 @@ export default function CalendarManager({
       showError(
         "Solo se pueden eliminar huecos disponibles."
       );
+
       return;
     }
 
@@ -420,23 +560,26 @@ export default function CalendarManager({
     clearMessage();
 
     /*
-     * Comprobamos si
-     * alguna reserva histórica
+     * Comprobamos si alguna reserva histórica
      * referencia este slot.
      */
+
     const {
       data:
         bookingHistory,
       error:
         historyError,
-    } = await supabase
-      .from("bookings")
-      .select("id")
-      .eq(
-        "slot_id",
-        slot.id
-      )
-      .limit(1);
+    } =
+      await supabase
+        .from(
+          "bookings"
+        )
+        .select("id")
+        .eq(
+          "slot_id",
+          slot.id
+        )
+        .limit(1);
 
     if (
       historyError
@@ -444,6 +587,7 @@ export default function CalendarManager({
       showError(
         historyError.message
       );
+
       return;
     }
 
@@ -451,6 +595,7 @@ export default function CalendarManager({
      * Si existe historial,
      * no podemos eliminarlo.
      */
+
     if (
       bookingHistory &&
       bookingHistory.length >
@@ -459,21 +604,25 @@ export default function CalendarManager({
       const {
         error:
           blockError,
-      } = await supabase
-        .from("slots")
-        .update({
-          status:
-            "BLOCKED",
-        })
-        .eq(
-          "id",
-          slot.id
-        );
+      } =
+        await supabase
+          .from("slots")
+          .update({
+            status:
+              "BLOCKED",
+          })
+          .eq(
+            "id",
+            slot.id
+          );
 
-      if (blockError) {
+      if (
+        blockError
+      ) {
         showError(
           blockError.message
         );
+
         return;
       }
 
@@ -503,7 +652,10 @@ export default function CalendarManager({
      * Sin historial:
      * DELETE real.
      */
-    const { error } =
+
+    const {
+      error,
+    } =
       await supabase
         .from("slots")
         .delete()
@@ -516,6 +668,7 @@ export default function CalendarManager({
       showError(
         error.message
       );
+
       return;
     }
 
@@ -529,7 +682,7 @@ export default function CalendarManager({
     );
 
     showSuccess(
-      "✓ Hueco eliminado definitivamente."
+      "Hueco eliminado definitivamente."
     );
   }
 
@@ -540,7 +693,8 @@ export default function CalendarManager({
    */
 
   async function deleteAvailableSlotsForDay(
-    daySlots: Slot[]
+    daySlots:
+      Slot[]
   ) {
     const availableSlots =
       daySlots.filter(
@@ -556,6 +710,7 @@ export default function CalendarManager({
       showError(
         "No hay huecos disponibles que eliminar en este día."
       );
+
       return;
     }
 
@@ -581,13 +736,18 @@ export default function CalendarManager({
         bookingsHistory,
       error:
         historyError,
-    } = await supabase
-      .from("bookings")
-      .select("slot_id")
-      .in(
-        "slot_id",
-        ids
-      );
+    } =
+      await supabase
+        .from(
+          "bookings"
+        )
+        .select(
+          "slot_id"
+        )
+        .in(
+          "slot_id",
+          ids
+        );
 
     if (
       historyError
@@ -595,6 +755,7 @@ export default function CalendarManager({
       showError(
         historyError.message
       );
+
       return;
     }
 
@@ -629,6 +790,7 @@ export default function CalendarManager({
      * DELETE real para
      * slots sin historial.
      */
+
     if (
       idsToDelete.length >
       0
@@ -636,13 +798,14 @@ export default function CalendarManager({
       const {
         error:
           deleteError,
-      } = await supabase
-        .from("slots")
-        .delete()
-        .in(
-          "id",
-          idsToDelete
-        );
+      } =
+        await supabase
+          .from("slots")
+          .delete()
+          .in(
+            "id",
+            idsToDelete
+          );
 
       if (
         deleteError
@@ -650,6 +813,7 @@ export default function CalendarManager({
         showError(
           deleteError.message
         );
+
         return;
       }
     }
@@ -658,6 +822,7 @@ export default function CalendarManager({
      * Historial:
      * se conservan como BLOCKED.
      */
+
     if (
       idsToBlock.length >
       0
@@ -665,16 +830,17 @@ export default function CalendarManager({
       const {
         error:
           blockError,
-      } = await supabase
-        .from("slots")
-        .update({
-          status:
-            "BLOCKED",
-        })
-        .in(
-          "id",
-          idsToBlock
-        );
+      } =
+        await supabase
+          .from("slots")
+          .update({
+            status:
+              "BLOCKED",
+          })
+          .in(
+            "id",
+            idsToBlock
+          );
 
       if (
         blockError
@@ -682,6 +848,7 @@ export default function CalendarManager({
         showError(
           blockError.message
         );
+
         return;
       }
     }
@@ -726,14 +893,14 @@ export default function CalendarManager({
         0
     ) {
       showWarning(
-        `✓ ${idsToDelete.length} huecos eliminados · ${idsToBlock.length} bloqueados porque tenían historial de reservas.`
+        `${idsToDelete.length} huecos eliminados · ${idsToBlock.length} bloqueados porque tenían historial de reservas.`
       );
     } else if (
       idsToDelete.length >
       0
     ) {
       showSuccess(
-        `✓ ${idsToDelete.length} huecos eliminados correctamente.`
+        `${idsToDelete.length} huecos eliminados correctamente.`
       );
     } else {
       showWarning(
@@ -749,7 +916,8 @@ export default function CalendarManager({
    */
 
   async function createBulkSlots(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -766,6 +934,7 @@ export default function CalendarManager({
       showError(
         "Selecciona un servicio."
       );
+
       return;
     }
 
@@ -777,6 +946,7 @@ export default function CalendarManager({
       showError(
         "Selecciona fecha, hora inicial y hora final."
       );
+
       return;
     }
 
@@ -797,28 +967,38 @@ export default function CalendarManager({
       showError(
         "Las citas deben ser posteriores a la fecha actual."
       );
+
       return;
     }
 
     if (
-      limit <= start
+      limit <=
+      start
     ) {
       showError(
         "La hora final debe ser posterior a la inicial."
       );
+
       return;
     }
 
     const rows: {
-      business_id: string;
-      service_id: string;
-      start_at: string;
-      end_at: string;
-      status: string;
+      business_id:
+        string;
+      service_id:
+        string;
+      start_at:
+        string;
+      end_at:
+        string;
+      status:
+        string;
     }[] = [];
 
     let current =
-      new Date(start);
+      new Date(
+        start
+      );
 
     let blockedCount =
       0;
@@ -833,7 +1013,8 @@ export default function CalendarManager({
         );
 
       if (
-        end > limit
+        end >
+        limit
       ) {
         break;
       }
@@ -864,14 +1045,17 @@ export default function CalendarManager({
         });
       }
 
-      current = end;
+      current =
+        end;
     }
 
     if (
-      rows.length === 0
+      rows.length ===
+      0
     ) {
       showError(
-        blockedCount > 0
+        blockedCount >
+          0
           ? "Todos los huecos coinciden con horarios bloqueados."
           : "No cabe ninguna cita dentro de ese intervalo."
       );
@@ -880,29 +1064,32 @@ export default function CalendarManager({
     }
 
     /*
-     * Evitamos horas
-     * ya existentes.
+     * Evitamos horas ya existentes.
      */
+
     const {
       data:
         existingSlots,
       error:
         existingError,
-    } = await supabase
-      .from("slots")
-      .select("start_at")
-      .eq(
-        "business_id",
-        businessId
-      )
-      .gte(
-        "start_at",
-        start.toISOString()
-      )
-      .lt(
-        "start_at",
-        limit.toISOString()
-      );
+    } =
+      await supabase
+        .from("slots")
+        .select(
+          "start_at"
+        )
+        .eq(
+          "business_id",
+          businessId
+        )
+        .gte(
+          "start_at",
+          start.toISOString()
+        )
+        .lt(
+          "start_at",
+          limit.toISOString()
+        );
 
     if (
       existingError
@@ -910,6 +1097,7 @@ export default function CalendarManager({
       showError(
         existingError.message
       );
+
       return;
     }
 
@@ -954,18 +1142,19 @@ export default function CalendarManager({
     const {
       data,
       error,
-    } = await supabase
-      .from("slots")
-      .insert(
-        rowsToInsert
-      )
-      .select(`
-        id,
-        service_id,
-        start_at,
-        end_at,
-        status
-      `);
+    } =
+      await supabase
+        .from("slots")
+        .insert(
+          rowsToInsert
+        )
+        .select(`
+          id,
+          service_id,
+          start_at,
+          end_at,
+          status
+        `);
 
     if (error) {
       showError(
@@ -975,11 +1164,13 @@ export default function CalendarManager({
       setBulkLoading(
         false
       );
+
       return;
     }
 
     const newSlots =
-      data ?? [];
+      data ??
+      [];
 
     setSlots(
       (
@@ -1069,13 +1260,13 @@ export default function CalendarManager({
       0
     ) {
       showWarning(
-        `✓ Se han creado ${newSlots.length} citas correctamente · ${details.join(
+        `Se han creado ${newSlots.length} citas correctamente · ${details.join(
           " · "
         )}.`
       );
     } else {
       showSuccess(
-        `✓ Se han creado ${newSlots.length} citas correctamente.`
+        `Se han creado ${newSlots.length} citas correctamente.`
       );
     }
 
@@ -1091,7 +1282,8 @@ export default function CalendarManager({
    */
 
   async function createWeekSlots(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -1108,6 +1300,7 @@ export default function CalendarManager({
       showError(
         "Selecciona un servicio."
       );
+
       return;
     }
 
@@ -1123,6 +1316,7 @@ export default function CalendarManager({
       showError(
         "Selecciona el inicio de la semana."
       );
+
       return;
     }
 
@@ -1133,6 +1327,7 @@ export default function CalendarManager({
       showError(
         "Primero configura el horario del negocio."
       );
+
       return;
     }
 
@@ -1142,21 +1337,29 @@ export default function CalendarManager({
       );
 
     const rows: {
-      business_id: string;
-      service_id: string;
-      start_at: string;
-      end_at: string;
-      status: string;
+      business_id:
+        string;
+      service_id:
+        string;
+      start_at:
+        string;
+      end_at:
+        string;
+      status:
+        string;
     }[] = [];
 
     let weeklyBlockedCount =
       0;
 
     function createRange(
-      date: Date,
+      date:
+        Date,
+
       openTime:
         | string
         | null,
+
       closeTime:
         | string
         | null
@@ -1171,27 +1374,35 @@ export default function CalendarManager({
       const [
         openHour,
         openMinute,
-      ] = openTime
-        .slice(
-          0,
-          5
-        )
-        .split(":")
-        .map(Number);
+      ] =
+        openTime
+          .slice(
+            0,
+            5
+          )
+          .split(":")
+          .map(
+            Number
+          );
 
       const [
         closeHour,
         closeMinute,
-      ] = closeTime
-        .slice(
-          0,
-          5
-        )
-        .split(":")
-        .map(Number);
+      ] =
+        closeTime
+          .slice(
+            0,
+            5
+          )
+          .split(":")
+          .map(
+            Number
+          );
 
       let current =
-        new Date(date);
+        new Date(
+          date
+        );
 
       current.setHours(
         openHour,
@@ -1201,7 +1412,9 @@ export default function CalendarManager({
       );
 
       const limit =
-        new Date(date);
+        new Date(
+          date
+        );
 
       limit.setHours(
         closeHour,
@@ -1220,7 +1433,8 @@ export default function CalendarManager({
           );
 
         if (
-          end > limit
+          end >
+          limit
         ) {
           break;
         }
@@ -1277,8 +1491,10 @@ export default function CalendarManager({
       );
 
       const slottyeDay =
-        (date.getDay() +
-          6) %
+        (
+          date.getDay() +
+          6
+        ) %
         7;
 
       const schedule =
@@ -1327,11 +1543,13 @@ export default function CalendarManager({
     );
 
     const firstStart =
-      rows[0].start_at;
+      rows[0]
+        .start_at;
 
     const lastStart =
       rows[
-        rows.length - 1
+        rows.length -
+        1
       ].start_at;
 
     const {
@@ -1339,21 +1557,24 @@ export default function CalendarManager({
         existingSlots,
       error:
         existingError,
-    } = await supabase
-      .from("slots")
-      .select("start_at")
-      .eq(
-        "business_id",
-        businessId
-      )
-      .gte(
-        "start_at",
-        firstStart
-      )
-      .lte(
-        "start_at",
-        lastStart
-      );
+    } =
+      await supabase
+        .from("slots")
+        .select(
+          "start_at"
+        )
+        .eq(
+          "business_id",
+          businessId
+        )
+        .gte(
+          "start_at",
+          firstStart
+        )
+        .lte(
+          "start_at",
+          lastStart
+        );
 
     if (
       existingError
@@ -1365,6 +1586,7 @@ export default function CalendarManager({
       setWeekLoading(
         false
       );
+
       return;
     }
 
@@ -1409,18 +1631,19 @@ export default function CalendarManager({
     const {
       data,
       error,
-    } = await supabase
-      .from("slots")
-      .insert(
-        rowsToInsert
-      )
-      .select(`
-        id,
-        service_id,
-        start_at,
-        end_at,
-        status
-      `);
+    } =
+      await supabase
+        .from("slots")
+        .insert(
+          rowsToInsert
+        )
+        .select(`
+          id,
+          service_id,
+          start_at,
+          end_at,
+          status
+        `);
 
     if (error) {
       showError(
@@ -1435,7 +1658,8 @@ export default function CalendarManager({
     }
 
     const newSlots =
-      data ?? [];
+      data ??
+      [];
 
     setSlots(
       (current) =>
@@ -1519,13 +1743,13 @@ export default function CalendarManager({
       0
     ) {
       showWarning(
-        `✓ Semana generada. Se han creado ${newSlots.length} citas correctamente · ${details.join(
+        `Semana generada. Se han creado ${newSlots.length} citas correctamente · ${details.join(
           " · "
         )}.`
       );
     } else {
       showSuccess(
-        `✓ Semana generada correctamente. Se han creado ${newSlots.length} citas disponibles.`
+        `Semana generada correctamente. Se han creado ${newSlots.length} citas disponibles.`
       );
     }
 
@@ -1541,21 +1765,28 @@ export default function CalendarManager({
    */
 
   async function createBlock(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
     clearMessage();
 
-    if (!blockDate) {
+    if (
+      !blockDate
+    ) {
       showError(
         "Selecciona una fecha."
       );
+
       return;
     }
 
-    let start: Date;
-    let end: Date;
+    let start:
+      Date;
+
+    let end:
+      Date;
 
     if (
       blockAllDay
@@ -1582,6 +1813,7 @@ export default function CalendarManager({
         showError(
           "Selecciona hora inicial y final."
         );
+
         return;
       }
 
@@ -1596,11 +1828,13 @@ export default function CalendarManager({
         );
 
       if (
-        end <= start
+        end <=
+        start
       ) {
         showError(
           "La hora final debe ser posterior a la inicial."
         );
+
         return;
       }
     }
@@ -1612,6 +1846,7 @@ export default function CalendarManager({
       showError(
         "No puedes bloquear un periodo que ya ha pasado."
       );
+
       return;
     }
 
@@ -1634,6 +1869,7 @@ export default function CalendarManager({
       showWarning(
         "Ese periodo ya está bloqueado."
       );
+
       return;
     }
 
@@ -1648,10 +1884,12 @@ export default function CalendarManager({
             "BOOKED" &&
           new Date(
             slot.start_at
-          ) < end &&
+          ) <
+            end &&
           new Date(
             slot.end_at
-          ) > start
+          ) >
+            start
       );
 
     if (
@@ -1663,56 +1901,63 @@ export default function CalendarManager({
           `Hay ${affectedBookedSlots.length} reserva(s) dentro de este periodo. No se cancelarán. ¿Quieres bloquear igualmente el resto del horario?`
         );
 
-      if (!confirmed) {
+      if (
+        !confirmed
+      ) {
         setBlockLoading(
           false
         );
+
         return;
       }
     }
 
     const {
-      data: block,
+      data:
+        block,
       error:
         blockError,
-    } = await supabase
-      .from(
-        "business_blocks"
-      )
-      .insert({
-        business_id:
-          businessId,
+    } =
+      await supabase
+        .from(
+          "business_blocks"
+        )
+        .insert({
+          business_id:
+            businessId,
 
-        start_at:
-          start.toISOString(),
+          start_at:
+            start.toISOString(),
 
-        end_at:
-          end.toISOString(),
+          end_at:
+            end.toISOString(),
 
-        reason:
-          blockReason.trim() ||
-          null,
-      })
-      .select(`
-        id,
-        start_at,
-        end_at,
-        reason
-      `)
-      .single();
+          reason:
+            blockReason.trim() ||
+            null,
+        })
+        .select(`
+          id,
+          start_at,
+          end_at,
+          reason
+        `)
+        .single();
 
     if (
       blockError ||
       !block
     ) {
       showError(
-        blockError?.message ??
+        blockError
+          ?.message ??
           "No se pudo crear el bloqueo."
       );
 
       setBlockLoading(
         false
       );
+
       return;
     }
 
@@ -1723,15 +1968,18 @@ export default function CalendarManager({
             "AVAILABLE" &&
           new Date(
             slot.start_at
-          ) < end &&
+          ) <
+            end &&
           new Date(
             slot.end_at
-          ) > start
+          ) >
+            start
       );
 
     let updateWarning:
       | string
-      | null = null;
+      | null =
+      null;
 
     if (
       availableAffected.length >
@@ -1746,16 +1994,17 @@ export default function CalendarManager({
       const {
         error:
           updateError,
-      } = await supabase
-        .from("slots")
-        .update({
-          status:
-            "BLOCKED",
-        })
-        .in(
-          "id",
-          ids
-        );
+      } =
+        await supabase
+          .from("slots")
+          .update({
+            status:
+              "BLOCKED",
+          })
+          .in(
+            "id",
+            ids
+          );
 
       if (
         updateError
@@ -1764,7 +2013,9 @@ export default function CalendarManager({
           `Bloqueo creado, pero no se pudieron bloquear algunos huecos: ${updateError.message}`;
       } else {
         const blockedIds =
-          new Set(ids);
+          new Set(
+            ids
+          );
 
         setSlots(
           (current) =>
@@ -1775,6 +2026,7 @@ export default function CalendarManager({
                 )
                   ? {
                       ...slot,
+
                       status:
                         "BLOCKED",
                     }
@@ -1804,7 +2056,9 @@ export default function CalendarManager({
     setBlockStartTime("");
     setBlockEndTime("");
     setBlockReason("");
-    setBlockAllDay(false);
+    setBlockAllDay(
+      false
+    );
 
     if (
       updateWarning
@@ -1817,11 +2071,11 @@ export default function CalendarManager({
       0
     ) {
       showSuccess(
-        `✓ Horario bloqueado correctamente. ${availableAffected.length} huecos retirados de la disponibilidad.`
+        `Horario bloqueado correctamente. ${availableAffected.length} huecos retirados de la disponibilidad.`
       );
     } else {
       showSuccess(
-        "✓ Horario bloqueado correctamente."
+        "Horario bloqueado correctamente."
       );
     }
 
@@ -1837,20 +2091,25 @@ export default function CalendarManager({
    */
 
   async function deleteBlock(
-    block: BusinessBlock
+    block:
+      BusinessBlock
   ) {
     const confirmed =
       window.confirm(
         "¿Eliminar este bloqueo?"
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
     clearMessage();
 
-    const { error } =
+    const {
+      error,
+    } =
       await supabase
         .from(
           "business_blocks"
@@ -1861,10 +2120,13 @@ export default function CalendarManager({
           block.id
         );
 
-    if (error) {
+    if (
+      error
+    ) {
       showError(
         error.message
       );
+
       return;
     }
 
@@ -1889,137 +2151,183 @@ export default function CalendarManager({
    */
 
   function getServiceName(
-    id: string | null
+    id:
+      string |
+      null
   ) {
     return (
       services.find(
         (service) =>
-          service.id === id
+          service.id ===
+          id
       )?.name ??
       "Servicio"
     );
   }
 
   function getDayKey(
-    value: string
+    value:
+      string
   ) {
     return new Intl.DateTimeFormat(
       "en-CA",
       {
         year:
           "numeric",
+
         month:
           "2-digit",
+
         day:
           "2-digit",
+
         timeZone:
           "Europe/Madrid",
       }
     ).format(
-      new Date(value)
+      new Date(
+        value
+      )
     );
   }
 
   function formatDayTitle(
-    value: string
+    value:
+      string
   ) {
     return new Intl.DateTimeFormat(
       "es-ES",
       {
         weekday:
           "long",
+
         day:
           "numeric",
+
         month:
           "long",
+
         year:
           "numeric",
+
         timeZone:
           "Europe/Madrid",
       }
     ).format(
-      new Date(value)
+      new Date(
+        value
+      )
     );
   }
 
   function formatSlotTime(
-    value: string
+    value:
+      string
   ) {
     return new Intl.DateTimeFormat(
       "es-ES",
       {
         hour:
           "2-digit",
+
         minute:
           "2-digit",
+
         timeZone:
           "Europe/Madrid",
       }
     ).format(
-      new Date(value)
+      new Date(
+        value
+      )
     );
   }
 
   function formatBlockDate(
-    value: string
+    value:
+      string
   ) {
     return new Intl.DateTimeFormat(
       "es-ES",
       {
         weekday:
           "long",
+
         day:
           "numeric",
+
         month:
           "long",
+
         year:
           "numeric",
+
         hour:
           "2-digit",
+
         minute:
           "2-digit",
+
         timeZone:
           "Europe/Madrid",
       }
     ).format(
-      new Date(value)
+      new Date(
+        value
+      )
     );
   }
 
   function formatBlockTime(
-    value: string
+    value:
+      string
   ) {
     return new Intl.DateTimeFormat(
       "es-ES",
       {
         hour:
           "2-digit",
+
         minute:
           "2-digit",
+
         timeZone:
           "Europe/Madrid",
       }
     ).format(
-      new Date(value)
+      new Date(
+        value
+      )
     );
   }
 
   /*
-   * Agrupamos slots por día.
+   * ============================================================
+   * AGRUPAR SLOTS POR DÍA
+   * ============================================================
    */
+
   const groupedSlots =
     slots.reduce(
-      (acc, slot) => {
+      (
+        acc,
+        slot
+      ) => {
         const key =
           getDayKey(
             slot.start_at
           );
 
-        if (!acc[key]) {
-          acc[key] = [];
+        if (
+          !acc[key]
+        ) {
+          acc[key] =
+            [];
         }
 
-        acc[key].push(
+        acc[
+          key
+        ].push(
           slot
         );
 
@@ -2035,8 +2343,13 @@ export default function CalendarManager({
     Object.entries(
       groupedSlots
     ).sort(
-      ([a], [b]) =>
-        a.localeCompare(b)
+      (
+        [a],
+        [b]
+      ) =>
+        a.localeCompare(
+          b
+        )
     );
 
   /*
@@ -2048,18 +2361,172 @@ export default function CalendarManager({
   return (
     <div
       style={{
-        marginTop: 28,
+        marginTop:
+          28,
       }}
     >
-      {/* CITA INDIVIDUAL */}
+      {/* ======================================================
+          TOAST / NOTIFICACIÓN
+          ====================================================== */}
+
+      {message && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position:
+              "fixed",
+
+            top:
+              24,
+
+            right:
+              24,
+
+            zIndex:
+              9999,
+
+            width:
+              "min(420px, calc(100vw - 32px))",
+
+            padding:
+              "16px 18px",
+
+            borderRadius:
+              16,
+
+            border:
+              messageType ===
+              "error"
+                ? "1px solid #ef4444"
+                : messageType ===
+                    "warning"
+                  ? "1px solid #f59e0b"
+                  : "1px solid #22c55e",
+
+            background:
+              messageType ===
+              "error"
+                ? "#fef2f2"
+                : messageType ===
+                    "warning"
+                  ? "#fffbeb"
+                  : "#f0fdf4",
+
+            color:
+              messageType ===
+              "error"
+                ? "#b91c1c"
+                : messageType ===
+                    "warning"
+                  ? "#92400e"
+                  : "#166534",
+
+            fontWeight:
+              600,
+
+            lineHeight:
+              1.5,
+
+            boxShadow:
+              "0 12px 40px rgba(0, 0, 0, 0.15)",
+
+            display:
+              "flex",
+
+            alignItems:
+              "flex-start",
+
+            justifyContent:
+              "space-between",
+
+            gap:
+              14,
+          }}
+        >
+          <div
+            style={{
+              display:
+                "flex",
+
+              gap:
+                10,
+
+              alignItems:
+                "flex-start",
+            }}
+          >
+            <span
+              aria-hidden="true"
+            >
+              {messageType ===
+              "error"
+                ? "⚠️"
+                : messageType ===
+                    "warning"
+                  ? "ℹ️"
+                  : "✓"}
+            </span>
+
+            <span>
+              {message}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              clearMessage
+            }
+            aria-label="Cerrar notificación"
+            style={{
+              border:
+                0,
+
+              background:
+                "transparent",
+
+              color:
+                "inherit",
+
+              cursor:
+                "pointer",
+
+              fontSize:
+                20,
+
+              lineHeight:
+                1,
+
+              padding:
+                0,
+
+              opacity:
+                0.7,
+
+              flexShrink:
+                0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ======================================================
+          CITA INDIVIDUAL
+          ====================================================== */}
 
       <form
         onSubmit={
           createSlot
         }
         style={{
-          display: "grid",
-          gap: 12,
+          display:
+            "grid",
+
+          gap:
+            12,
         }}
       >
         <h2>
@@ -2089,9 +2556,12 @@ export default function CalendarManager({
                 value={
                   serviceId
                 }
-                onChange={(e) =>
+                onChange={(
+                  e
+                ) =>
                   setServiceId(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
                 style={
@@ -2103,7 +2573,9 @@ export default function CalendarManager({
                 </option>
 
                 {services.map(
-                  (service) => (
+                  (
+                    service
+                  ) => (
                     <option
                       key={
                         service.id
@@ -2112,7 +2584,9 @@ export default function CalendarManager({
                         service.id
                       }
                     >
-                      {service.name}
+                      {
+                        service.name
+                      }
                       {" · "}
                       {
                         service.duration_minutes
@@ -2128,9 +2602,12 @@ export default function CalendarManager({
               style={{
                 display:
                   "grid",
+
                 gridTemplateColumns:
                   "1fr 1fr",
-                gap: 12,
+
+                gap:
+                  12,
               }}
             >
               <label>
@@ -2144,9 +2621,12 @@ export default function CalendarManager({
                   value={
                     date
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setDate(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
                   style={
@@ -2166,9 +2646,12 @@ export default function CalendarManager({
                   value={
                     time
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setTime(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
                   style={
@@ -2192,12 +2675,18 @@ export default function CalendarManager({
         )}
       </form>
 
-      {/* GENERACIÓN EN BLOQUE */}
+      {/* ======================================================
+          GENERACIÓN EN BLOQUE
+          ====================================================== */}
 
       <div
         style={{
-          marginTop: 42,
-          paddingTop: 30,
+          marginTop:
+            42,
+
+          paddingTop:
+            30,
+
           borderTop:
             "1px solid var(--border)",
         }}
@@ -2207,8 +2696,11 @@ export default function CalendarManager({
             createBulkSlots
           }
           style={{
-            display: "grid",
-            gap: 12,
+            display:
+              "grid",
+
+            gap:
+              12,
           }}
         >
           <div>
@@ -2231,9 +2723,12 @@ export default function CalendarManager({
               value={
                 bulkServiceId
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setBulkServiceId(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               style={
@@ -2245,7 +2740,9 @@ export default function CalendarManager({
               </option>
 
               {services.map(
-                (service) => (
+                (
+                  service
+                ) => (
                   <option
                     key={
                       service.id
@@ -2254,7 +2751,9 @@ export default function CalendarManager({
                       service.id
                     }
                   >
-                    {service.name}
+                    {
+                      service.name
+                    }
                     {" · "}
                     {
                       service.duration_minutes
@@ -2277,9 +2776,12 @@ export default function CalendarManager({
               value={
                 bulkDate
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setBulkDate(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               style={
@@ -2292,9 +2794,12 @@ export default function CalendarManager({
             style={{
               display:
                 "grid",
+
               gridTemplateColumns:
                 "1fr 1fr",
-              gap: 12,
+
+              gap:
+                12,
             }}
           >
             <label>
@@ -2308,9 +2813,12 @@ export default function CalendarManager({
                 value={
                   bulkStartTime
                 }
-                onChange={(e) =>
+                onChange={(
+                  e
+                ) =>
                   setBulkStartTime(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
                 style={
@@ -2330,9 +2838,12 @@ export default function CalendarManager({
                 value={
                   bulkEndTime
                 }
-                onChange={(e) =>
+                onChange={(
+                  e
+                ) =>
                   setBulkEndTime(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
                 style={
@@ -2356,12 +2867,18 @@ export default function CalendarManager({
         </form>
       </div>
 
-      {/* GENERACIÓN SEMANAL */}
+      {/* ======================================================
+          GENERACIÓN SEMANAL
+          ====================================================== */}
 
       <div
         style={{
-          marginTop: 42,
-          paddingTop: 30,
+          marginTop:
+            42,
+
+          paddingTop:
+            30,
+
           borderTop:
             "1px solid var(--border)",
         }}
@@ -2371,8 +2888,11 @@ export default function CalendarManager({
             createWeekSlots
           }
           style={{
-            display: "grid",
-            gap: 12,
+            display:
+              "grid",
+
+            gap:
+              12,
           }}
         >
           <div>
@@ -2395,9 +2915,12 @@ export default function CalendarManager({
               value={
                 weekServiceId
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setWeekServiceId(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               style={
@@ -2409,7 +2932,9 @@ export default function CalendarManager({
               </option>
 
               {services.map(
-                (service) => (
+                (
+                  service
+                ) => (
                   <option
                     key={
                       service.id
@@ -2418,7 +2943,9 @@ export default function CalendarManager({
                       service.id
                     }
                   >
-                    {service.name}
+                    {
+                      service.name
+                    }
                     {" · "}
                     {
                       service.duration_minutes
@@ -2441,9 +2968,12 @@ export default function CalendarManager({
               value={
                 weekStartDate
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setWeekStartDate(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               style={
@@ -2466,12 +2996,18 @@ export default function CalendarManager({
         </form>
       </div>
 
-      {/* BLOQUEAR DISPONIBILIDAD */}
+      {/* ======================================================
+          BLOQUEAR DISPONIBILIDAD
+          ====================================================== */}
 
       <div
         style={{
-          marginTop: 42,
-          paddingTop: 30,
+          marginTop:
+            42,
+
+          paddingTop:
+            30,
+
           borderTop:
             "1px solid var(--border)",
         }}
@@ -2481,8 +3017,11 @@ export default function CalendarManager({
             createBlock
           }
           style={{
-            display: "grid",
-            gap: 12,
+            display:
+              "grid",
+
+            gap:
+              12,
           }}
         >
           <div>
@@ -2506,9 +3045,12 @@ export default function CalendarManager({
               value={
                 blockDate
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setBlockDate(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               style={
@@ -2521,9 +3063,12 @@ export default function CalendarManager({
             style={{
               display:
                 "flex",
+
               alignItems:
                 "center",
-              gap: 8,
+
+              gap:
+                8,
             }}
           >
             <input
@@ -2531,9 +3076,12 @@ export default function CalendarManager({
               checked={
                 blockAllDay
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setBlockAllDay(
-                  e.target.checked
+                  e.target
+                    .checked
                 )
               }
             />
@@ -2546,9 +3094,12 @@ export default function CalendarManager({
               style={{
                 display:
                   "grid",
+
                 gridTemplateColumns:
                   "1fr 1fr",
-                gap: 12,
+
+                gap:
+                  12,
               }}
             >
               <label>
@@ -2561,9 +3112,12 @@ export default function CalendarManager({
                   value={
                     blockStartTime
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setBlockStartTime(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
                   style={
@@ -2582,9 +3136,12 @@ export default function CalendarManager({
                   value={
                     blockEndTime
                   }
-                  onChange={(e) =>
+                  onChange={(
+                    e
+                  ) =>
                     setBlockEndTime(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
                   style={
@@ -2604,9 +3161,12 @@ export default function CalendarManager({
               value={
                 blockReason
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setBlockReason(
-                  e.target.value
+                  e.target
+                    .value
                 )
               }
               placeholder="Vacaciones, reunión, cerrado..."
@@ -2633,7 +3193,8 @@ export default function CalendarManager({
           0 && (
           <div
             style={{
-              marginTop: 28,
+              marginTop:
+                28,
             }}
           >
             <h3>
@@ -2644,12 +3205,18 @@ export default function CalendarManager({
               style={{
                 display:
                   "grid",
-                gap: 10,
-                marginTop: 12,
+
+                gap:
+                  10,
+
+                marginTop:
+                  12,
               }}
             >
               {blocks.map(
-                (block) => (
+                (
+                  block
+                ) => (
                   <div
                     className="card"
                     key={
@@ -2671,7 +3238,8 @@ export default function CalendarManager({
                       <div
                         className="muted"
                         style={{
-                          marginTop: 6,
+                          marginTop:
+                            6,
                         }}
                       >
                         Hasta{" "}
@@ -2684,7 +3252,8 @@ export default function CalendarManager({
                         <div
                           className="meta"
                           style={{
-                            marginTop: 8,
+                            marginTop:
+                              8,
                           }}
                         >
                           {
@@ -2697,7 +3266,8 @@ export default function CalendarManager({
                         type="button"
                         className="btn"
                         style={{
-                          marginTop: 12,
+                          marginTop:
+                            12,
                         }}
                         onClick={() =>
                           deleteBlock(
@@ -2716,64 +3286,14 @@ export default function CalendarManager({
         )}
       </div>
 
-      {/* MENSAJES */}
-
-      {message && (
-        <div
-          role="alert"
-          style={{
-            marginTop: 20,
-            padding:
-              "14px 16px",
-            borderRadius: 14,
-
-            border:
-              messageType ===
-              "error"
-                ? "1px solid #ef4444"
-                : messageType ===
-                    "warning"
-                  ? "1px solid #f59e0b"
-                  : "1px solid #22c55e",
-
-            background:
-              messageType ===
-              "error"
-                ? "#fef2f2"
-                : messageType ===
-                    "warning"
-                  ? "#fffbeb"
-                  : "#f0fdf4",
-
-            color:
-              messageType ===
-              "error"
-                ? "#b91c1c"
-                : messageType ===
-                    "warning"
-                  ? "#92400e"
-                  : "#166534",
-
-            fontWeight: 600,
-          }}
-        >
-          {messageType ===
-          "error"
-            ? "⚠️ "
-            : messageType ===
-                "warning"
-              ? "ℹ️ "
-              : "✓ "}
-
-          {message}
-        </div>
-      )}
-
-      {/* PRÓXIMAS CITAS */}
+      {/* ======================================================
+          PRÓXIMAS CITAS
+          ====================================================== */}
 
       <div
         style={{
-          marginTop: 40,
+          marginTop:
+            40,
         }}
       >
         <h2>
@@ -2790,8 +3310,12 @@ export default function CalendarManager({
             style={{
               display:
                 "grid",
-              gap: 14,
-              marginTop: 16,
+
+              gap:
+                14,
+
+              marginTop:
+                16,
             }}
           >
             {groupedDays.map(
@@ -2802,7 +3326,8 @@ export default function CalendarManager({
                 const expanded =
                   expandedDays[
                     dayKey
-                  ] ?? false;
+                  ] ??
+                  false;
 
                 const availableCount =
                   daySlots.filter(
@@ -2837,11 +3362,16 @@ export default function CalendarManager({
                         style={{
                           display:
                             "flex",
+
                           justifyContent:
                             "space-between",
+
                           alignItems:
                             "center",
-                          gap: 16,
+
+                          gap:
+                            16,
+
                           flexWrap:
                             "wrap",
                         }}
@@ -2861,36 +3391,49 @@ export default function CalendarManager({
                             )
                           }
                           style={{
-                            flex: 1,
-                            border: 0,
+                            flex:
+                              1,
+
+                            border:
+                              0,
+
                             background:
                               "transparent",
-                            padding: 0,
+
+                            padding:
+                              0,
+
                             color:
                               "inherit",
+
                             cursor:
                               "pointer",
+
                             textAlign:
                               "left",
                           }}
                         >
                           <h3
                             style={{
-                              margin: 0,
+                              margin:
+                                0,
+
                               textTransform:
                                 "capitalize",
                             }}
                           >
                             {formatDayTitle(
-                              daySlots[0]
-                                .start_at
+                              daySlots[
+                                0
+                              ].start_at
                             )}
                           </h3>
 
                           <div
                             className="meta"
                             style={{
-                              marginTop: 6,
+                              marginTop:
+                                6,
                             }}
                           >
                             {
@@ -2919,9 +3462,13 @@ export default function CalendarManager({
                           style={{
                             display:
                               "flex",
+
                             alignItems:
                               "center",
-                            gap: 10,
+
+                            gap:
+                              10,
+
                             flexWrap:
                               "wrap",
                           }}
@@ -2969,9 +3516,16 @@ export default function CalendarManager({
                           style={{
                             display:
                               "grid",
-                            gap: 10,
-                            marginTop: 18,
-                            paddingTop: 18,
+
+                            gap:
+                              10,
+
+                            marginTop:
+                              18,
+
+                            paddingTop:
+                              18,
+
                             borderTop:
                               "1px solid var(--border)",
                           }}
@@ -2987,13 +3541,19 @@ export default function CalendarManager({
                                 style={{
                                   display:
                                     "flex",
+
                                   justifyContent:
                                     "space-between",
+
                                   alignItems:
                                     "center",
-                                  gap: 16,
+
+                                  gap:
+                                    16,
+
                                   flexWrap:
                                     "wrap",
+
                                   padding:
                                     "10px 0",
                                 }}
@@ -3007,7 +3567,8 @@ export default function CalendarManager({
 
                                   <span
                                     style={{
-                                      marginLeft: 10,
+                                      marginLeft:
+                                        10,
                                     }}
                                   >
                                     {getServiceName(
@@ -3018,8 +3579,11 @@ export default function CalendarManager({
                                   <div
                                     className="muted"
                                     style={{
-                                      marginTop: 4,
-                                      fontSize: 13,
+                                      marginTop:
+                                        4,
+
+                                      fontSize:
+                                        13,
                                     }}
                                   >
                                     {slot.status ===
@@ -3066,15 +3630,31 @@ export default function CalendarManager({
   );
 }
 
+/*
+ * ============================================================
+ * ESTILO INPUT
+ * ============================================================
+ */
+
 const inputStyle = {
-  width: "100%",
-  padding: 14,
+  width:
+    "100%",
+
+  padding:
+    14,
+
   border:
     "1px solid var(--border)",
-  borderRadius: 14,
-  marginTop: 8,
+
+  borderRadius:
+    14,
+
+  marginTop:
+    8,
+
   background:
     "var(--card)",
+
   color:
     "var(--text)",
 };

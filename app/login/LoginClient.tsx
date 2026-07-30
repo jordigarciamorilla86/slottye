@@ -149,6 +149,83 @@ function GoogleIcon() {
   );
 }
 
+/*
+ * ============================================================
+ * ICONO OJO
+ * ============================================================
+ */
+
+function EyeIcon({
+  visible,
+}: {
+  visible: boolean;
+}) {
+  if (visible) {
+    return (
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 3L21 21"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M10.6 10.7A2 2 0 0 0 13.3 13.4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M9.9 4.3A10.8 10.8 0 0 1 12 4c5.5 0 9 5 9 8a9.5 9.5 0 0 1-2.2 3.7"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M6.6 6.6C4.4 8 3 10.2 3 12c0 3 3.5 8 9 8 1.5 0 2.8-.4 4-.9"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.5 12S6 5 12 5s9.5 7 9.5 7S18 19 12 19 2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="3"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 export default function Login() {
   const router =
     useRouter();
@@ -168,40 +245,67 @@ export default function Login() {
       ? "business"
       : "customer";
 
-  const [mode, setMode] =
+  const [
+    mode,
+    setMode,
+  ] =
     useState<Mode>(
       initialMode
     );
 
-  const [role, setRole] =
+  const [
+    role,
+    setRole,
+  ] =
     useState<Role>(
       initialRole
     );
 
-  const [name, setName] =
+  const [
+    name,
+    setName,
+  ] =
     useState("");
 
-  const [email, setEmail] =
+  const [
+    email,
+    setEmail,
+  ] =
     useState("");
 
   const [
     password,
     setPassword,
-  ] = useState("");
+  ] =
+    useState("");
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] =
+    useState(false);
+
+  const [
+    acceptedTerms,
+    setAcceptedTerms,
+  ] =
+    useState(false);
 
   const [
     message,
     setMessage,
-  ] = useState(
-    searchParams.get("error")
-      ? "No se pudo completar el acceso. Inténtalo de nuevo."
-      : ""
-  );
+  ] =
+    useState(
+      searchParams.get("error")
+        ? "No se pudo completar el acceso. Inténtalo de nuevo."
+        : ""
+    );
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const supabase =
     createClient();
@@ -223,16 +327,70 @@ export default function Login() {
 
   /*
    * ============================================================
+   * CAMBIO DE MODO
+   * ============================================================
+   */
+
+  function changeMode(
+    nextMode: Mode
+  ) {
+    setMode(
+      nextMode
+    );
+
+    setMessage(
+      ""
+    );
+
+    setShowPassword(
+      false
+    );
+
+    if (
+      nextMode ===
+      "login"
+    ) {
+      setAcceptedTerms(
+        false
+      );
+    }
+  }
+
+  /*
+   * ============================================================
    * GOOGLE
    * ============================================================
    */
 
   async function handleGoogle() {
-    setLoading(true);
-    setMessage("");
+    /*
+     * Si estamos creando cuenta,
+     * exigimos aceptar condiciones
+     * también para Google.
+     */
+    if (
+      mode === "signup" &&
+      !acceptedTerms
+    ) {
+      setMessage(
+        "Debes aceptar las Condiciones de uso y confirmar que has leído la Política de privacidad."
+      );
+
+      return;
+    }
+
+    setLoading(
+      true
+    );
+
+    setMessage(
+      ""
+    );
 
     const destination =
-      getDestination(role);
+      getDestination(
+        role
+      );
 
     const redirectTo =
       `${window.location.origin}/auth/callback` +
@@ -241,7 +399,9 @@ export default function Login() {
         destination
       )}`;
 
-    const { error } =
+    const {
+      error,
+    } =
       await supabase.auth
         .signInWithOAuth({
           provider:
@@ -259,7 +419,9 @@ export default function Login() {
         )
       );
 
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
@@ -275,8 +437,30 @@ export default function Login() {
   ) {
     event.preventDefault();
 
-    setLoading(true);
-    setMessage("");
+    /*
+     * ==========================================================
+     * CONDICIONES
+     * ==========================================================
+     */
+
+    if (
+      mode === "signup" &&
+      !acceptedTerms
+    ) {
+      setMessage(
+        "Debes aceptar las Condiciones de uso y confirmar que has leído la Política de privacidad."
+      );
+
+      return;
+    }
+
+    setLoading(
+      true
+    );
+
+    setMessage(
+      ""
+    );
 
     /*
      * ==========================================================
@@ -288,7 +472,9 @@ export default function Login() {
       mode === "signup"
     ) {
       const destination =
-        getDestination(role);
+        getDestination(
+          role
+        );
 
       const {
         data,
@@ -324,12 +510,20 @@ export default function Login() {
           )
         );
 
-        setLoading(false);
+        setLoading(
+          false
+        );
 
         return;
       }
 
-      if (data.session) {
+      /*
+       * Si Supabase devuelve sesión,
+       * no necesitamos confirmación.
+       */
+      if (
+        data.session
+      ) {
         router.push(
           destination
         );
@@ -339,6 +533,10 @@ export default function Login() {
         return;
       }
 
+      /*
+       * Si no devuelve sesión,
+       * esperamos confirmación por email.
+       */
       router.push(
         `/check-email?email=${encodeURIComponent(
           email.trim()
@@ -354,7 +552,9 @@ export default function Login() {
      * ==========================================================
      */
 
-    const { error } =
+    const {
+      error,
+    } =
       await supabase.auth
         .signInWithPassword({
           email:
@@ -370,7 +570,9 @@ export default function Login() {
         )
       );
 
-      setLoading(false);
+      setLoading(
+        false
+      );
 
       return;
     }
@@ -395,7 +597,8 @@ export default function Login() {
       <main
         className="shell detail"
         style={{
-          maxWidth: 600,
+          maxWidth:
+            600,
         }}
       >
         <section className="panel">
@@ -404,13 +607,15 @@ export default function Login() {
           </div>
 
           <h1 className="business-title">
-            {mode === "login"
+            {mode ===
+            "login"
               ? "Entrar"
               : "Crear cuenta"}
           </h1>
 
           <p className="muted">
-            {mode === "login"
+            {mode ===
+            "login"
               ? "Gestiona tus citas, favoritos y avisos."
               : "Regístrate como cliente o como negocio."}
           </p>
@@ -421,29 +626,31 @@ export default function Login() {
 
           <div
             style={{
-              display: "grid",
+              display:
+                "grid",
+
               gridTemplateColumns:
                 "1fr 1fr",
+
               gap: 8,
-              margin: "18px 0",
+
+              margin:
+                "18px 0",
             }}
           >
             <button
               type="button"
               className={`btn ${
-                mode === "login"
+                mode ===
+                "login"
                   ? "primary"
                   : ""
               }`}
-              onClick={() => {
-                setMode(
+              onClick={() =>
+                changeMode(
                   "login"
-                );
-
-                setMessage(
-                  ""
-                );
-              }}
+                )
+              }
             >
               Entrar
             </button>
@@ -451,19 +658,16 @@ export default function Login() {
             <button
               type="button"
               className={`btn ${
-                mode === "signup"
+                mode ===
+                "signup"
                   ? "primary"
                   : ""
               }`}
-              onClick={() => {
-                setMode(
+              onClick={() =>
+                changeMode(
                   "signup"
-                );
-
-                setMessage(
-                  ""
-                );
-              }}
+                )
+              }
             >
               Crear cuenta
             </button>
@@ -479,9 +683,12 @@ export default function Login() {
               style={{
                 display:
                   "grid",
+
                 gridTemplateColumns:
                   "1fr 1fr",
+
                 gap: 8,
+
                 marginBottom:
                   12,
               }}
@@ -530,8 +737,11 @@ export default function Login() {
             type="button"
             className="btn"
             style={{
-              width: "100%",
-              marginBottom: 16,
+              width:
+                "100%",
+
+              marginBottom:
+                16,
 
               display:
                 "flex",
@@ -554,7 +764,12 @@ export default function Login() {
               handleGoogle
             }
             disabled={
-              loading
+              loading ||
+              (
+                mode ===
+                  "signup" &&
+                !acceptedTerms
+              )
             }
           >
             {!loading && (
@@ -573,6 +788,7 @@ export default function Login() {
             style={{
               textAlign:
                 "center",
+
               marginBottom:
                 16,
             }}
@@ -596,7 +812,9 @@ export default function Login() {
                 value={
                   name
                 }
-                onChange={(e) =>
+                onChange={(
+                  e
+                ) =>
                   setName(
                     e.target
                       .value
@@ -621,7 +839,9 @@ export default function Login() {
               value={
                 email
               }
-              onChange={(e) =>
+              onChange={(
+                e
+              ) =>
                 setEmail(
                   e.target
                     .value
@@ -635,32 +855,13 @@ export default function Login() {
             />
 
             {/* ==================================================
-                CONTRASEÑA
+                CONTRASEÑA + OJO
                 ================================================== */}
 
-            <input
-              required
-              minLength={
-                8
-              }
-              value={
-                password
-              }
-              onChange={(e) =>
-                setPassword(
-                  e.target
-                    .value
-                )
-              }
-              placeholder="Contraseña"
-              type="password"
-              autoComplete={
-                mode === "login"
-                  ? "current-password"
-                  : "new-password"
-              }
+            <div
               style={{
-                ...inputStyle,
+                position:
+                  "relative",
 
                 marginBottom:
                   mode ===
@@ -668,7 +869,120 @@ export default function Login() {
                     ? 5
                     : 10,
               }}
-            />
+            >
+              <input
+                required
+                minLength={
+                  8
+                }
+                value={
+                  password
+                }
+                onChange={(
+                  e
+                ) =>
+                  setPassword(
+                    e.target
+                      .value
+                  )
+                }
+                placeholder="Contraseña"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                autoComplete={
+                  mode ===
+                  "login"
+                    ? "current-password"
+                    : "new-password"
+                }
+                style={{
+                  ...inputStyle,
+
+                  marginBottom:
+                    0,
+
+                  paddingRight:
+                    52,
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(
+                    (
+                      current
+                    ) =>
+                      !current
+                  )
+                }
+                aria-label={
+                  showPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+                }
+                title={
+                  showPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+                }
+                style={{
+                  position:
+                    "absolute",
+
+                  right:
+                    8,
+
+                  top:
+                    "50%",
+
+                  transform:
+                    "translateY(-50%)",
+
+                  width:
+                    38,
+
+                  height:
+                    38,
+
+                  display:
+                    "flex",
+
+                  alignItems:
+                    "center",
+
+                  justifyContent:
+                    "center",
+
+                  border:
+                    "none",
+
+                  borderRadius:
+                    10,
+
+                  background:
+                    "transparent",
+
+                  color:
+                    "var(--muted)",
+
+                  cursor:
+                    "pointer",
+
+                  padding:
+                    0,
+                }}
+              >
+                <EyeIcon
+                  visible={
+                    showPassword
+                  }
+                />
+              </button>
+            </div>
 
             {/* ==================================================
                 REQUISITOS CONTRASEÑA
@@ -698,6 +1012,130 @@ export default function Login() {
                 1 número ·
                 1 símbolo
               </div>
+            )}
+
+            {/* ==================================================
+                CONDICIONES + PRIVACIDAD
+                ================================================== */}
+
+            {mode ===
+              "signup" && (
+              <label
+                style={{
+                  display:
+                    "flex",
+
+                  alignItems:
+                    "flex-start",
+
+                  gap: 10,
+
+                  marginBottom:
+                    16,
+
+                  cursor:
+                    "pointer",
+
+                  fontSize:
+                    13,
+
+                  lineHeight:
+                    1.5,
+
+                  color:
+                    "var(--muted)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    acceptedTerms
+                  }
+                  onChange={(
+                    e
+                  ) =>
+                    setAcceptedTerms(
+                      e.target
+                        .checked
+                    )
+                  }
+                  required
+                  style={{
+                    width:
+                      17,
+
+                    height:
+                      17,
+
+                    marginTop:
+                      2,
+
+                    flexShrink:
+                      0,
+
+                    cursor:
+                      "pointer",
+
+                    accentColor:
+                      "var(--accent)",
+                  }}
+                />
+
+                <span>
+                  He leído y
+                  acepto las{" "}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(
+                      event
+                    ) =>
+                      event.stopPropagation()
+                    }
+                    style={{
+                      color:
+                        "var(--accent)",
+
+                      fontWeight:
+                        700,
+
+                      textDecoration:
+                        "none",
+                    }}
+                  >
+                    Condiciones
+                    de uso
+                  </Link>{" "}
+                  y confirmo
+                  haber leído
+                  la{" "}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(
+                      event
+                    ) =>
+                      event.stopPropagation()
+                    }
+                    style={{
+                      color:
+                        "var(--accent)",
+
+                      fontWeight:
+                        700,
+
+                      textDecoration:
+                        "none",
+                    }}
+                  >
+                    Política de
+                    privacidad
+                  </Link>
+                  .
+                </span>
+              </label>
             )}
 
             {/* ==================================================
@@ -743,7 +1181,7 @@ export default function Login() {
             )}
 
             {/* ==================================================
-                BOTÓN
+                BOTÓN EMAIL
                 ================================================== */}
 
             <button
@@ -754,7 +1192,12 @@ export default function Login() {
                   "100%",
               }}
               disabled={
-                loading
+                loading ||
+                (
+                  mode ===
+                    "signup" &&
+                  !acceptedTerms
+                )
               }
             >
               {loading
@@ -818,16 +1261,20 @@ export default function Login() {
  */
 
 const inputStyle = {
-  width: "100%",
+  width:
+    "100%",
 
-  padding: 14,
+  padding:
+    14,
 
   border:
     "1px solid var(--border)",
 
-  borderRadius: 14,
+  borderRadius:
+    14,
 
-  marginBottom: 10,
+  marginBottom:
+    10,
 
   background:
     "var(--card)",
