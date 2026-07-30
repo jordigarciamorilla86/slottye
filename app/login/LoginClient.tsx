@@ -23,6 +23,123 @@ type Role =
   | "customer"
   | "business";
 
+/*
+ * ============================================================
+ * TRADUCCIÓN DE ERRORES DE SUPABASE
+ * ============================================================
+ */
+
+function translateAuthError(
+  message: string
+) {
+  const text =
+    message.toLowerCase();
+
+  /*
+   * Contraseña que no cumple
+   * los requisitos configurados
+   * en Supabase.
+   */
+  if (
+    text.includes(
+      "password should be at least"
+    ) ||
+    text.includes(
+      "password should contain at least one character of each"
+    )
+  ) {
+    return "La contraseña debe tener al menos 8 caracteres e incluir una letra mayúscula, una minúscula, un número y un símbolo.";
+  }
+
+  /*
+   * Login incorrecto.
+   */
+  if (
+    text.includes(
+      "invalid login credentials"
+    )
+  ) {
+    return "El correo electrónico o la contraseña no son correctos.";
+  }
+
+  /*
+   * Email todavía sin confirmar.
+   */
+  if (
+    text.includes(
+      "email not confirmed"
+    )
+  ) {
+    return "Debes confirmar tu correo electrónico antes de iniciar sesión.";
+  }
+
+  /*
+   * Usuario ya registrado.
+   */
+  if (
+    text.includes(
+      "user already registered"
+    ) ||
+    text.includes(
+      "already registered"
+    )
+  ) {
+    return "Ya existe una cuenta registrada con este correo electrónico.";
+  }
+
+  /*
+   * Email inválido.
+   */
+  if (
+    text.includes(
+      "invalid email"
+    )
+  ) {
+    return "Introduce una dirección de correo electrónico válida.";
+  }
+
+  /*
+   * Demasiados emails.
+   */
+  if (
+    text.includes(
+      "email rate limit exceeded"
+    )
+  ) {
+    return "Has solicitado demasiados correos. Espera unos minutos e inténtalo de nuevo.";
+  }
+
+  /*
+   * Demasiados intentos.
+   */
+  if (
+    text.includes(
+      "rate limit"
+    ) ||
+    text.includes(
+      "too many requests"
+    )
+  ) {
+    return "Has realizado demasiados intentos. Espera unos minutos e inténtalo de nuevo.";
+  }
+
+  /*
+   * Contraseña débil.
+   */
+  if (
+    text.includes(
+      "weak password"
+    )
+  ) {
+    return "La contraseña no cumple los requisitos de seguridad.";
+  }
+
+  /*
+   * Fallback.
+   */
+  return "No se ha podido completar la operación. Inténtalo de nuevo.";
+}
+
 export default function Login() {
   const router =
     useRouter();
@@ -128,7 +245,9 @@ export default function Login() {
 
     if (error) {
       setMessage(
-        error.message
+        translateAuthError(
+          error.message
+        )
       );
 
       setLoading(false);
@@ -191,7 +310,9 @@ export default function Login() {
 
       if (error) {
         setMessage(
-          error.message
+          translateAuthError(
+            error.message
+          )
         );
 
         setLoading(false);
@@ -200,8 +321,8 @@ export default function Login() {
       }
 
       /*
-       * Si Supabase devuelve una sesión,
-       * significa que no necesitamos esperar
+       * Si Supabase devuelve sesión,
+       * no necesitamos esperar
        * confirmación de email.
        */
       if (data.session) {
@@ -215,8 +336,8 @@ export default function Login() {
       }
 
       /*
-       * Si NO hay sesión, Supabase requiere
-       * confirmación mediante email.
+       * Si no hay sesión, Supabase
+       * requiere confirmación por email.
        */
       router.push(
         `/check-email?email=${encodeURIComponent(
@@ -244,7 +365,9 @@ export default function Login() {
 
     if (error) {
       setMessage(
-        error.message
+        translateAuthError(
+          error.message
+        )
       );
 
       setLoading(false);
@@ -252,16 +375,18 @@ export default function Login() {
       return;
     }
 
-    /*
-     * Al iniciar sesión dejamos que /account
-     * gestione la entrada normal.
-     */
     router.push(
       "/account"
     );
 
     router.refresh();
   }
+
+  /*
+   * ============================================================
+   * UI
+   * ============================================================
+   */
 
   return (
     <>
@@ -297,25 +422,19 @@ export default function Login() {
           <div
             style={{
               display: "grid",
-
               gridTemplateColumns:
                 "1fr 1fr",
-
               gap: 8,
-
-              margin:
-                "18px 0",
+              margin: "18px 0",
             }}
           >
             <button
               type="button"
-
               className={`btn ${
                 mode === "login"
                   ? "primary"
                   : ""
               }`}
-
               onClick={() => {
                 setMode(
                   "login"
@@ -331,13 +450,11 @@ export default function Login() {
 
             <button
               type="button"
-
               className={`btn ${
                 mode === "signup"
                   ? "primary"
                   : ""
               }`}
-
               onClick={() => {
                 setMode(
                   "signup"
@@ -362,26 +479,21 @@ export default function Login() {
               style={{
                 display:
                   "grid",
-
                 gridTemplateColumns:
                   "1fr 1fr",
-
                 gap: 8,
-
                 marginBottom:
                   12,
               }}
             >
               <button
                 type="button"
-
                 className={`btn ${
                   role ===
                   "customer"
                     ? "primary"
                     : ""
                 }`}
-
                 onClick={() =>
                   setRole(
                     "customer"
@@ -393,14 +505,12 @@ export default function Login() {
 
               <button
                 type="button"
-
                 className={`btn ${
                   role ===
                   "business"
                     ? "primary"
                     : ""
                 }`}
-
                 onClick={() =>
                   setRole(
                     "business"
@@ -418,19 +528,15 @@ export default function Login() {
 
           <button
             type="button"
-
             className="btn"
-
             style={{
               width: "100%",
               marginBottom:
                 16,
             }}
-
             onClick={
               handleGoogle
             }
-
             disabled={
               loading
             }
@@ -442,11 +548,9 @@ export default function Login() {
 
           <div
             className="muted"
-
             style={{
               textAlign:
                 "center",
-
               marginBottom:
                 16,
             }}
@@ -455,7 +559,7 @@ export default function Login() {
           </div>
 
           {/* ==================================================
-              EMAIL
+              FORMULARIO
               ================================================== */}
 
           <form
@@ -467,27 +571,22 @@ export default function Login() {
               "signup" && (
               <input
                 required
-
                 value={
                   name
                 }
-
                 onChange={(e) =>
                   setName(
                     e.target
                       .value
                   )
                 }
-
                 placeholder={
                   role ===
                   "business"
                     ? "Nombre del responsable"
                     : "Tu nombre"
                 }
-
                 autoComplete="name"
-
                 style={
                   inputStyle
                 }
@@ -496,65 +595,92 @@ export default function Login() {
 
             <input
               required
-
               type="email"
-
               value={
                 email
               }
-
               onChange={(e) =>
                 setEmail(
                   e.target
                     .value
                 )
               }
-
               placeholder="tu@email.com"
-
               autoComplete="email"
-
               style={
                 inputStyle
               }
             />
 
+            {/* ==================================================
+                CONTRASEÑA
+                ================================================== */}
+
             <input
               required
-
               minLength={
                 8
               }
-
               value={
                 password
               }
-
               onChange={(e) =>
                 setPassword(
                   e.target
                     .value
                 )
               }
-
               placeholder="Contraseña"
-
               type="password"
-
               autoComplete={
                 mode === "login"
                   ? "current-password"
                   : "new-password"
               }
+              style={{
+                ...inputStyle,
 
-              style={
-                inputStyle
-              }
+                marginBottom:
+                  mode ===
+                  "signup"
+                    ? 5
+                    : 10,
+              }}
             />
 
-            {/* ================================================
+            {/* ==================================================
+                REQUISITOS CONTRASEÑA
+                ================================================== */}
+
+            {mode ===
+              "signup" && (
+              <div
+                className="muted"
+                style={{
+                  fontSize:
+                    12,
+
+                  lineHeight:
+                    1.5,
+
+                  marginBottom:
+                    14,
+
+                  paddingLeft:
+                    2,
+                }}
+              >
+                Mínimo 8 caracteres ·
+                1 mayúscula ·
+                1 minúscula ·
+                1 número ·
+                1 símbolo
+              </div>
+            )}
+
+            {/* ==================================================
                 RECUPERAR CONTRASEÑA
-                ================================================ */}
+                ================================================== */}
 
             {mode ===
               "login" && (
@@ -575,7 +701,6 @@ export default function Login() {
               >
                 <Link
                   href="/forgot-password"
-
                   style={{
                     fontSize:
                       13,
@@ -595,16 +720,17 @@ export default function Login() {
               </div>
             )}
 
+            {/* ==================================================
+                BOTÓN
+                ================================================== */}
+
             <button
               type="submit"
-
               className="btn primary"
-
               style={{
                 width:
                   "100%",
               }}
-
               disabled={
                 loading
               }
@@ -625,7 +751,6 @@ export default function Login() {
           {message && (
             <div
               role="alert"
-
               style={{
                 marginTop:
                   14,
@@ -647,6 +772,12 @@ export default function Login() {
 
                 fontWeight:
                   600,
+
+                fontSize:
+                  14,
+
+                lineHeight:
+                  1.5,
               }}
             >
               ⚠️ {message}
