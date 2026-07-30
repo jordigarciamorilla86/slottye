@@ -1,78 +1,187 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import { NearbyBusinesses } from "@/components/NearbyBusinesses";
 
+/*
+ * ============================================================
+ * SEO
+ * ============================================================
+ */
+
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "https://slottye.com";
+
+export const metadata: Metadata = {
+  title:
+    "Slottye — Encuentra y reserva tu próxima cita",
+
+  description:
+    "Encuentra negocios y profesionales cerca de ti, consulta citas disponibles y reserva online de forma rápida y sencilla con Slottye.",
+
+  alternates: {
+    canonical: baseUrl,
+  },
+
+  openGraph: {
+    type: "website",
+
+    locale: "es_ES",
+
+    siteName: "Slottye",
+
+    title:
+      "Slottye — Encuentra y reserva tu próxima cita",
+
+    description:
+      "Encuentra negocios y profesionales cerca de ti, consulta citas disponibles y reserva online en segundos.",
+
+    url: baseUrl,
+  },
+
+  twitter: {
+    card: "summary_large_image",
+
+    title:
+      "Slottye — Encuentra y reserva tu próxima cita",
+
+    description:
+      "Encuentra negocios y profesionales cerca de ti y reserva citas disponibles online.",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+};
+
+/*
+ * ============================================================
+ * HOME
+ * ============================================================
+ */
+
 export default async function Home() {
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
+
+  /*
+   * ============================================================
+   * CATEGORÍAS
+   * ============================================================
+   */
 
   const {
     data: categories,
     error: categoriesError,
-  } = await supabase
-    .from("categories")
-    .select("id, name, slug, icon")
-    .eq("active", true)
-    .order("name");
+  } =
+    await supabase
+      .from("categories")
+      .select(
+        "id, name, slug, icon"
+      )
+      .eq("active", true)
+      .order("name");
+
+  /*
+   * ============================================================
+   * NEGOCIOS
+   * ============================================================
+   */
 
   const {
     data: businesses,
     error: businessesError,
-  } = await supabase
-    .from("businesses")
-    .select(`
-      id,
-      name,
-      slug,
-      description,
-      address,
-      city,
-      phone,
-      website,
-      latitude,
-      longitude,
-      category_id,
-
-      business_images (
-        image_url,
-        position
-      ),
-
-      reviews (
-        rating
-      ),
-
-      slots (
+  } =
+    await supabase
+      .from("businesses")
+      .select(`
         id,
-        status,
-        start_at
-      )
-    `)
-    .eq("active", true)
-    .order("created_at", {
-      ascending: false,
-    })
-    .limit(20);
+        name,
+        slug,
+        description,
+        address,
+        city,
+        phone,
+        website,
+        latitude,
+        longitude,
+        category_id,
 
-  if (categoriesError) {
+        business_images (
+          image_url,
+          position
+        ),
+
+        reviews (
+          rating
+        ),
+
+        slots (
+          id,
+          status,
+          start_at
+        )
+      `)
+      .eq(
+        "active",
+        true
+      )
+      .order(
+        "created_at",
+        {
+          ascending:
+            false,
+        }
+      )
+      .limit(20);
+
+  if (
+    categoriesError
+  ) {
     console.error(
       "Error loading categories:",
       categoriesError
     );
   }
 
-  if (businessesError) {
+  if (
+    businessesError
+  ) {
     console.error(
       "Error loading businesses:",
       businessesError
     );
   }
 
-  const now = new Date();
+  const now =
+    new Date();
+
+  /*
+   * ============================================================
+   * NORMALIZAR NEGOCIOS
+   * ============================================================
+   */
 
   const normalizedBusinesses =
-    (businesses ?? []).map(
-      (business) => {
+    (
+      businesses ??
+      []
+    ).map(
+      (
+        business
+      ) => {
         /*
          * ========================================================
          * IMAGEN DE PORTADA
@@ -87,13 +196,25 @@ export default async function Home() {
             : [];
 
         const imageUrl =
-          [...images]
+          [
+            ...images,
+          ]
             .sort(
-              (a, b) =>
-                a.position -
-                b.position
+              (
+                a,
+                b
+              ) =>
+                (
+                  a.position ??
+                  0
+                ) -
+                (
+                  b.position ??
+                  0
+                )
             )[0]
-            ?.image_url ?? null;
+            ?.image_url ??
+          null;
 
         /*
          * ========================================================
@@ -112,7 +233,8 @@ export default async function Home() {
           reviews.length;
 
         const averageRating =
-          reviewCount > 0
+          reviewCount >
+          0
             ? reviews.reduce(
                 (
                   total,
@@ -121,7 +243,8 @@ export default async function Home() {
                   total +
                   review.rating,
                 0
-              ) / reviewCount
+              ) /
+              reviewCount
             : null;
 
         /*
@@ -139,13 +262,22 @@ export default async function Home() {
 
         const hasAvailableSlots =
           slots.some(
-            (slot) =>
+            (
+              slot
+            ) =>
               slot.status ===
                 "AVAILABLE" &&
               new Date(
                 slot.start_at
-              ) > now
+              ) >
+                now
           );
+
+        /*
+         * ========================================================
+         * OBJETO NORMALIZADO
+         * ========================================================
+         */
 
         return {
           id:
@@ -194,8 +326,141 @@ export default async function Home() {
       }
     );
 
+  /*
+   * ============================================================
+   * SEO - JSON-LD WEBSITE
+   * ============================================================
+   */
+
+  const websiteJsonLd =
+    {
+      "@context":
+        "https://schema.org",
+
+      "@type":
+        "WebSite",
+
+      "@id":
+        `${baseUrl}/#website`,
+
+      url:
+        baseUrl,
+
+      name:
+        "Slottye",
+
+      alternateName:
+        "Slottye Reservas",
+
+      description:
+        "Plataforma para encontrar negocios y profesionales, consultar citas disponibles y reservar online.",
+
+      inLanguage:
+        "es-ES",
+
+      publisher: {
+        "@id":
+          `${baseUrl}/#organization`,
+      },
+
+      potentialAction: {
+        "@type":
+          "SearchAction",
+
+        target: {
+          "@type":
+            "EntryPoint",
+
+          urlTemplate:
+            `${baseUrl}/category/todos?q={search_term_string}`,
+        },
+
+        "query-input":
+          "required name=search_term_string",
+      },
+    };
+
+  /*
+   * ============================================================
+   * SEO - JSON-LD ORGANIZATION
+   * ============================================================
+   */
+
+  const organizationJsonLd =
+    {
+      "@context":
+        "https://schema.org",
+
+      "@type":
+        "Organization",
+
+      "@id":
+        `${baseUrl}/#organization`,
+
+      name:
+        "Slottye",
+
+      url:
+        baseUrl,
+
+      email:
+        "contacto@slottye.com",
+
+      contactPoint: {
+        "@type":
+          "ContactPoint",
+
+        email:
+          "contacto@slottye.com",
+
+        contactType:
+          "customer support",
+
+        availableLanguage: [
+          "Spanish",
+          "Catalan",
+        ],
+      },
+    };
+
+  /*
+   * ============================================================
+   * UI
+   * ============================================================
+   */
+
   return (
     <>
+      {/* ======================================================
+          SEO JSON-LD
+          ====================================================== */}
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html:
+            JSON.stringify(
+              websiteJsonLd
+            ).replace(
+              /</g,
+              "\\u003c"
+            ),
+        }}
+      />
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html:
+            JSON.stringify(
+              organizationJsonLd
+            ).replace(
+              /</g,
+              "\\u003c"
+            ),
+        }}
+      />
+
       <Header />
 
       <main>
@@ -235,7 +500,6 @@ export default async function Home() {
           </form>
         </section>
 
-
         {/* ======================================================
             CATEGORÍAS
             ====================================================== */}
@@ -256,18 +520,26 @@ export default async function Home() {
 
           <div className="category-grid">
             {(categories ?? []).map(
-              (category) => (
+              (
+                category
+              ) => (
                 <Link
                   className="category"
                   href={`/category/${category.slug}`}
-                  key={category.id}
+                  key={
+                    category.id
+                  }
                 >
                   <div className="category-icon">
-                    {category.icon}
+                    {
+                      category.icon
+                    }
                   </div>
 
                   <strong>
-                    {category.name}
+                    {
+                      category.name
+                    }
                   </strong>
                 </Link>
               )
@@ -316,121 +588,128 @@ export default async function Home() {
             </div>
           )}
         </section>
-{/* ======================================================
-    INFORMACIÓN DE SLOTTYE
-    ====================================================== */}
 
-<section
-  className="shell"
-  style={{
-    marginTop: 40,
-    paddingTop: 28,
-    paddingBottom: 28,
-    borderTop: "1px solid var(--border)",
-    borderBottom: "1px solid var(--border)",
-  }}
->
-  <div
-    style={{
-      maxWidth: 900,
-      margin: "0 auto",
-    }}
-  >
-    <h2
-      style={{
-        fontSize: 18,
-        margin: "0 0 10px",
-        letterSpacing: "-0.02em",
-      }}
-    >
-      Slottye — plataforma de reservas online
-    </h2>
+        {/* ======================================================
+            INFORMACIÓN DE SLOTTYE
+            ====================================================== */}
 
-    <p
-      className="muted"
-      style={{
-        fontSize: 14,
-        lineHeight: 1.65,
-        margin: "0 0 12px",
-      }}
-    >
-      Slottye es una plataforma online para encontrar negocios y
-      profesionales, consultar sus citas disponibles y reservar
-      directamente por Internet.
-    </p>
+        <section
+          className="shell"
+          style={{
+            marginTop:
+              40,
 
-    <p
-      className="muted"
-      style={{
-        fontSize: 14,
-        lineHeight: 1.65,
-        margin: 0,
-      }}
-    >
-      Puedes crear una cuenta o iniciar sesión con Google para
-      identificarte de forma segura y gestionar tus reservas,
-      negocios favoritos y citas desde tu cuenta de Slottye. Al
-      iniciar sesión con Google, Slottye utiliza la información
-      básica de tu cuenta necesaria para identificarte, como tu
-      dirección de correo electrónico y los datos básicos de tu
-      perfil proporcionados durante el inicio de sesión.
-    </p>
+            paddingTop:
+              28,
 
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        marginTop: 14,
-        fontSize: 13,
-      }}
-    >
-      <Link href="/privacy">
-        Política de privacidad
-      </Link>
+            paddingBottom:
+              28,
 
-      <span className="muted">·</span>
+            borderTop:
+              "1px solid var(--border)",
 
-      <Link href="/terms">
-        Términos y condiciones
-      </Link>
-    </div>
-  </div>
-</section>
+            borderBottom:
+              "1px solid var(--border)",
+          }}
+        >
+          <div
+            style={{
+              maxWidth:
+                900,
+
+              margin:
+                "0 auto",
+            }}
+          >
+            <h2
+              style={{
+                fontSize:
+                  18,
+
+                margin:
+                  "0 0 10px",
+
+                letterSpacing:
+                  "-0.02em",
+              }}
+            >
+              Slottye — plataforma de reservas online
+            </h2>
+
+            <p
+              className="muted"
+              style={{
+                fontSize:
+                  14,
+
+                lineHeight:
+                  1.65,
+
+                margin:
+                  "0 0 12px",
+              }}
+            >
+              Slottye es una plataforma online para encontrar negocios y
+              profesionales, consultar sus citas disponibles y reservar
+              directamente por Internet.
+            </p>
+
+            <p
+              className="muted"
+              style={{
+                fontSize:
+                  14,
+
+                lineHeight:
+                  1.65,
+
+                margin:
+                  0,
+              }}
+            >
+              Puedes crear una cuenta o iniciar sesión con Google para
+              identificarte de forma segura y gestionar tus reservas,
+              negocios favoritos y citas desde tu cuenta de Slottye. Al
+              iniciar sesión con Google, Slottye utiliza la información
+              básica de tu cuenta necesaria para identificarte, como tu
+              dirección de correo electrónico y los datos básicos de tu
+              perfil proporcionados durante el inicio de sesión.
+            </p>
+
+            <div
+              style={{
+                display:
+                  "flex",
+
+                alignItems:
+                  "center",
+
+                gap:
+                  10,
+
+                marginTop:
+                  14,
+
+                fontSize:
+                  13,
+              }}
+            >
+              <Link href="/privacy">
+                Política de privacidad
+              </Link>
+
+              <span className="muted">
+                ·
+              </span>
+
+              <Link href="/terms">
+                Términos y condiciones
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="footer">
-  <div>
-    © 2026 Slottye · Reserva. Confirma. Listo.
-  </div>
-
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      gap: 14,
-      flexWrap: "wrap",
-      marginTop: 12,
-      fontSize: 14,
-    }}
-  >
-    <Link href="/privacy">
-      Política de privacidad
-    </Link>
-
-    <Link href="/terms">
-      Condiciones de uso
-    </Link>
-
-    <Link href="/legal">
-      Aviso legal
-    </Link>
-
-    <Link href="/cookies">
-      Cookies
-    </Link>
-  </div>
-</footer>
     </>
   );
 }

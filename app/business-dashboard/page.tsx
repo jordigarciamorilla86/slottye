@@ -734,7 +734,14 @@ export default async function BusinessDashboardPage() {
         }}
       >
         {/* CABECERA */}
-
+        <section className="section">
+          <Link
+            href="/"
+            className="btn"
+          >
+            ← Volver a Slottye
+          </Link>
+        </section>
         <section className="panel">
           <div className="kicker">
             Slottye Business
@@ -1410,6 +1417,20 @@ export default async function BusinessDashboardPage() {
               Ver ficha pública
             </Link>
           </div>
+        </section>
+
+        <section
+          className="section"
+          style={{
+            marginTop: 20,
+          }}
+        >
+          <Link
+            href="/"
+            className="btn"
+          >
+            ← Volver a Slottye
+          </Link>
         </section>
                 {/* ======================================================
             ZONA DE PELIGRO

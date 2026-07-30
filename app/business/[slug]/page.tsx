@@ -1,12 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import { BusinessBookingSection } from "@/components/BusinessBookingSection";
 import { BusinessSubscriptionButton } from "@/components/BusinessSubscriptionButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import PublicBusinessMap from "@/components/PublicBusinessMap";
-import type { Metadata } from "next";
 
 type Props = {
   params: Promise<{
@@ -14,14 +15,34 @@ type Props = {
   }>;
 };
 
+/*
+ * ============================================================
+ * BASE URL
+ * ============================================================
+ */
+
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  "https://slottye.com";
+
+/*
+ * ============================================================
+ * METADATA
+ * ============================================================
+ */
+
 export async function generateMetadata({
   params,
 }: Props): Promise<Metadata> {
   const { slug } = await params;
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
-  const { data: business } = await supabase
+  const {
+    data: business,
+    error,
+  } = await supabase
     .from("businesses")
     .select(`
       id,
@@ -31,6 +52,7 @@ export async function generateMetadata({
       city,
       postal_code,
       slug,
+      category_id,
 
       business_images (
         image_url,
@@ -41,11 +63,21 @@ export async function generateMetadata({
     .eq("active", true)
     .maybeSingle();
 
+  if (error) {
+    console.error(
+      "Error loading business metadata:",
+      error
+    );
+  }
+
   if (!business) {
     return {
-      title: "Negocio no encontrado",
+      title:
+        "Negocio no encontrado",
+
       description:
         "El negocio que buscas no está disponible en Slottye.",
+
       robots: {
         index: false,
         follow: false,
@@ -55,15 +87,65 @@ export async function generateMetadata({
 
   /*
    * ============================================================
+   * CATEGORÍA
+   * ============================================================
+   */
+
+  let categoryName:
+    | string
+    | null = null;
+
+  if (
+    business.category_id
+  ) {
+    const {
+      data: category,
+    } = await supabase
+      .from("categories")
+      .select("name")
+      .eq(
+        "id",
+        business.category_id
+      )
+      .maybeSingle();
+
+    categoryName =
+      category?.name ??
+      null;
+  }
+
+  /*
+   * ============================================================
+   * TÍTULO SEO
+   * ============================================================
+   */
+
+  const titleParts = [
+    business.name,
+    categoryName,
+    business.city,
+  ].filter(Boolean);
+
+  const seoTitle =
+    titleParts.join(
+      " · "
+    );
+
+  /*
+   * ============================================================
    * DESCRIPCIÓN SEO
    * ============================================================
    */
 
   const description =
-    business.description?.trim()
+    business.description
+      ?.trim()
       ? business.description
           .trim()
-          .slice(0, 160)
+          .slice(
+            0,
+            160
+          )
       : business.city
         ? `Consulta los servicios y citas disponibles de ${business.name} en ${business.city} y reserva online con Slottye.`
         : `Consulta los servicios y citas disponibles de ${business.name} y reserva online con Slottye.`;
@@ -74,52 +156,85 @@ export async function generateMetadata({
    * ============================================================
    */
 
-  const images = Array.isArray(
-    business.business_images
-  )
-    ? business.business_images
-    : [];
+  const images =
+    Array.isArray(
+      business.business_images
+    )
+      ? business.business_images
+      : [];
 
   const mainImage =
     [...images]
       .sort(
-        (a, b) =>
-          (a.position ?? 0) -
-          (b.position ?? 0)
-      )[0]?.image_url ?? null;
+        (
+          a,
+          b
+        ) =>
+          (
+            a.position ??
+            0
+          ) -
+          (
+            b.position ??
+            0
+          )
+      )[0]
+      ?.image_url ??
+    null;
 
   /*
    * ============================================================
-   * METADATA
+   * URL CANÓNICA
+   * ============================================================
+   */
+
+  const businessUrl =
+    `${baseUrl}/business/${business.slug}`;
+
+  /*
+   * ============================================================
+   * METADATA FINAL
    * ============================================================
    */
 
   return {
-    title: business.name,
+    title:
+      seoTitle,
 
     description,
 
     alternates: {
       canonical:
-        `/business/${business.slug}`,
+        businessUrl,
     },
 
     openGraph: {
-      type: "website",
+      type:
+        "website",
 
-      title: `${business.name} | Slottye`,
+      locale:
+        "es_ES",
+
+      siteName:
+        "Slottye",
+
+      title:
+        `${seoTitle} | Slottye`,
 
       description,
 
       url:
-        `/business/${business.slug}`,
+        businessUrl,
 
       ...(mainImage
         ? {
             images: [
               {
-                url: mainImage,
-                alt: business.name,
+                url:
+                  mainImage,
+
+                alt:
+                  business.name,
               },
             ],
           }
@@ -127,9 +242,11 @@ export async function generateMetadata({
     },
 
     twitter: {
-      card: "summary_large_image",
+      card:
+        "summary_large_image",
 
-      title: `${business.name} | Slottye`,
+      title:
+        `${seoTitle} | Slottye`,
 
       description,
 
@@ -143,17 +260,46 @@ export async function generateMetadata({
     },
 
     robots: {
-      index: true,
-      follow: true,
+      index:
+        true,
+
+      follow:
+        true,
+
+      googleBot: {
+        index:
+          true,
+
+        follow:
+          true,
+
+        "max-image-preview":
+          "large",
+
+        "max-snippet":
+          -1,
+
+        "max-video-preview":
+          -1,
+      },
     },
   };
 }
+
+/*
+ * ============================================================
+ * PÁGINA
+ * ============================================================
+ */
+
 export default async function BusinessPage({
   params,
 }: Props) {
-  const { slug } = await params;
+  const { slug } =
+    await params;
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
   /*
    * ============================================================
@@ -161,7 +307,10 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: business, error } = await supabase
+  const {
+    data: business,
+    error,
+  } = await supabase
     .from("businesses")
     .select(`
       id,
@@ -201,9 +350,16 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  let googleRating: number | null = null;
-  let googleReviewCount = 0;
-  let googleMapsUrl: string | null = null;
+  let googleRating:
+    | number
+    | null = null;
+
+  let googleReviewCount =
+    0;
+
+  let googleMapsUrl:
+    | string
+    | null = null;
 
   if (
     business.google_place_id &&
@@ -211,54 +367,61 @@ export default async function BusinessPage({
   ) {
     try {
       const apiKey =
-        process.env.GOOGLE_MAPS_API_KEY;
+        process.env
+          .GOOGLE_MAPS_API_KEY;
 
       if (!apiKey) {
         console.error(
           "GOOGLE_MAPS_API_KEY no está configurada"
         );
       } else {
-        const googleResponse = await fetch(
-          `https://places.googleapis.com/v1/places/${encodeURIComponent(
-            business.google_place_id
-          )}`,
-          {
-            method: "GET",
+        const googleResponse =
+          await fetch(
+            `https://places.googleapis.com/v1/places/${encodeURIComponent(
+              business.google_place_id
+            )}`,
+            {
+              method:
+                "GET",
 
-            headers: {
-              "X-Goog-Api-Key":
-                apiKey,
+              headers: {
+                "X-Goog-Api-Key":
+                  apiKey,
 
-              "X-Goog-FieldMask":
-                [
-                  "rating",
-                  "userRatingCount",
-                  "googleMapsUri",
-                ].join(","),
-            },
+                "X-Goog-FieldMask":
+                  [
+                    "rating",
+                    "userRatingCount",
+                    "googleMapsUri",
+                  ].join(
+                    ","
+                  ),
+              },
 
-            /*
-             * Actualizamos los datos de Google
-             * como máximo una vez por hora.
-             */
-            next: {
-              revalidate: 3600,
-            },
-          }
-        );
+              next: {
+                revalidate:
+                  3600,
+              },
+            }
+          );
 
-        if (googleResponse.ok) {
+        if (
+          googleResponse.ok
+        ) {
           const place =
             await googleResponse.json();
 
           googleRating =
-            place.rating ?? null;
+            place.rating ??
+            null;
 
           googleReviewCount =
-            place.userRatingCount ?? 0;
+            place.userRatingCount ??
+            0;
 
           googleMapsUrl =
-            place.googleMapsUri ?? null;
+            place.googleMapsUri ??
+            null;
         } else {
           console.error(
             "Error loading Google rating:",
@@ -266,7 +429,9 @@ export default async function BusinessPage({
           );
         }
       }
-    } catch (googleError) {
+    } catch (
+      googleError
+    ) {
       console.error(
         "Error loading Google rating:",
         googleError
@@ -280,17 +445,29 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: images } = await supabase
-    .from("business_images")
-    .select(`
-      id,
-      image_url,
-      position
-    `)
-    .eq("business_id", business.id)
-    .order("position", {
-      ascending: true,
-    });
+  const {
+    data: images,
+  } =
+    await supabase
+      .from(
+        "business_images"
+      )
+      .select(`
+        id,
+        image_url,
+        position
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .order(
+        "position",
+        {
+          ascending:
+            true,
+        }
+      );
 
   /*
    * ============================================================
@@ -299,8 +476,11 @@ export default async function BusinessPage({
    */
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: {
+      user,
+    },
+  } =
+    await supabase.auth.getUser();
 
   /*
    * ============================================================
@@ -308,17 +488,32 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  let isFavorite = false;
+  let isFavorite =
+    false;
 
   if (user) {
-    const { data: favorite } = await supabase
-      .from("favorites")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("business_id", business.id)
-      .maybeSingle();
+    const {
+      data: favorite,
+    } =
+      await supabase
+        .from(
+          "favorites"
+        )
+        .select(
+          "id"
+        )
+        .eq(
+          "user_id",
+          user.id
+        )
+        .eq(
+          "business_id",
+          business.id
+        )
+        .maybeSingle();
 
-    isFavorite = !!favorite;
+    isFavorite =
+      !!favorite;
   }
 
   /*
@@ -327,17 +522,33 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  let subscribed = false;
+  let subscribed =
+    false;
 
   if (user) {
-    const { data: subscription } = await supabase
-      .from("business_subscriptions")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("business_id", business.id)
-      .maybeSingle();
+    const {
+      data:
+        subscription,
+    } =
+      await supabase
+        .from(
+          "business_subscriptions"
+        )
+        .select(
+          "id"
+        )
+        .eq(
+          "user_id",
+          user.id
+        )
+        .eq(
+          "business_id",
+          business.id
+        )
+        .maybeSingle();
 
-    subscribed = !!subscription;
+    subscribed =
+      !!subscription;
   }
 
   /*
@@ -346,17 +557,26 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: category } =
+  const {
+    data: category,
+  } =
     business.category_id
       ? await supabase
-          .from("categories")
-          .select("name")
+          .from(
+            "categories"
+          )
+          .select(
+            "name"
+          )
           .eq(
             "id",
             business.category_id
           )
           .maybeSingle()
-      : { data: null };
+      : {
+          data:
+            null,
+        };
 
   /*
    * ============================================================
@@ -364,17 +584,30 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: services } = await supabase
-    .from("services")
-    .select(`
-      id,
-      name,
-      description,
-      duration_minutes
-    `)
-    .eq("business_id", business.id)
-    .eq("active", true)
-    .order("name");
+  const {
+    data: services,
+  } =
+    await supabase
+      .from(
+        "services"
+      )
+      .select(`
+        id,
+        name,
+        description,
+        duration_minutes
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .eq(
+        "active",
+        true
+      )
+      .order(
+        "name"
+      );
 
   /*
    * ============================================================
@@ -382,18 +615,28 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: hours } = await supabase
-    .from("business_hours")
-    .select(`
-      day_of_week,
-      open_time,
-      close_time,
-      open_time_2,
-      close_time_2,
-      closed
-    `)
-    .eq("business_id", business.id)
-    .order("day_of_week");
+  const {
+    data: hours,
+  } =
+    await supabase
+      .from(
+        "business_hours"
+      )
+      .select(`
+        day_of_week,
+        open_time,
+        close_time,
+        open_time_2,
+        close_time_2,
+        closed
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .order(
+        "day_of_week"
+      );
 
   /*
    * ============================================================
@@ -401,24 +644,40 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const { data: slots } = await supabase
-    .from("slots")
-    .select(`
-      id,
-      service_id,
-      start_at,
-      end_at,
-      status
-    `)
-    .eq("business_id", business.id)
-    .eq("status", "AVAILABLE")
-    .gte(
-      "start_at",
-      new Date().toISOString()
-    )
-    .order("start_at", {
-      ascending: true,
-    });
+  const {
+    data: slots,
+  } =
+    await supabase
+      .from(
+        "slots"
+      )
+      .select(`
+        id,
+        service_id,
+        start_at,
+        end_at,
+        status
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .eq(
+        "status",
+        "AVAILABLE"
+      )
+      .gte(
+        "start_at",
+        new Date()
+          .toISOString()
+      )
+      .order(
+        "start_at",
+        {
+          ascending:
+            true,
+        }
+      );
 
   /*
    * ============================================================
@@ -428,24 +687,37 @@ export default async function BusinessPage({
 
   const {
     data: reviews,
-    error: reviewsError,
-  } = await supabase
-    .from("reviews")
-    .select(`
-      id,
-      rating,
-      comment,
-      created_at,
-      profiles (
-        name
+    error:
+      reviewsError,
+  } =
+    await supabase
+      .from(
+        "reviews"
       )
-    `)
-    .eq("business_id", business.id)
-    .order("created_at", {
-      ascending: false,
-    });
+      .select(`
+        id,
+        rating,
+        comment,
+        created_at,
+        profiles (
+          name
+        )
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending:
+            false,
+        }
+      );
 
-  if (reviewsError) {
+  if (
+    reviewsError
+  ) {
     console.error(
       "Error loading reviews:",
       reviewsError
@@ -453,15 +725,25 @@ export default async function BusinessPage({
   }
 
   const reviewCount =
-    reviews?.length ?? 0;
+    reviews?.length ??
+    0;
 
   const averageRating =
-    reviewCount > 0
-      ? (reviews ?? []).reduce(
-          (total, review) =>
-            total + review.rating,
+    reviewCount >
+    0
+      ? (
+          reviews ??
+          []
+        ).reduce(
+          (
+            total,
+            review
+          ) =>
+            total +
+            review.rating,
           0
-        ) / reviewCount
+        ) /
+        reviewCount
       : 0;
 
   /*
@@ -470,13 +752,18 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const fullAddress = [
-    business.address,
-    business.postal_code,
-    business.city,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const fullAddress =
+    [
+      business.address,
+      business.postal_code,
+      business.city,
+    ]
+      .filter(
+        Boolean
+      )
+      .join(
+        " · "
+      );
 
   /*
    * ============================================================
@@ -484,21 +771,39 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const DAY_NAMES = [
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-    "Domingo",
-  ];
+  const DAY_NAMES =
+    [
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado",
+      "Domingo",
+    ];
+
+  const SCHEMA_DAY_NAMES =
+    [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ];
 
   function formatTime(
-    value: string | null
+    value:
+      | string
+      | null
   ) {
     return (
-      value?.slice(0, 5) ?? ""
+      value?.slice(
+        0,
+        5
+      ) ??
+      ""
     );
   }
 
@@ -507,16 +812,21 @@ export default async function BusinessPage({
       new Intl.DateTimeFormat(
         "en-US",
         {
-          weekday: "long",
+          weekday:
+            "long",
+
           timeZone:
             "Europe/Madrid",
         }
-      ).format(new Date());
+      ).format(
+        new Date()
+      );
 
-    const map: Record<
-      string,
-      number
-    > = {
+    const map:
+      Record<
+        string,
+        number
+      > = {
       Monday: 0,
       Tuesday: 1,
       Wednesday: 2,
@@ -526,24 +836,36 @@ export default async function BusinessPage({
       Sunday: 6,
     };
 
-    return map[dayName];
+    return map[
+      dayName
+    ];
   }
 
   function getMadridTime() {
     return new Intl.DateTimeFormat(
       "en-GB",
       {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        hour12:
+          false,
+
         timeZone:
           "Europe/Madrid",
       }
-    ).format(new Date());
+    ).format(
+      new Date()
+    );
   }
 
   function getOpenStatus() {
-    if (!hours?.length) {
+    if (
+      !hours?.length
+    ) {
       return null;
     }
 
@@ -552,7 +874,9 @@ export default async function BusinessPage({
 
     const today =
       hours.find(
-        (hour) =>
+        (
+          hour
+        ) =>
           hour.day_of_week ===
           todayIndex
       );
@@ -562,8 +886,11 @@ export default async function BusinessPage({
       today.closed
     ) {
       return {
-        open: false,
-        text: "Cerrado hoy",
+        open:
+          false,
+
+        text:
+          "Cerrado hoy",
       };
     }
 
@@ -593,11 +920,15 @@ export default async function BusinessPage({
     if (
       firstOpen &&
       firstClose &&
-      now >= firstOpen &&
-      now < firstClose
+      now >=
+        firstOpen &&
+      now <
+        firstClose
     ) {
       return {
-        open: true,
+        open:
+          true,
+
         text:
           `Abierto ahora · Cierra a las ${firstClose}`,
       };
@@ -606,11 +937,15 @@ export default async function BusinessPage({
     if (
       secondOpen &&
       secondClose &&
-      now >= secondOpen &&
-      now < secondClose
+      now >=
+        secondOpen &&
+      now <
+        secondClose
     ) {
       return {
-        open: true,
+        open:
+          true,
+
         text:
           `Abierto ahora · Cierra a las ${secondClose}`,
       };
@@ -618,11 +953,15 @@ export default async function BusinessPage({
 
     if (
       secondOpen &&
-      now < secondOpen &&
-      now >= firstClose
+      now <
+        secondOpen &&
+      now >=
+        firstClose
     ) {
       return {
-        open: false,
+        open:
+          false,
+
         text:
           `Cerrado ahora · Abre a las ${secondOpen}`,
       };
@@ -630,18 +969,24 @@ export default async function BusinessPage({
 
     if (
       firstOpen &&
-      now < firstOpen
+      now <
+        firstOpen
     ) {
       return {
-        open: false,
+        open:
+          false,
+
         text:
           `Cerrado ahora · Abre a las ${firstOpen}`,
       };
     }
 
     return {
-      open: false,
-      text: "Cerrado ahora",
+      open:
+        false,
+
+      text:
+        "Cerrado ahora",
     };
   }
 
@@ -649,129 +994,327 @@ export default async function BusinessPage({
     getOpenStatus();
 
   /*
- * ============================================================
- * SEO - DATOS ESTRUCTURADOS LOCALBUSINESS
- * ============================================================
- */
+   * ============================================================
+   * SEO - URL NEGOCIO
+   * ============================================================
+   */
 
-const baseUrl =
-process.env.NEXT_PUBLIC_APP_URL ??
-"http://localhost:3000";
+  const businessUrl =
+    `${baseUrl}/business/${business.slug}`;
 
-const businessUrl =
-`${baseUrl}/business/${business.slug}`;
+  /*
+   * ============================================================
+   * SEO - HORARIOS SCHEMA.ORG
+   * ============================================================
+   */
 
-const jsonLd = {
-"@context": "https://schema.org",
-"@type": "LocalBusiness",
+  const openingHoursSpecification =
+    (hours ?? [])
+      .filter(
+        (
+          hour
+        ) =>
+          !hour.closed &&
+          hour.open_time &&
+          hour.close_time
+      )
+      .flatMap(
+        (
+          hour
+        ) => {
+          const dayOfWeek =
+            SCHEMA_DAY_NAMES[
+              hour.day_of_week
+            ];
 
-"@id": businessUrl,
+          const result:
+            {
+              "@type":
+                string;
 
-name: business.name,
+              dayOfWeek:
+                string;
 
-url: businessUrl,
+              opens:
+                string;
 
-...(business.description
-  ? {
-      description:
-        business.description,
-    }
-  : {}),
+              closes:
+                string;
+            }[] = [];
 
-...(business.phone
-  ? {
-      telephone:
-        business.phone,
-    }
-  : {}),
+          if (
+            hour.open_time &&
+            hour.close_time
+          ) {
+            result.push(
+              {
+                "@type":
+                  "OpeningHoursSpecification",
 
-...(business.email
-  ? {
-      email:
-        business.email,
-    }
-  : {}),
+                dayOfWeek,
 
-address: {
-  "@type": "PostalAddress",
+                opens:
+                  formatTime(
+                    hour.open_time
+                  ),
 
-  ...(business.address
-    ? {
-        streetAddress:
-          business.address,
-      }
-    : {}),
+                closes:
+                  formatTime(
+                    hour.close_time
+                  ),
+              }
+            );
+          }
 
-  ...(business.city
-    ? {
-        addressLocality:
-          business.city,
-      }
-    : {}),
+          if (
+            hour.open_time_2 &&
+            hour.close_time_2
+          ) {
+            result.push(
+              {
+                "@type":
+                  "OpeningHoursSpecification",
 
-  ...(business.postal_code
-    ? {
-        postalCode:
-          business.postal_code,
-      }
-    : {}),
+                dayOfWeek,
 
-  addressCountry: "ES",
-},
+                opens:
+                  formatTime(
+                    hour.open_time_2
+                  ),
 
-...(business.latitude !== null &&
-business.longitude !== null
-  ? {
-      geo: {
+                closes:
+                  formatTime(
+                    hour.close_time_2
+                  ),
+              }
+            );
+          }
+
+          return result;
+        }
+      );
+
+  /*
+   * ============================================================
+   * SEO - SERVICIOS SCHEMA.ORG
+   * ============================================================
+   */
+
+  const serviceJsonLd =
+    (
+      services ??
+      []
+    ).map(
+      (
+        service
+      ) => ({
         "@type":
-          "GeoCoordinates",
+          "Service",
 
-        latitude:
-          business.latitude,
+        name:
+          service.name,
 
-        longitude:
-          business.longitude,
-      },
-    }
-  : {}),
+        ...(service.description
+          ? {
+              description:
+                service.description,
+            }
+          : {}),
 
-...(images &&
-images.length > 0
-  ? {
-      image: images.map(
-        (image) =>
-          image.image_url
-      ),
-    }
-  : {}),
+        provider: {
+          "@id":
+            `${businessUrl}#business`,
+        },
 
-/*
- * Solo utilizamos las reseñas
- * verificadas de Slottye.
- */
-...(reviewCount > 0
-  ? {
-      aggregateRating: {
-        "@type":
-          "AggregateRating",
+        areaServed:
+          business.city
+            ? {
+                "@type":
+                  "City",
 
-        ratingValue:
-          Number(
-            averageRating.toFixed(
-              1
-            )
-          ),
+                name:
+                  business.city,
+              }
+            : undefined,
 
-        reviewCount:
-          reviewCount,
+        url:
+          businessUrl,
+      })
+    );
 
-        bestRating: 5,
+  /*
+   * ============================================================
+   * SEO - LOCALBUSINESS JSON-LD
+   * ============================================================
+   */
 
-        worstRating: 1,
-      },
-    }
-  : {}),
-};
+  const jsonLd = {
+    "@context":
+      "https://schema.org",
+
+    "@type":
+      "LocalBusiness",
+
+    "@id":
+      `${businessUrl}#business`,
+
+    name:
+      business.name,
+
+    url:
+      businessUrl,
+
+    ...(category?.name
+      ? {
+          category:
+            category.name,
+        }
+      : {}),
+
+    ...(business.description
+      ? {
+          description:
+            business.description,
+        }
+      : {}),
+
+    ...(business.phone
+      ? {
+          telephone:
+            business.phone,
+        }
+      : {}),
+
+    ...(business.email
+      ? {
+          email:
+            business.email,
+        }
+      : {}),
+
+    ...(business.website
+      ? {
+          sameAs: [
+            business.website,
+          ],
+        }
+      : {}),
+
+    address: {
+      "@type":
+        "PostalAddress",
+
+      ...(business.address
+        ? {
+            streetAddress:
+              business.address,
+          }
+        : {}),
+
+      ...(business.city
+        ? {
+            addressLocality:
+              business.city,
+          }
+        : {}),
+
+      ...(business.postal_code
+        ? {
+            postalCode:
+              business.postal_code,
+          }
+        : {}),
+
+      addressCountry:
+        "ES",
+    },
+
+    ...(business.latitude !==
+      null &&
+    business.longitude !==
+      null
+      ? {
+          geo: {
+            "@type":
+              "GeoCoordinates",
+
+            latitude:
+              business.latitude,
+
+            longitude:
+              business.longitude,
+          },
+        }
+      : {}),
+
+    ...(images &&
+    images.length >
+      0
+      ? {
+          image:
+            images.map(
+              (
+                image
+              ) =>
+                image.image_url
+            ),
+        }
+      : {}),
+
+    ...(openingHoursSpecification.length >
+      0
+      ? {
+          openingHoursSpecification,
+        }
+      : {}),
+
+    ...(serviceJsonLd.length >
+      0
+      ? {
+          makesOffer:
+            serviceJsonLd.map(
+              (
+                service
+              ) => ({
+                "@type":
+                  "Offer",
+
+                itemOffered:
+                  service,
+              })
+            ),
+        }
+      : {}),
+
+    /*
+     * Solo utilizamos las reseñas
+     * verificadas de Slottye.
+     */
+    ...(reviewCount >
+      0
+      ? {
+          aggregateRating: {
+            "@type":
+              "AggregateRating",
+
+            ratingValue:
+              Number(
+                averageRating.toFixed(
+                  1
+                )
+              ),
+
+            reviewCount,
+
+            bestRating:
+              5,
+
+            worstRating:
+              1,
+          },
+        }
+      : {}),
+  };
 
   /*
    * ============================================================
@@ -781,43 +1324,63 @@ images.length > 0
 
   return (
     <>
-    <script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html:
-      JSON.stringify(jsonLd)
-        .replace(
-          /</g,
-          "\\u003c"
-        ),
-  }}
-/>
+      {/* ======================================================
+          SEO JSON-LD
+          ====================================================== */}
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html:
+            JSON.stringify(
+              jsonLd
+            ).replace(
+              /</g,
+              "\\u003c"
+            ),
+        }}
+      />
+
       <Header />
 
       <main
         className="shell detail"
         style={{
-          maxWidth: 950,
+          maxWidth:
+            950,
         }}
       >
+         <section className="section">
+          <Link
+            href="/"
+            className="btn"
+          >
+            ← Volver a Slottye
+          </Link>
+        </section>
         {/* ======================================================
             GALERÍA
             ====================================================== */}
 
         {images &&
-          images.length > 0 && (
+          images.length >
+            0 && (
             <section
               style={{
-                display: "grid",
+                display:
+                  "grid",
 
                 gridTemplateColumns:
-                  images.length === 1
+                  images.length ===
+                  1
                     ? "1fr"
                     : "2fr 1fr",
 
-                gap: 10,
+                gap:
+                  10,
 
-                marginBottom: 20,
+                marginBottom:
+                  20,
               }}
             >
               <img
@@ -829,11 +1392,17 @@ images.length > 0
                   business.name
                 }
                 style={{
-                  width: "100%",
-                  height: 380,
+                  width:
+                    "100%",
+
+                  height:
+                    380,
+
                   objectFit:
                     "cover",
-                  borderRadius: 20,
+
+                  borderRadius:
+                    20,
                 }}
               />
 
@@ -843,11 +1412,16 @@ images.length > 0
                   style={{
                     display:
                       "grid",
-                    gap: 10,
+
+                    gap:
+                      10,
                   }}
                 >
                   {images
-                    .slice(1, 3)
+                    .slice(
+                      1,
+                      3
+                    )
                     .map(
                       (
                         image
@@ -865,10 +1439,13 @@ images.length > 0
                           style={{
                             width:
                               "100%",
+
                             height:
                               185,
+
                             objectFit:
                               "cover",
+
                             borderRadius:
                               20,
                           }}
@@ -887,26 +1464,38 @@ images.length > 0
         <section className="panel">
           {category?.name && (
             <div className="kicker">
-              {category.name}
+              {
+                category.name
+              }
             </div>
           )}
 
           <h1 className="business-title">
-            {business.name}
+            {
+              business.name
+            }
           </h1>
 
           {/* ====================================================
               VALORACIÓN SLOTTYE
               ==================================================== */}
 
-          {reviewCount > 0 ? (
+          {reviewCount >
+          0 ? (
             <div
               style={{
-                display: "flex",
+                display:
+                  "flex",
+
                 alignItems:
                   "center",
-                gap: 8,
-                marginTop: 8,
+
+                gap:
+                  8,
+
+                marginTop:
+                  8,
+
                 flexWrap:
                   "wrap",
               }}
@@ -915,7 +1504,9 @@ images.length > 0
                 style={{
                   color:
                     "#f59e0b",
-                  fontSize: 21,
+
+                  fontSize:
+                    21,
                 }}
               >
                 ★
@@ -923,7 +1514,8 @@ images.length > 0
 
               <strong
                 style={{
-                  fontSize: 18,
+                  fontSize:
+                    18,
                 }}
               >
                 {averageRating.toFixed(
@@ -932,7 +1524,10 @@ images.length > 0
               </strong>
 
               <span className="muted">
-                · {reviewCount}{" "}
+                ·{" "}
+                {
+                  reviewCount
+                }{" "}
                 {reviewCount ===
                 1
                   ? "opinión verificada en Slottye"
@@ -943,11 +1538,11 @@ images.length > 0
             <div
               className="muted"
               style={{
-                marginTop: 8,
+                marginTop:
+                  8,
               }}
             >
-              Sin opiniones en Slottye
-              todavía
+              Sin opiniones en Slottye todavía
             </div>
           )}
 
@@ -956,14 +1551,22 @@ images.length > 0
               ==================================================== */}
 
           {business.show_google_reviews &&
-            googleRating !== null && (
+            googleRating !==
+              null && (
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
+
                   alignItems:
                     "center",
-                  gap: 8,
-                  marginTop: 8,
+
+                  gap:
+                    8,
+
+                  marginTop:
+                    8,
+
                   flexWrap:
                     "wrap",
                 }}
@@ -972,7 +1575,9 @@ images.length > 0
                   style={{
                     color:
                       "#f59e0b",
-                    fontSize: 21,
+
+                    fontSize:
+                      21,
                   }}
                 >
                   ★
@@ -980,7 +1585,8 @@ images.length > 0
 
                 <strong
                   style={{
-                    fontSize: 18,
+                    fontSize:
+                      18,
                   }}
                 >
                   {googleRating.toFixed(
@@ -990,7 +1596,9 @@ images.length > 0
 
                 <span className="muted">
                   ·{" "}
-                  {googleReviewCount}{" "}
+                  {
+                    googleReviewCount
+                  }{" "}
                   {googleReviewCount ===
                   1
                     ? "reseña en Google"
@@ -1005,7 +1613,8 @@ images.length > 0
                     target="_blank"
                     rel="noreferrer"
                     style={{
-                      fontSize: 14,
+                      fontSize:
+                        14,
                     }}
                   >
                     Ver en Google Maps ↗
@@ -1021,14 +1630,19 @@ images.length > 0
           {openStatus && (
             <div
               style={{
-                marginTop: 10,
-                fontWeight: 800,
+                marginTop:
+                  10,
+
+                fontWeight:
+                  800,
               }}
             >
               {openStatus.open
                 ? "🟢"
                 : "🟠"}{" "}
-              {openStatus.text}
+              {
+                openStatus.text
+              }
             </div>
           )}
 
@@ -1042,14 +1656,22 @@ images.length > 0
 
           <div
             style={{
-              display: "grid",
-              gap: 10,
-              marginTop: 22,
+              display:
+                "grid",
+
+              gap:
+                10,
+
+              marginTop:
+                22,
             }}
           >
             {fullAddress && (
               <div>
-                📍 {fullAddress}
+                📍{" "}
+                {
+                  fullAddress
+                }
               </div>
             )}
 
@@ -1097,10 +1719,17 @@ images.length > 0
 
           <div
             style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 10,
-              marginTop: 24,
+              display:
+                "flex",
+
+              flexWrap:
+                "wrap",
+
+              gap:
+                10,
+
+              marginTop:
+                24,
             }}
           >
             <FavoriteButton
@@ -1135,7 +1764,8 @@ images.length > 0
             ====================================================== */}
 
         {hours &&
-          hours.length > 0 && (
+          hours.length >
+            0 && (
             <section className="section">
               <div className="section-head">
                 <div>
@@ -1144,8 +1774,7 @@ images.length > 0
                   </h2>
 
                   <p className="muted">
-                    Horario habitual
-                    del negocio.
+                    Horario habitual del negocio.
                   </p>
                 </div>
               </div>
@@ -1155,11 +1784,15 @@ images.length > 0
                   style={{
                     display:
                       "grid",
-                    gap: 12,
+
+                    gap:
+                      12,
                   }}
                 >
                   {hours.map(
-                    (hour) => (
+                    (
+                      hour
+                    ) => (
                       <div
                         key={
                           hour.day_of_week
@@ -1171,7 +1804,8 @@ images.length > 0
                           gridTemplateColumns:
                             "140px 1fr",
 
-                          gap: 16,
+                          gap:
+                            16,
 
                           alignItems:
                             "center",
@@ -1239,10 +1873,7 @@ images.length > 0
                   </h2>
 
                   <p className="muted">
-                    Consulta dónde
-                    está el negocio y
-                    abre la ruta en
-                    Google Maps.
+                    Consulta dónde está el negocio y abre la ruta en Google Maps.
                   </p>
                 </div>
               </div>
@@ -1264,11 +1895,14 @@ images.length > 0
                   <div
                     className="meta"
                     style={{
-                      marginTop: 14,
+                      marginTop:
+                        14,
                     }}
                   >
                     📍{" "}
-                    {fullAddress}
+                    {
+                      fullAddress
+                    }
                   </div>
                 )}
               </div>
@@ -1281,10 +1915,12 @@ images.length > 0
 
         <BusinessBookingSection
           services={
-            services ?? []
+            services ??
+            []
           }
           slots={
-            slots ?? []
+            slots ??
+            []
           }
           loggedIn={
             !!user
@@ -1311,7 +1947,9 @@ images.length > 0
                   )}{" "}
                   de 5
                   {" · "}
-                  {reviewCount}{" "}
+                  {
+                    reviewCount
+                  }{" "}
                   {reviewCount ===
                   1
                     ? "opinión verificada"
@@ -1320,24 +1958,27 @@ images.length > 0
                 </p>
               ) : (
                 <p className="muted">
-                  Este negocio todavía
-                  no tiene opiniones
-                  verificadas en
-                  Slottye.
+                  Este negocio todavía no tiene opiniones verificadas en Slottye.
                 </p>
               )}
             </div>
           </div>
 
-          {reviewCount > 0 && (
+          {reviewCount >
+            0 && (
             <div
               style={{
-                display: "grid",
-                gap: 14,
+                display:
+                  "grid",
+
+                gap:
+                  14,
               }}
             >
               {(reviews ?? []).map(
-                (review) => {
+                (
+                  review
+                ) => {
                   const profile =
                     Array.isArray(
                       review.profiles
@@ -1366,7 +2007,8 @@ images.length > 0
                             alignItems:
                               "flex-start",
 
-                            gap: 14,
+                            gap:
+                              14,
 
                             flexWrap:
                               "wrap",
@@ -1380,8 +2022,12 @@ images.length > 0
 
                             <div
                               style={{
-                                marginTop: 6,
-                                fontSize: 19,
+                                marginTop:
+                                  6,
+
+                                fontSize:
+                                  19,
+
                                 letterSpacing:
                                   2,
                               }}
@@ -1427,10 +2073,13 @@ images.length > 0
                               {
                                 day:
                                   "numeric",
+
                                 month:
                                   "long",
+
                                 year:
                                   "numeric",
+
                                 timeZone:
                                   "Europe/Madrid",
                               }
@@ -1468,14 +2117,18 @@ images.length > 0
             </div>
           )}
 
-          {/* GOOGLE RESUMEN */}
+          {/* ====================================================
+              GOOGLE RESUMEN
+              ==================================================== */}
 
           {business.show_google_reviews &&
-            googleRating !== null && (
+            googleRating !==
+              null && (
               <div
                 className="panel"
                 style={{
-                  marginTop: 20,
+                  marginTop:
+                    20,
                 }}
               >
                 <div className="kicker">
@@ -1484,20 +2137,29 @@ images.length > 0
 
                 <div
                   style={{
-                    display: "flex",
+                    display:
+                      "flex",
+
                     alignItems:
                       "center",
-                    gap: 8,
+
+                    gap:
+                      8,
+
                     flexWrap:
                       "wrap",
-                    marginTop: 8,
+
+                    marginTop:
+                      8,
                   }}
                 >
                   <span
                     style={{
                       color:
                         "#f59e0b",
-                      fontSize: 22,
+
+                      fontSize:
+                        22,
                     }}
                   >
                     ★
@@ -1505,7 +2167,8 @@ images.length > 0
 
                   <strong
                     style={{
-                      fontSize: 20,
+                      fontSize:
+                        20,
                     }}
                   >
                     {googleRating.toFixed(
@@ -1529,7 +2192,8 @@ images.length > 0
                 {googleMapsUrl && (
                   <div
                     style={{
-                      marginTop: 14,
+                      marginTop:
+                        14,
                     }}
                   >
                     <a
@@ -1540,8 +2204,7 @@ images.length > 0
                       rel="noreferrer"
                       className="btn"
                     >
-                      Ver reseñas en
-                      Google Maps ↗
+                      Ver reseñas en Google Maps ↗
                     </a>
                   </div>
                 )}

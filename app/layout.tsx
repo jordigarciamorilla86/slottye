@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ??
-      "http://localhost:3000"
+      "https://slottye.com"
   ),
 
   title: {
@@ -85,8 +86,6 @@ export const metadata: Metadata = {
   /*
    * ============================================================
    * OPEN GRAPH
-   *
-   * WhatsApp, Facebook, LinkedIn, etc.
    * ============================================================
    */
 
@@ -177,6 +176,8 @@ export default function RootLayout({
     <html lang="es">
       <body>
         {children}
+
+        <Footer />
 
         <Analytics />
       </body>

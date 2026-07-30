@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -13,6 +14,202 @@ type Props = {
     q?: string;
   }>;
 };
+
+/*
+ * ============================================================
+ * SEO / METADATA
+ * ============================================================
+ */
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const { q } = await searchParams;
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000";
+
+  /*
+   * ============================================================
+   * BÚSQUEDAS INTERNAS
+   * ============================================================
+   *
+   * No queremos que Google indexe URLs como:
+   *
+   * /category/todos?q=dentista
+   * /category/todos?q=mataro
+   *
+   * porque podrían generarse muchísimas páginas similares.
+   */
+
+  if (q?.trim()) {
+    return {
+      title: `Resultados para "${q.trim()}"`,
+
+      description:
+        `Resultados de búsqueda para ${q.trim()} en Slottye.`,
+
+      alternates: {
+        canonical:
+          `${baseUrl}/category/${slug}`,
+      },
+
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
+
+  /*
+   * ============================================================
+   * TODOS LOS NEGOCIOS
+   * ============================================================
+   */
+
+  if (slug === "todos") {
+    const title =
+      "Negocios y profesionales";
+
+    const description =
+      "Encuentra negocios y profesionales, consulta sus servicios, disponibilidad y opiniones, y reserva cita online con Slottye.";
+
+    const canonical =
+      `${baseUrl}/category/todos`;
+
+    return {
+      title,
+
+      description,
+
+      alternates: {
+        canonical,
+      },
+
+      openGraph: {
+        type: "website",
+        title:
+          "Negocios y profesionales | Slottye",
+        description,
+        url: canonical,
+        siteName: "Slottye",
+        locale: "es_ES",
+      },
+
+      twitter: {
+        card: "summary_large_image",
+        title:
+          "Negocios y profesionales | Slottye",
+        description,
+      },
+
+      robots: {
+        index: true,
+        follow: true,
+      },
+    };
+  }
+
+  /*
+   * ============================================================
+   * CATEGORÍA CONCRETA
+   * ============================================================
+   */
+
+  const supabase =
+    await createClient();
+
+  const {
+    data: category,
+    error,
+  } = await supabase
+    .from("categories")
+    .select(`
+      name,
+      slug
+    `)
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Error loading category metadata:",
+      error
+    );
+  }
+
+  if (!category) {
+    return {
+      title: "Categoría no encontrada",
+
+      description:
+        "La categoría que buscas no está disponible en Slottye.",
+
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const title =
+    `${category.name}`;
+
+  const description =
+    `Encuentra negocios y profesionales de ${category.name} en Slottye. Consulta servicios, disponibilidad y opiniones y reserva cita online.`;
+
+  const canonical =
+    `${baseUrl}/category/${category.slug}`;
+
+  return {
+    title,
+
+    description,
+
+    alternates: {
+      canonical,
+    },
+
+    openGraph: {
+      type: "website",
+
+      title:
+        `${category.name} | Slottye`,
+
+      description,
+
+      url: canonical,
+
+      siteName: "Slottye",
+
+      locale: "es_ES",
+    },
+
+    twitter: {
+      card: "summary_large_image",
+
+      title:
+        `${category.name} | Slottye`,
+
+      description,
+    },
+
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
+
+/*
+ * ============================================================
+ * PÁGINA
+ * ============================================================
+ */
 
 export default async function CategoryPage({
   params,
@@ -73,14 +270,6 @@ export default async function CategoryPage({
    * ============================================================
    * CARGAMOS NEGOCIOS
    * ============================================================
-   *
-   * Incluimos también el nombre de la categoría
-   * para poder buscar por cosas como:
-   *
-   * "dentista"
-   * "peluquería"
-   * "psicología"
-   * etc.
    */
 
   let query =
@@ -209,7 +398,7 @@ export default async function CategoryPage({
         /*
          * Supabase puede devolver la relación
          * como objeto o array según los tipos
-         * generados, así que cubrimos ambos.
+         * generados.
          */
 
         const category =
@@ -243,8 +432,7 @@ export default async function CategoryPage({
          *
          * "dentista mataro"
          *
-         * exige que aparezcan las dos palabras
-         * en algún lugar de la ficha.
+         * exige que aparezcan las dos palabras.
          */
 
         const terms =
@@ -290,8 +478,8 @@ export default async function CategoryPage({
           [...images]
             .sort(
               (a, b) =>
-                a.position -
-                b.position
+                (a.position ?? 0) -
+                (b.position ?? 0)
             )[0]
             ?.image_url ??
           null;
@@ -404,12 +592,88 @@ export default async function CategoryPage({
 
   /*
    * ============================================================
+   * SEO - DATOS ESTRUCTURADOS
+   * ============================================================
+   */
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000";
+
+  const categoryUrl =
+    `${baseUrl}/category/${slug}`;
+
+  /*
+   * Creamos ItemList únicamente para la
+   * página normal de categoría.
+   *
+   * No lo generamos para búsquedas ?q=...
+   */
+
+  const jsonLd =
+    !q?.trim() &&
+    normalizedBusinesses.length > 0
+      ? {
+          "@context":
+            "https://schema.org",
+
+          "@type":
+            "ItemList",
+
+          name:
+            categoryName,
+
+          url:
+            categoryUrl,
+
+          numberOfItems:
+            normalizedBusinesses.length,
+
+          itemListElement:
+            normalizedBusinesses.map(
+              (
+                business,
+                index
+              ) => ({
+                "@type":
+                  "ListItem",
+
+                position:
+                  index + 1,
+
+                url:
+                  `${baseUrl}/business/${business.slug}`,
+
+                name:
+                  business.name,
+              })
+            ),
+        }
+      : null;
+
+  /*
+   * ============================================================
    * UI
    * ============================================================
    */
 
   return (
     <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html:
+              JSON.stringify(
+                jsonLd
+              ).replace(
+                /</g,
+                "\\u003c"
+              ),
+          }}
+        />
+      )}
+
       <Header />
 
       <main className="shell detail">
@@ -452,7 +716,9 @@ export default async function CategoryPage({
             </Link>
           </div>
 
-          {/* BUSCADOR EN RESULTADOS */}
+          {/* ====================================================
+              BUSCADOR
+              ==================================================== */}
 
           <form
             className="search"
@@ -474,7 +740,9 @@ export default async function CategoryPage({
             </button>
           </form>
 
-          {/* RESULTADOS */}
+          {/* ====================================================
+              RESULTADOS
+              ==================================================== */}
 
           {normalizedBusinesses.length >
           0 ? (
