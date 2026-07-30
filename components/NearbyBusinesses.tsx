@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import { BusinessCard } from "@/components/BusinessCard";
 
 type Business = {
@@ -110,6 +116,13 @@ export function NearbyBusinesses({
     setMessage,
   ] = useState("");
 
+  /*
+   * Evita que la petición automática
+   * de ubicación se ejecute dos veces.
+   */
+  const locationRequested =
+    useRef(false);
+
   const [
     sortMode,
     setSortMode,
@@ -146,19 +159,26 @@ export function NearbyBusinesses({
    * ============================================================
    */
 
-  function requestLocation() {
+  function requestLocation(
+    automatic = false
+  ) {
     if (
       !navigator.geolocation
     ) {
-      setMessage(
-        "Tu navegador no permite obtener la ubicación."
-      );
+      if (!automatic) {
+        setMessage(
+          "Tu navegador no permite obtener la ubicación."
+        );
+      }
 
       return;
     }
 
     setLocating(true);
-    setMessage("");
+
+    if (!automatic) {
+      setMessage("");
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -174,22 +194,72 @@ export function NearbyBusinesses({
 
         setLocating(false);
 
+        setMessage("");
+
+        /*
+         * Cuando conocemos la ubicación,
+         * ordenamos automáticamente
+         * por distancia.
+         */
         setSortMode(
           "distance"
         );
       },
 
-      () => {
+      (error) => {
+        setLocating(false);
+
+        /*
+         * Si la petición automática falla,
+         * no mostramos un mensaje molesto.
+         *
+         * El botón manual seguirá disponible.
+         */
+        if (automatic) {
+          return;
+        }
+
+        if (
+          error.code ===
+          error.PERMISSION_DENIED
+        ) {
+          setMessage(
+            "No has permitido acceder a tu ubicación. Puedes activarla en los permisos del navegador y volver a intentarlo."
+          );
+
+          return;
+        }
+
+        if (
+          error.code ===
+          error.POSITION_UNAVAILABLE
+        ) {
+          setMessage(
+            "No hemos podido determinar tu ubicación en este momento."
+          );
+
+          return;
+        }
+
+        if (
+          error.code ===
+          error.TIMEOUT
+        ) {
+          setMessage(
+            "La ubicación está tardando demasiado. Puedes volver a intentarlo."
+          );
+
+          return;
+        }
+
         setMessage(
           "No hemos podido acceder a tu ubicación. Puedes seguir viendo los negocios igualmente."
         );
-
-        setLocating(false);
       },
 
       {
         enableHighAccuracy:
-          true,
+          false,
 
         timeout:
           10000,
@@ -199,6 +269,25 @@ export function NearbyBusinesses({
       }
     );
   }
+
+  /*
+   * ============================================================
+   * UBICACIÓN AUTOMÁTICA AL ENTRAR
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (
+      locationRequested.current
+    ) {
+      return;
+    }
+
+    locationRequested.current =
+      true;
+
+    requestLocation(true);
+  }, []);
 
   /*
    * ============================================================
@@ -473,8 +562,8 @@ export function NearbyBusinesses({
                 : "btn"
             }
 
-            onClick={
-              requestLocation
+            onClick={() =>
+              requestLocation(false)
             }
 
             disabled={
