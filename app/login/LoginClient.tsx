@@ -5,6 +5,8 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+
 import {
   useRouter,
   useSearchParams,
@@ -213,12 +215,8 @@ export default function Login() {
       }
 
       /*
-       * Si NO hay sesión, normalmente significa
-       * que Supabase requiere confirmación
-       * mediante email.
-       *
-       * En vez de dejar al usuario en el formulario,
-       * lo enviamos a una pantalla específica.
+       * Si NO hay sesión, Supabase requiere
+       * confirmación mediante email.
        */
       router.push(
         `/check-email?email=${encodeURIComponent(
@@ -292,7 +290,9 @@ export default function Login() {
               : "Regístrate como cliente o como negocio."}
           </p>
 
-          {/* LOGIN / REGISTRO */}
+          {/* ==================================================
+              LOGIN / REGISTRO
+              ================================================== */}
 
           <div
             style={{
@@ -352,7 +352,9 @@ export default function Login() {
             </button>
           </div>
 
-          {/* ROL */}
+          {/* ==================================================
+              ROL
+              ================================================== */}
 
           {mode ===
             "signup" && (
@@ -410,7 +412,9 @@ export default function Login() {
             </div>
           )}
 
-          {/* GOOGLE */}
+          {/* ==================================================
+              GOOGLE
+              ================================================== */}
 
           <button
             type="button"
@@ -450,7 +454,9 @@ export default function Login() {
             o con email
           </div>
 
-          {/* EMAIL */}
+          {/* ==================================================
+              EMAIL
+              ================================================== */}
 
           <form
             onSubmit={
@@ -480,6 +486,8 @@ export default function Login() {
                     : "Tu nombre"
                 }
 
+                autoComplete="name"
+
                 style={
                   inputStyle
                 }
@@ -504,6 +512,8 @@ export default function Login() {
 
               placeholder="tu@email.com"
 
+              autoComplete="email"
+
               style={
                 inputStyle
               }
@@ -513,7 +523,7 @@ export default function Login() {
               required
 
               minLength={
-                6
+                8
               }
 
               value={
@@ -531,12 +541,63 @@ export default function Login() {
 
               type="password"
 
+              autoComplete={
+                mode === "login"
+                  ? "current-password"
+                  : "new-password"
+              }
+
               style={
                 inputStyle
               }
             />
 
+            {/* ================================================
+                RECUPERAR CONTRASEÑA
+                ================================================ */}
+
+            {mode ===
+              "login" && (
+              <div
+                style={{
+                  display:
+                    "flex",
+
+                  justifyContent:
+                    "flex-end",
+
+                  marginTop:
+                    -2,
+
+                  marginBottom:
+                    14,
+                }}
+              >
+                <Link
+                  href="/forgot-password"
+
+                  style={{
+                    fontSize:
+                      13,
+
+                    color:
+                      "var(--accent)",
+
+                    fontWeight:
+                      700,
+
+                    textDecoration:
+                      "none",
+                  }}
+                >
+                  ¿Has olvidado tu contraseña?
+                </Link>
+              </div>
+            )}
+
             <button
+              type="submit"
+
               className="btn primary"
 
               style={{
@@ -556,6 +617,10 @@ export default function Login() {
                   : "Crear cuenta"}
             </button>
           </form>
+
+          {/* ==================================================
+              ERROR
+              ================================================== */}
 
           {message && (
             <div
@@ -592,6 +657,12 @@ export default function Login() {
     </>
   );
 }
+
+/*
+ * ============================================================
+ * ESTILO INPUT
+ * ============================================================
+ */
 
 const inputStyle = {
   width: "100%",

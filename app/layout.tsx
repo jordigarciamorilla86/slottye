@@ -11,13 +11,15 @@ export const metadata: Metadata = {
   title: {
     default:
       "Slottye — Encuentra y reserva tu próxima cita",
-    template: "%s | Slottye",
+    template:
+      "%s | Slottye",
   },
 
   description:
     "Encuentra negocios cerca de ti, consulta sus citas disponibles y reserva online de forma rápida y sencilla con Slottye.",
 
-  applicationName: "Slottye",
+  applicationName:
+    "Slottye",
 
   keywords: [
     "Slottye",
@@ -39,8 +41,40 @@ export const metadata: Metadata = {
     },
   ],
 
-  creator: "Slottye",
-  publisher: "Slottye",
+  creator:
+    "Slottye",
+
+  publisher:
+    "Slottye",
+
+  /*
+   * ============================================================
+   * ICONOS / FAVICON
+   * ============================================================
+   */
+
+  icons: {
+    icon: [
+      {
+        url:
+          "/slottye-icon.png",
+        type:
+          "image/png",
+      },
+    ],
+
+    shortcut:
+      "/slottye-icon.png",
+
+    apple:
+      "/slottye-icon.png",
+  },
+
+  /*
+   * ============================================================
+   * DETECCIÓN AUTOMÁTICA
+   * ============================================================
+   */
 
   formatDetection: {
     email: false,
@@ -48,10 +82,23 @@ export const metadata: Metadata = {
     telephone: false,
   },
 
+  /*
+   * ============================================================
+   * OPEN GRAPH
+   *
+   * WhatsApp, Facebook, LinkedIn, etc.
+   * ============================================================
+   */
+
   openGraph: {
-    type: "website",
-    locale: "es_ES",
-    siteName: "Slottye",
+    type:
+      "website",
+
+    locale:
+      "es_ES",
+
+    siteName:
+      "Slottye",
 
     title:
       "Slottye — Encuentra y reserva tu próxima cita",
@@ -59,18 +106,46 @@ export const metadata: Metadata = {
     description:
       "Encuentra negocios cerca de ti y reserva citas disponibles online en segundos.",
 
-    url: "/",
+    url:
+      "/",
+
+    images: [
+      {
+        url:
+          "/slottye-logo.png",
+
+        alt:
+          "Slottye — plataforma de reservas online",
+      },
+    ],
   },
+
+  /*
+   * ============================================================
+   * TWITTER / X
+   * ============================================================
+   */
 
   twitter: {
-    card: "summary_large_image",
+    card:
+      "summary_large_image",
 
     title:
       "Slottye — Encuentra y reserva tu próxima cita",
 
     description:
       "Encuentra negocios cerca de ti y reserva citas disponibles online en segundos.",
+
+    images: [
+      "/slottye-logo.png",
+    ],
   },
+
+  /*
+   * ============================================================
+   * ROBOTS
+   * ============================================================
+   */
 
   robots: {
     index: true,
@@ -79,9 +154,15 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
+
+      "max-image-preview":
+        "large",
+
+      "max-snippet":
+        -1,
+
+      "max-video-preview":
+        -1,
     },
   },
 };
@@ -89,7 +170,8 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children:
+    React.ReactNode;
 }>) {
   return (
     <html lang="es">

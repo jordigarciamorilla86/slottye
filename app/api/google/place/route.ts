@@ -159,23 +159,23 @@ export async function POST(request: Request) {
         }
       );
 
-    if (!googleResponse.ok) {
-      const googleError =
-        await googleResponse.text();
-
-      console.error(
-        "Google Places error:",
-        googleError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Google Places no ha podido buscar el negocio",
-        },
-        { status: 502 }
-      );
-    }
+      if (!googleResponse.ok) {
+        const googleError =
+          await googleResponse.text();
+      
+        console.error(
+          "Google Places error:",
+          googleError
+        );
+      
+        return NextResponse.json(
+          {
+            error:
+              "Google Places no ha podido buscar el negocio",
+          },
+          { status: 502 }
+        );
+      }
 
     const result =
       await googleResponse.json();
