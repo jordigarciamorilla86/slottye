@@ -1,24 +1,14 @@
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import CreateBusinessForm from "./CreateBusinessForm";
 
 export default async function CreateBusinessPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    supabase,
+    user,
+    profile,
+  } = await requireActiveUser();
 
   if (profile?.role !== "business") {
     redirect("/account");
@@ -44,9 +34,16 @@ export default async function CreateBusinessPage() {
     <>
       <Header />
 
-      <main className="shell detail" style={{ maxWidth: 850 }}>
+      <main
+        className="shell detail"
+        style={{
+          maxWidth: 850,
+        }}
+      >
         <section className="panel">
-          <div className="kicker">Slottye Business</div>
+          <div className="kicker">
+            Slottye Business
+          </div>
 
           <h1 className="business-title">
             Crea tu negocio
@@ -56,7 +53,9 @@ export default async function CreateBusinessPage() {
             Esta información aparecerá en la ficha pública de tu negocio.
           </p>
 
-          <CreateBusinessForm categories={categories ?? []} />
+          <CreateBusinessForm
+            categories={categories ?? []}
+          />
         </section>
       </main>
     </>

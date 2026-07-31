@@ -1,23 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import CalendarManager from "./CalendarManager";
 
 export default async function CalendarPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    supabase,
+    user,
+    profile,
+  } = await requireActiveUser();
 
   if (profile?.role !== "business") {
     redirect("/account");
@@ -53,7 +45,7 @@ export default async function CalendarPage() {
     .gte("start_at", new Date().toISOString())
     .order("start_at");
 
-    const { data: businessHours } = await supabase
+  const { data: businessHours } = await supabase
     .from("business_hours")
     .select(`
       day_of_week,
@@ -66,8 +58,8 @@ export default async function CalendarPage() {
     .eq("business_id", business.id)
     .order("day_of_week");
 
-    const { data: businessBlocks } = await supabase
-  .from("business_blocks")
+  const { data: businessBlocks } = await supabase
+    .from("business_blocks")
     .select(`
       id,
       start_at,
@@ -82,9 +74,16 @@ export default async function CalendarPage() {
     <>
       <Header />
 
-      <main className="shell detail" style={{ maxWidth: 900 }}>
+      <main
+        className="shell detail"
+        style={{
+          maxWidth: 900,
+        }}
+      >
         <section className="panel">
-          <div className="kicker">Slottye Business</div>
+          <div className="kicker">
+            Slottye Business
+          </div>
 
           <h1 className="business-title">
             Calendario y citas
@@ -95,16 +94,23 @@ export default async function CalendarPage() {
           </p>
 
           <CalendarManager
-  businessId={business.id}
-  services={services ?? []}
-  initialSlots={slots ?? []}
-  businessHours={businessHours ?? []}
-  initialBlocks={businessBlocks ?? []}
-/>
+            businessId={business.id}
+            services={services ?? []}
+            initialSlots={slots ?? []}
+            businessHours={businessHours ?? []}
+            initialBlocks={businessBlocks ?? []}
+          />
         </section>
 
-        <section style={{ marginTop: 20 }}>
-          <Link href="/business-dashboard" className="btn">
+        <section
+          style={{
+            marginTop: 20,
+          }}
+        >
+          <Link
+            href="/business-dashboard"
+            className="btn"
+          >
             ← Volver al panel
           </Link>
         </section>

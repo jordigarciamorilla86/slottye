@@ -1,25 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BusinessBookingsManager from "./BusinessBookingsManager";
 
 export default async function BusinessBookingsPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    supabase,
+    user,
+    profile,
+  } = await requireActiveUser();
 
   if (profile?.role !== "business") {
     redirect("/account");
@@ -60,27 +50,41 @@ export default async function BusinessBookingsPage() {
       )
     `)
     .eq("business_id", business.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (error) {
-    console.error("Error loading business bookings:", error);
+    console.error(
+      "Error loading business bookings:",
+      error
+    );
   }
 
-  const normalized = (bookings ?? []).map((booking) => ({
-    ...booking,
+  const normalized =
+    (bookings ?? []).map(
+      (booking) => ({
+        ...booking,
 
-    slots: Array.isArray(booking.slots)
-      ? booking.slots[0] ?? null
-      : booking.slots,
+        slots: Array.isArray(
+          booking.slots
+        )
+          ? booking.slots[0] ?? null
+          : booking.slots,
 
-    services: Array.isArray(booking.services)
-      ? booking.services[0] ?? null
-      : booking.services,
+        services: Array.isArray(
+          booking.services
+        )
+          ? booking.services[0] ?? null
+          : booking.services,
 
-    profiles: Array.isArray(booking.profiles)
-      ? booking.profiles[0] ?? null
-      : booking.profiles,
-  }));
+        profiles: Array.isArray(
+          booking.profiles
+        )
+          ? booking.profiles[0] ?? null
+          : booking.profiles,
+      })
+    );
 
   return (
     <>
@@ -88,7 +92,9 @@ export default async function BusinessBookingsPage() {
 
       <main
         className="shell detail"
-        style={{ maxWidth: 1000 }}
+        style={{
+          maxWidth: 1000,
+        }}
       >
         <section className="panel">
           <div className="kicker">
@@ -108,7 +114,11 @@ export default async function BusinessBookingsPage() {
           />
         </section>
 
-        <section style={{ marginTop: 20 }}>
+        <section
+          style={{
+            marginTop: 20,
+          }}
+        >
           <Link
             href="/business-dashboard"
             className="btn"

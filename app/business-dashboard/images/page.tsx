@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BusinessImagesManager from "./BusinessImagesManager";
 
 export default async function BusinessImagesPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+    supabase,
+    user,
+  } = await requireActiveUser();
 
   const { data: business } = await supabase
     .from("businesses")

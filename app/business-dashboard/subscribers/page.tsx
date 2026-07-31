@@ -1,61 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 
 export default async function SubscribersPage() {
-  const supabase =
-    await createClient();
+  const {
+    supabase,
+    user,
+    profile,
+  } = await requireActiveUser();
 
   /*
    * ============================================================
-   * USUARIO
+   * PERFIL / ROL
    * ============================================================
    */
 
-  const {
-    data: { user },
-  } =
-    await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  /*
-   * ============================================================
-   * PERFIL
-   * ============================================================
-   */
-
-  const {
-    data: profile,
-    error: profileError,
-  } =
-    await supabase
-      .from("profiles")
-      .select(`
-        id,
-        role
-      `)
-      .eq(
-        "id",
-        user.id
-      )
-      .maybeSingle();
-
-  if (profileError) {
-    console.error(
-      "Error loading profile:",
-      profileError
-    );
-  }
-
-  if (
-    !profile ||
-    profile.role !==
-      "business"
-  ) {
+  if (profile.role !== "business") {
     redirect("/account");
   }
 
@@ -68,19 +29,18 @@ export default async function SubscribersPage() {
   const {
     data: business,
     error: businessError,
-  } =
-    await supabase
-      .from("businesses")
-      .select(`
-        id,
-        name,
-        slug
-      `)
-      .eq(
-        "owner_id",
-        user.id
-      )
-      .maybeSingle();
+  } = await supabase
+    .from("businesses")
+    .select(`
+      id,
+      name,
+      slug
+    `)
+    .eq(
+      "owner_id",
+      user.id
+    )
+    .maybeSingle();
 
   if (businessError) {
     console.error(
@@ -108,29 +68,27 @@ export default async function SubscribersPage() {
   const {
     data: subscriptions,
     error: subscriptionsError,
-  } =
-    await supabase
-      .from(
-        "business_subscriptions"
-      )
-      .select(`
-        id,
-        user_id,
-        business_id,
-        email_enabled,
-        created_at
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .order(
-        "created_at",
-        {
-          ascending:
-            false,
-        }
-      );
+  } = await supabase
+    .from(
+      "business_subscriptions"
+    )
+    .select(`
+      id,
+      user_id,
+      business_id,
+      email_enabled,
+      created_at
+    `)
+    .eq(
+      "business_id",
+      business.id
+    )
+    .order(
+      "created_at",
+      {
+        ascending: false,
+      }
+    );
 
   if (subscriptionsError) {
     console.error(
@@ -169,17 +127,16 @@ export default async function SubscribersPage() {
         profilesData,
       error:
         subscribersProfilesError,
-    } =
-      await supabase
-        .from("profiles")
-        .select(`
-          id,
-          name
-        `)
-        .in(
-          "id",
-          subscriberUserIds
-        );
+    } = await supabase
+      .from("profiles")
+      .select(`
+        id,
+        name
+      `)
+      .in(
+        "id",
+        subscriberUserIds
+      );
 
     if (
       subscribersProfilesError
@@ -209,9 +166,9 @@ export default async function SubscribersPage() {
         subscriberProfiles ??
         []
       ).map(
-        (profile) => [
-          profile.id,
-          profile.name,
+        (subscriberProfile) => [
+          subscriberProfile.id,
+          subscriberProfile.name,
         ]
       )
     );

@@ -687,33 +687,23 @@ export default async function BusinessPage({
 
   const {
     data: reviews,
-    error:
-      reviewsError,
-  } =
-    await supabase
-      .from(
-        "reviews"
+    error: reviewsError,
+  } = await supabase
+    .from("reviews")
+    .select(`
+      id,
+      rating,
+      comment,
+      created_at,
+      profiles (
+        name
       )
-      .select(`
-        id,
-        rating,
-        comment,
-        created_at,
-        profiles (
-          name
-        )
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .order(
-        "created_at",
-        {
-          ascending:
-            false,
-        }
-      );
+    `)
+    .eq("business_id", business.id)
+    .eq("visible", true)
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (
     reviewsError

@@ -1,35 +1,19 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "./sign-out-button";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 
 export default async function AccountPage() {
-  const supabase =
-    await createClient();
+  /*
+   * ============================================================
+   * USUARIO ACTIVO
+   * ============================================================
+   */
 
   const {
-    data: { user },
-  } =
-    await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const {
-    data: profile,
-  } =
-    await supabase
-      .from("profiles")
-      .select(
-        "name,email,role"
-      )
-      .eq(
-        "id",
-        user.id
-      )
-      .single();
+    user,
+    profile,
+  } = await requireActiveUser();
 
   return (
     <>

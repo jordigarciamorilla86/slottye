@@ -1,19 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BookingsManager from "./BookingsManager";
 
 export default async function BookingsPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+    supabase,
+    user,
+  } = await requireActiveUser();
 
   const { data: bookings, error } = await supabase
     .from("bookings")
@@ -80,21 +74,22 @@ export default async function BookingsPage() {
           Array.isArray(
             booking.businesses
           )
-            ? booking.businesses[0] ??
-              null
+            ? booking.businesses[0] ?? null
             : booking.businesses,
 
         services:
           Array.isArray(
             booking.services
           )
-            ? booking.services[0] ??
-              null
+            ? booking.services[0] ?? null
             : booking.services,
 
-            reviews: Array.isArray(booking.reviews)
-              ? booking.reviews[0] ?? null
-              : booking.reviews,
+        reviews:
+          Array.isArray(
+            booking.reviews
+          )
+            ? booking.reviews[0] ?? null
+            : booking.reviews,
       })
     );
 
@@ -118,16 +113,17 @@ export default async function BookingsPage() {
           </h1>
 
           <p className="muted">
-            Consulta tus próximas citas
-            y tu historial.
+            Consulta tus próximas citas y tu historial.
           </p>
 
           <BookingsManager
-  initialBookings={
-    normalizedBookings
-  }
-  userId={user.id}
-/>
+            initialBookings={
+              normalizedBookings
+            }
+            userId={
+              user.id
+            }
+          />
         </section>
 
         <section

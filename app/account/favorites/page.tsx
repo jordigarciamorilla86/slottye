@@ -1,18 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 
 export default async function FavoritesPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+    supabase,
+    user,
+  } = await requireActiveUser();
 
   const { data: favorites, error } = await supabase
     .from("favorites")
@@ -30,10 +24,15 @@ export default async function FavoritesPage() {
       )
     `)
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (error) {
-    console.error("Error loading favorites:", error);
+    console.error(
+      "Error loading favorites:",
+      error
+    );
   }
 
   return (
@@ -45,7 +44,9 @@ export default async function FavoritesPage() {
         style={{ maxWidth: 850 }}
       >
         <section className="panel">
-          <div className="kicker">Mi Slottye</div>
+          <div className="kicker">
+            Mi Slottye
+          </div>
 
           <h1 className="business-title">
             Mis favoritos
@@ -62,9 +63,12 @@ export default async function FavoritesPage() {
               marginTop: 28,
             }}
           >
-            {!favorites || favorites.length === 0 ? (
+            {!favorites ||
+            favorites.length === 0 ? (
               <div>
-                <h3>Todavía no tienes favoritos</h3>
+                <h3>
+                  Todavía no tienes favoritos
+                </h3>
 
                 <p className="muted">
                   Guarda negocios para encontrarlos rápidamente
@@ -74,82 +78,107 @@ export default async function FavoritesPage() {
                 <Link
                   href="/"
                   className="btn primary"
-                  style={{ marginTop: 12 }}
+                  style={{
+                    marginTop: 12,
+                  }}
                 >
                   Explorar negocios
                 </Link>
               </div>
             ) : (
-              favorites.map((favorite) => {
-                const business = Array.isArray(
-                  favorite.businesses
-                )
-                  ? favorite.businesses[0]
-                  : favorite.businesses;
+              favorites.map(
+                (favorite) => {
+                  const business =
+                    Array.isArray(
+                      favorite.businesses
+                    )
+                      ? favorite.businesses[0]
+                      : favorite.businesses;
 
-                if (!business) return null;
+                  if (!business) {
+                    return null;
+                  }
 
-                return (
-                  <Link
-                    key={favorite.id}
-                    href={`/business/${business.slug}`}
-                    className="card"
-                    style={{
-                      textDecoration: "none",
-                    }}
-                  >
-                    <div className="card-body">
-                      <h3>{business.name}</h3>
+                  return (
+                    <Link
+                      key={favorite.id}
+                      href={`/business/${business.slug}`}
+                      className="card"
+                      style={{
+                        textDecoration:
+                          "none",
+                      }}
+                    >
+                      <div className="card-body">
+                        <h3>
+                          {business.name}
+                        </h3>
 
-                      {business.description && (
-                        <p className="muted">
-                          {business.description}
-                        </p>
-                      )}
+                        {business.description && (
+                          <p className="muted">
+                            {
+                              business.description
+                            }
+                          </p>
+                        )}
 
-                      {(business.address ||
-                        business.city) && (
+                        {(business.address ||
+                          business.city) && (
+                          <div
+                            className="meta"
+                            style={{
+                              marginTop: 10,
+                            }}
+                          >
+                            📍{" "}
+                            {[
+                              business.address,
+                              business.city,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        )}
+
+                        {business.phone && (
+                          <div
+                            className="meta"
+                            style={{
+                              marginTop: 6,
+                            }}
+                          >
+                            ☎ {business.phone}
+                          </div>
+                        )}
+
                         <div
-                          className="meta"
-                          style={{ marginTop: 10 }}
+                          style={{
+                            marginTop: 16,
+                          }}
                         >
-                          📍{" "}
-                          {[
-                            business.address,
-                            business.city,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
+                          <span className="btn primary">
+                            Ver negocio
+                          </span>
                         </div>
-                      )}
-
-                      {business.phone && (
-                        <div
-                          className="meta"
-                          style={{ marginTop: 6 }}
-                        >
-                          ☎ {business.phone}
-                        </div>
-                      )}
-
-                      <div style={{ marginTop: 16 }}>
-                        <span className="btn primary">
-                          Ver negocio
-                        </span>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })
+                    </Link>
+                  );
+                }
+              )
             )}
           </div>
         </section>
 
         <section
           className="section"
-          style={{ marginTop: 16 }}
+          style={{
+            marginTop: 16,
+          }}
         >
-          <Link href="/account" className="btn">
+          <Link
+            href="/account"
+            className="btn"
+          >
             ← Volver a mi cuenta
           </Link>
         </section>

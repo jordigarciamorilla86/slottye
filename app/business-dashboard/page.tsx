@@ -1,24 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 
 export default async function BusinessDashboardPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    supabase,
+    user,
+    profile,
+  } =
+    await requireActiveUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name,role")
-    .eq("id", user.id)
-    .single();
+  
 
   if (profile?.role !== "business") {
     redirect("/account");
@@ -1402,7 +1395,12 @@ export default async function BusinessDashboardPage() {
             >
               📋 Reservas
             </Link>
-
+            <Link
+  href="/business-dashboard/agenda"
+  className="btn"
+>
+  📅 Agenda
+</Link>
             <Link
               href="/business-dashboard/subscribers"
               className="btn"

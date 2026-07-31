@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BusinessHoursManager from "./BusinessHoursManager";
 
 export default async function BusinessHoursPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+    supabase,
+    user,
+  } = await requireActiveUser();
 
   const { data: business } = await supabase
     .from("businesses")
@@ -26,18 +21,18 @@ export default async function BusinessHoursPage() {
   }
 
   const { data: hours } = await supabase
-  .from("business_hours")
-  .select(`
-    id,
-    day_of_week,
-    open_time,
-    close_time,
-    open_time_2,
-    close_time_2,
-    closed
-  `)
-  .eq("business_id", business.id)
-  .order("day_of_week");
+    .from("business_hours")
+    .select(`
+      id,
+      day_of_week,
+      open_time,
+      close_time,
+      open_time_2,
+      close_time_2,
+      closed
+    `)
+    .eq("business_id", business.id)
+    .order("day_of_week");
 
   return (
     <>

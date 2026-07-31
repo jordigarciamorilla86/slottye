@@ -1,25 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import ServicesManager from "./ServicesManager";
 
 export default async function ServicesPage() {
-  const supabase = await createClient();
-
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    supabase,
+    user,
+    profile,
+  } = await requireActiveUser();
 
   if (profile?.role !== "business") {
     redirect("/account");
@@ -45,7 +35,9 @@ export default async function ServicesPage() {
       active
     `)
     .eq("business_id", business.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
   return (
     <>
