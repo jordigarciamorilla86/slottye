@@ -126,21 +126,6 @@ function formatDateTime(
   );
 }
 
-function formatTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "es-ES",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Europe/Madrid",
-    }
-  ).format(
-    new Date(value)
-  );
-}
-
 function minutesBetween(
   start: string,
   end: string
@@ -156,6 +141,58 @@ function minutesBetween(
     ) /
       60000
   );
+}
+
+function dateInputValue(
+  value: string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+function timeInputValue(
+  value: string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  return `${String(
+    date.getHours()
+  ).padStart(
+    2,
+    "0"
+  )}:${String(
+    date.getMinutes()
+  ).padStart(
+    2,
+    "0"
+  )}`;
 }
 
 export default function AgendaEventModal(
@@ -249,32 +286,9 @@ export default function AgendaEventModal(
         return "";
       }
 
-      const date =
-        new Date(
-          manualEvent.start_at
-        );
-
-      const year =
-        date.getFullYear();
-
-      const month =
-        String(
-          date.getMonth() +
-            1
-        ).padStart(
-          2,
-          "0"
-        );
-
-      const day =
-        String(
-          date.getDate()
-        ).padStart(
-          2,
-          "0"
-        );
-
-      return `${year}-${month}-${day}`;
+      return dateInputValue(
+        manualEvent.start_at
+      );
     });
 
   const [
@@ -288,22 +302,9 @@ export default function AgendaEventModal(
         return "";
       }
 
-      const date =
-        new Date(
-          manualEvent.start_at
-        );
-
-      return `${String(
-        date.getHours()
-      ).padStart(
-        2,
-        "0"
-      )}:${String(
-        date.getMinutes()
-      ).padStart(
-        2,
-        "0"
-      )}`;
+      return timeInputValue(
+        manualEvent.start_at
+      );
     });
 
   const [
@@ -329,28 +330,182 @@ export default function AgendaEventModal(
         ""
     );
 
-    const activeServices =
+  /*
+   * ============================================================
+   * EDICIÓN BLOQUEO
+   * ============================================================
+   */
+
+  const [
+    editingBlock,
+    setEditingBlock,
+  ] =
+    useState(false);
+
+  const blockEvent =
+    props.type ===
+    "block"
+      ? props.event
+      : null;
+
+  const [
+    blockDate,
+    setBlockDate,
+  ] =
+    useState(() => {
+      if (
+        !blockEvent
+      ) {
+        return "";
+      }
+
+      return dateInputValue(
+        blockEvent.start_at
+      );
+    });
+
+  const [
+    blockTime,
+    setBlockTime,
+  ] =
+    useState(() => {
+      if (
+        !blockEvent
+      ) {
+        return "";
+      }
+
+      return timeInputValue(
+        blockEvent.start_at
+      );
+    });
+
+  const [
+    blockDurationMinutes,
+    setBlockDurationMinutes,
+  ] =
+    useState(
+      blockEvent
+        ? minutesBetween(
+            blockEvent.start_at,
+            blockEvent.end_at
+          )
+        : 30
+    );
+
+  const [
+    blockReason,
+    setBlockReason,
+  ] =
+    useState(
+      blockEvent
+        ?.reason ??
+        ""
+    );
+
+  /*
+   * ============================================================
+   * EDICIÓN DISPONIBILIDAD
+   * ============================================================
+   */
+
+  const [
+    editingSlot,
+    setEditingSlot,
+  ] =
+    useState(false);
+
+  const slotEvent =
+    props.type ===
+    "slot"
+      ? props.event
+      : null;
+
+  const [
+    slotServiceId,
+    setSlotServiceId,
+  ] =
+    useState(
+      slotEvent
+        ?.service_id ??
+        ""
+    );
+
+  const [
+    slotDate,
+    setSlotDate,
+  ] =
+    useState(() => {
+      if (
+        !slotEvent
+      ) {
+        return "";
+      }
+
+      return dateInputValue(
+        slotEvent.start_at
+      );
+    });
+
+  const [
+    slotTime,
+    setSlotTime,
+  ] =
+    useState(() => {
+      if (
+        !slotEvent
+      ) {
+        return "";
+      }
+
+      return timeInputValue(
+        slotEvent.start_at
+      );
+    });
+
+  const [
+    slotDurationMinutes,
+    setSlotDurationMinutes,
+  ] =
+    useState(
+      slotEvent
+        ? minutesBetween(
+            slotEvent.start_at,
+            slotEvent.end_at
+          )
+        : 30
+    );
+
+  /*
+   * ============================================================
+   * SERVICIOS ACTIVOS
+   * ============================================================
+   */
+
+  const activeServices =
     props.services.filter(
       (service) =>
         service.active
     );
-  
+
   /*
    * ============================================================
    * COMPROBAR SI LA RESERVA SLOTTYE YA HA EMPEZADO
    * ============================================================
    */
-  
+
   const bookingHasStarted =
-    props.type === "booking" &&
+    props.type ===
+      "booking" &&
     props.event.slots
       ? new Date(
           props.event.slots.start_at
         ) <= new Date()
       : false;
+
   /*
    * ============================================================
-   * CAMBIAR SERVICIO
+   * CAMBIAR SERVICIO RESERVA MANUAL
    * ============================================================
    */
 
@@ -370,6 +525,33 @@ export default function AgendaEventModal(
 
     if (service) {
       setDurationMinutes(
+        service.duration_minutes
+      );
+    }
+  }
+
+  /*
+   * ============================================================
+   * CAMBIAR SERVICIO DISPONIBILIDAD
+   * ============================================================
+   */
+
+  function changeSlotService(
+    value: string
+  ) {
+    setSlotServiceId(
+      value
+    );
+
+    const service =
+      activeServices.find(
+        (item) =>
+          item.id ===
+          value
+      );
+
+    if (service) {
+      setSlotDurationMinutes(
         service.duration_minutes
       );
     }
@@ -519,6 +701,362 @@ export default function AgendaEventModal(
       } else {
         setError(
           "No se ha podido modificar la reserva."
+        );
+      }
+
+      setLoading(
+        false
+      );
+
+      return;
+    }
+
+    setLoading(
+      false
+    );
+
+    props.onClose();
+  }
+
+  /*
+   * ============================================================
+   * GUARDAR BLOQUEO MODIFICADO
+   * ============================================================
+   */
+
+  async function saveBlock(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (
+      props.type !==
+      "block"
+    ) {
+      return;
+    }
+
+    setError("");
+
+    if (
+      !blockDate ||
+      !blockTime
+    ) {
+      setError(
+        "Selecciona una fecha y una hora."
+      );
+
+      return;
+    }
+
+    if (
+      blockDurationMinutes <=
+      0
+    ) {
+      setError(
+        "La duración del bloqueo no es válida."
+      );
+
+      return;
+    }
+
+    const [
+      year,
+      month,
+      day,
+    ] =
+      blockDate
+        .split("-")
+        .map(Number);
+
+    const [
+      hour,
+      minute,
+    ] =
+      blockTime
+        .split(":")
+        .map(Number);
+
+    const startAt =
+      new Date(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        0,
+        0
+      );
+
+    const endAt =
+      new Date(
+        startAt.getTime() +
+          blockDurationMinutes *
+            60000
+      );
+
+    setLoading(
+      true
+    );
+
+    const {
+      error:
+        rpcError,
+    } =
+      await supabase.rpc(
+        "update_agenda_block",
+        {
+          p_block_id:
+            props.event.id,
+
+          p_start_at:
+            startAt.toISOString(),
+
+          p_end_at:
+            endAt.toISOString(),
+
+          p_reason:
+            blockReason.trim(),
+        }
+      );
+
+    if (rpcError) {
+      console.error(
+        "Error updating agenda block:",
+        rpcError
+      );
+
+      const message =
+        rpcError.message
+          .toLowerCase();
+
+      if (
+        message.includes(
+          "not authorized"
+        )
+      ) {
+        setError(
+          "No tienes permisos para modificar este bloqueo."
+        );
+      } else if (
+        message.includes(
+          "block not found"
+        )
+      ) {
+        setError(
+          "El bloqueo ya no existe."
+        );
+      } else if (
+        message.includes(
+          "invalid block dates"
+        )
+      ) {
+        setError(
+          "La fecha o la duración del bloqueo no son válidas."
+        );
+      } else {
+        setError(
+          "No se ha podido modificar el bloqueo."
+        );
+      }
+
+      setLoading(
+        false
+      );
+
+      return;
+    }
+
+    setLoading(
+      false
+    );
+
+    props.onClose();
+  }
+
+  /*
+   * ============================================================
+   * GUARDAR DISPONIBILIDAD MODIFICADA
+   * ============================================================
+   */
+
+  async function saveSlot(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (
+      props.type !==
+      "slot"
+    ) {
+      return;
+    }
+
+    setError("");
+
+    if (
+      !slotServiceId
+    ) {
+      setError(
+        "Selecciona un servicio."
+      );
+
+      return;
+    }
+
+    if (
+      !slotDate ||
+      !slotTime
+    ) {
+      setError(
+        "Selecciona una fecha y una hora."
+      );
+
+      return;
+    }
+
+    if (
+      slotDurationMinutes <=
+      0
+    ) {
+      setError(
+        "La duración no es válida."
+      );
+
+      return;
+    }
+
+    const [
+      year,
+      month,
+      day,
+    ] =
+      slotDate
+        .split("-")
+        .map(Number);
+
+    const [
+      hour,
+      minute,
+    ] =
+      slotTime
+        .split(":")
+        .map(Number);
+
+    const startAt =
+      new Date(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        0,
+        0
+      );
+
+    const endAt =
+      new Date(
+        startAt.getTime() +
+          slotDurationMinutes *
+            60000
+      );
+
+    setLoading(
+      true
+    );
+
+    const {
+      error:
+        rpcError,
+    } =
+      await supabase.rpc(
+        "update_agenda_slot",
+        {
+          p_slot_id:
+            props.event.id,
+
+          p_service_id:
+            slotServiceId,
+
+          p_start_at:
+            startAt.toISOString(),
+
+          p_end_at:
+            endAt.toISOString(),
+        }
+      );
+
+    if (rpcError) {
+      console.error(
+        "Error updating agenda slot:",
+        rpcError
+      );
+
+      const message =
+        rpcError.message
+          .toLowerCase();
+
+      if (
+        message.includes(
+          "online booking"
+        )
+      ) {
+        setError(
+          "Ya existe una reserva de Slottye en ese horario."
+        );
+      } else if (
+        message.includes(
+          "manual booking"
+        )
+      ) {
+        setError(
+          "Ya existe una reserva manual en ese horario."
+        );
+      } else if (
+        message.includes(
+          "block"
+        )
+      ) {
+        setError(
+          "Ese horario está bloqueado."
+        );
+      } else if (
+        message.includes(
+          "available slot"
+        )
+      ) {
+        setError(
+          "Ya existe otra disponibilidad en ese horario."
+        );
+      } else if (
+        message.includes(
+          "invalid service"
+        )
+      ) {
+        setError(
+          "El servicio seleccionado no es válido."
+        );
+      } else if (
+        message.includes(
+          "only available slots"
+        )
+      ) {
+        setError(
+          "Esta disponibilidad ya no puede modificarse."
+        );
+      } else if (
+        message.includes(
+          "not authorized"
+        )
+      ) {
+        setError(
+          "No tienes permisos para modificar esta disponibilidad."
+        );
+      } else {
+        setError(
+          "No se ha podido modificar la disponibilidad."
         );
       }
 
@@ -736,42 +1274,38 @@ export default function AgendaEventModal(
   }
 
   /*
- * ============================================================
- * CANCELAR RESERVA SLOTTYE
- * ============================================================
- */
+   * ============================================================
+   * CANCELAR RESERVA SLOTTYE
+   * ============================================================
+   */
 
-async function cancelOnlineBooking() {
+  async function cancelOnlineBooking() {
     if (
       props.type !==
       "booking"
     ) {
       return;
     }
-  
+
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-  
+
     const confirmed =
       window.confirm(
         "¿Seguro que quieres cancelar esta reserva?"
       );
-  
+
     if (!confirmed) {
       return;
     }
-  
+
     setLoading(true);
     setError("");
-  
-    /*
-     * CANCELAR RESERVA
-     */
-  
+
     const {
       error:
         cancelError,
@@ -783,27 +1317,23 @@ async function cancelOnlineBooking() {
             props.event.id,
         }
       );
-  
+
     if (cancelError) {
       console.error(
         "Error cancelling booking:",
         cancelError
       );
-  
+
       setError(
         cancelError.message ||
           "No se ha podido cancelar la reserva."
       );
-  
+
       setLoading(false);
-  
+
       return;
     }
-  
-    /*
-     * NOTIFICAR AL CLIENTE
-     */
-  
+
     try {
       const response =
         await fetch(
@@ -811,12 +1341,12 @@ async function cancelOnlineBooking() {
           {
             method:
               "POST",
-  
+
             headers: {
               "Content-Type":
                 "application/json",
             },
-  
+
             body:
               JSON.stringify({
                 bookingId:
@@ -824,7 +1354,7 @@ async function cancelOnlineBooking() {
               }),
           }
         );
-  
+
       if (!response.ok) {
         const result =
           await response
@@ -832,7 +1362,7 @@ async function cancelOnlineBooking() {
             .catch(
               () => null
             );
-  
+
         console.error(
           "Error enviando cancelación:",
           result
@@ -846,45 +1376,45 @@ async function cancelOnlineBooking() {
         notificationError
       );
     }
-  
+
     setLoading(false);
-  
+
     props.onClose();
   }
 
   /*
- * ============================================================
- * MARCAR RESERVA COMO COMPLETADA
- * ============================================================
- */
+   * ============================================================
+   * MARCAR RESERVA COMO COMPLETADA
+   * ============================================================
+   */
 
-async function completeOnlineBooking() {
+  async function completeOnlineBooking() {
     if (
       props.type !==
       "booking"
     ) {
       return;
     }
-  
+
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-  
+
     const confirmed =
       window.confirm(
         "¿Marcar esta cita como completada?"
       );
-  
+
     if (!confirmed) {
       return;
     }
-  
+
     setLoading(true);
     setError("");
-  
+
     const {
       error:
         completeError,
@@ -896,34 +1426,34 @@ async function completeOnlineBooking() {
             props.event.id,
         }
       );
-  
+
     if (completeError) {
       console.error(
         "Error completing booking:",
         completeError
       );
-  
+
       setError(
         completeError.message ||
           "No se ha podido marcar la reserva como completada."
       );
-  
+
       setLoading(false);
-  
+
       return;
     }
-  
+
     setLoading(false);
-  
+
     props.onClose();
   }
-  
+
   /*
    * ============================================================
    * MARCAR NO PRESENTADO
    * ============================================================
    */
-  
+
   async function noShowOnlineBooking() {
     if (
       props.type !==
@@ -931,26 +1461,26 @@ async function completeOnlineBooking() {
     ) {
       return;
     }
-  
+
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-  
+
     const confirmed =
       window.confirm(
         "¿Marcar que el cliente no se presentó?"
       );
-  
+
     if (!confirmed) {
       return;
     }
-  
+
     setLoading(true);
     setError("");
-  
+
     const {
       error:
         noShowError,
@@ -962,27 +1492,28 @@ async function completeOnlineBooking() {
             props.event.id,
         }
       );
-  
+
     if (noShowError) {
       console.error(
         "Error marking booking as no-show:",
         noShowError
       );
-  
+
       setError(
         noShowError.message ||
           "No se ha podido marcar la reserva como no presentada."
       );
-  
+
       setLoading(false);
-  
+
       return;
     }
-  
+
     setLoading(false);
-  
+
     props.onClose();
   }
+
   /*
    * ============================================================
    * UI
@@ -1625,469 +2156,1063 @@ async function completeOnlineBooking() {
           )}
 
         {/* ==================================================
-            DISPONIBLE
+            DISPONIBILIDAD - VISTA
             ================================================== */}
 
         {props.type ===
-          "slot" && (
-          <div
-            style={{
-              marginTop:
-                22,
-            }}
-          >
-            <p>
-              <strong>
-                Servicio:
-              </strong>{" "}
-              {props.services.find(
-                (service) =>
-                  service.id ===
+          "slot" &&
+          !editingSlot && (
+            <div
+              style={{
+                marginTop:
+                  22,
+              }}
+            >
+              <p>
+                <strong>
+                  Servicio:
+                </strong>{" "}
+                {props.services.find(
+                  (service) =>
+                    service.id ===
+                    props.event
+                      .service_id
+                )?.name ??
+                  "Servicio"}
+              </p>
+
+              <p>
+                <strong>
+                  Inicio:
+                </strong>{" "}
+                {formatDateTime(
                   props.event
-                    .service_id
-              )?.name ??
-                "Servicio"}
-            </p>
+                    .start_at
+                )}
+              </p>
 
-            <p>
-              <strong>
-                Inicio:
-              </strong>{" "}
-              {formatDateTime(
-                props.event
-                  .start_at
-              )}
-            </p>
+              <p>
+                <strong>
+                  Fin:
+                </strong>{" "}
+                {formatDateTime(
+                  props.event
+                    .end_at
+                )}
+              </p>
 
-            <p>
-              <strong>
-                Fin:
-              </strong>{" "}
-              {formatDateTime(
-                props.event
-                  .end_at
-              )}
-            </p>
+              <p>
+                <strong>
+                  Duración:
+                </strong>{" "}
+                {minutesBetween(
+                  props.event
+                    .start_at,
+                  props.event
+                    .end_at
+                )}{" "}
+                minutos
+              </p>
 
-            <div
-              style={{
-                padding:
-                  "12px 14px",
-
-                background:
-                  "#f0fdf4",
-
-                border:
-                  "1px solid #bbf7d0",
-
-                borderRadius:
-                  12,
-
-                marginTop:
-                  16,
-
-                fontSize:
-                  13,
-              }}
-            >
-              Este hueco está publicado y puede ser reservado por un cliente.
-            </div>
-
-            <div
-              style={{
-                marginTop:
-                  22,
-
-                display:
-                  "flex",
-
-                gap:
-                  10,
-
-                flexWrap:
-                  "wrap",
-              }}
-            >
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() =>
-                  props.onReserveManual(
-                    new Date(
-                      props.event
-                        .start_at
-                    )
-                  )
-                }
-              >
-                👤 Reservar manualmente
-              </button>
-
-              <button
-                type="button"
-                className="btn"
-                disabled={
-                  loading
-                }
-                onClick={
-                  deleteSlot
-                }
+              <div
                 style={{
-                  color:
-                    "#b91c1c",
+                  padding:
+                    "12px 14px",
 
-                  borderColor:
-                    "#fecaca",
+                  background:
+                    "#f0fdf4",
+
+                  border:
+                    "1px solid #bbf7d0",
+
+                  borderRadius:
+                    12,
+
+                  marginTop:
+                    16,
+
+                  fontSize:
+                    13,
                 }}
               >
-                {loading
-                  ? "Eliminando..."
-                  : "Eliminar disponibilidad"}
-              </button>
+                Este hueco está publicado y puede ser reservado por un cliente.
+              </div>
 
-              <button
-                type="button"
-                className="btn"
-                onClick={
-                  props.onClose
-                }
+              <div
+                style={{
+                  marginTop:
+                    22,
+
+                  display:
+                    "flex",
+
+                  gap:
+                    10,
+
+                  flexWrap:
+                    "wrap",
+                }}
               >
-                Cerrar
-              </button>
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={
+                    loading
+                  }
+                  onClick={() => {
+                    setError(
+                      ""
+                    );
+
+                    setEditingSlot(
+                      true
+                    );
+                  }}
+                >
+                  ✏️ Modificar
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={() =>
+                    props.onReserveManual(
+                      new Date(
+                        props.event
+                          .start_at
+                      )
+                    )
+                  }
+                >
+                  👤 Reservar manualmente
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    deleteSlot
+                  }
+                  style={{
+                    color:
+                      "#b91c1c",
+
+                    borderColor:
+                      "#fecaca",
+                  }}
+                >
+                  {loading
+                    ? "Eliminando..."
+                    : "Eliminar disponibilidad"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    props.onClose
+                  }
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* ==================================================
-            BLOQUEO
+            DISPONIBILIDAD - EDITAR
             ================================================== */}
 
         {props.type ===
-          "block" && (
-          <div
-            style={{
-              marginTop:
-                22,
-            }}
-          >
-            <p>
-              <strong>
-                Inicio:
-              </strong>{" "}
-              {formatDateTime(
-                props.event
-                  .start_at
+          "slot" &&
+          editingSlot && (
+            <form
+              onSubmit={
+                saveSlot
+              }
+              style={{
+                marginTop:
+                  22,
+              }}
+            >
+              <p className="muted">
+                Modifica el servicio y el horario de esta disponibilidad.
+              </p>
+
+              <label>
+                <strong>
+                  Servicio
+                </strong>
+
+                <select
+                  required
+                  value={
+                    slotServiceId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    changeSlotService(
+                      event
+                        .target
+                        .value
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
+                >
+                  <option value="">
+                    Selecciona un servicio
+                  </option>
+
+                  {activeServices.map(
+                    (
+                      service
+                    ) => (
+                      <option
+                        key={
+                          service.id
+                        }
+                        value={
+                          service.id
+                        }
+                      >
+                        {
+                          service.name
+                        }{" "}
+                        ·{" "}
+                        {
+                          service.duration_minutes
+                        }{" "}
+                        min
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <div
+                style={{
+                  display:
+                    "grid",
+
+                  gridTemplateColumns:
+                    "1fr 1fr",
+
+                  gap:
+                    10,
+                }}
+              >
+                <label>
+                  <strong>
+                    Fecha
+                  </strong>
+
+                  <input
+                    type="date"
+                    required
+                    value={
+                      slotDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSlotDate(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+                </label>
+
+                <label>
+                  <strong>
+                    Hora
+                  </strong>
+
+                  <input
+                    type="time"
+                    required
+                    step={1800}
+                    value={
+                      slotTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSlotTime(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+                </label>
+              </div>
+
+              <label>
+                <strong>
+                  Duración
+                </strong>
+
+                <select
+                  value={
+                    slotDurationMinutes
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setSlotDurationMinutes(
+                      Number(
+                        event
+                          .target
+                          .value
+                      )
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
+                >
+                  <option value={30}>
+                    30 minutos
+                  </option>
+
+                  <option value={60}>
+                    1 hora
+                  </option>
+
+                  <option value={90}>
+                    1 hora 30 minutos
+                  </option>
+
+                  <option value={120}>
+                    2 horas
+                  </option>
+
+                  <option value={150}>
+                    2 horas 30 minutos
+                  </option>
+
+                  <option value={180}>
+                    3 horas
+                  </option>
+
+                  <option value={240}>
+                    4 horas
+                  </option>
+
+                  <option value={300}>
+                    5 horas
+                  </option>
+
+                  <option value={360}>
+                    6 horas
+                  </option>
+                </select>
+              </label>
+
+              <div
+                style={{
+                  padding:
+                    "12px 14px",
+
+                  marginBottom:
+                    16,
+
+                  background:
+                    "#f0fdf4",
+
+                  border:
+                    "1px solid #bbf7d0",
+
+                  borderRadius:
+                    12,
+
+                  fontSize:
+                    13,
+                }}
+              >
+                No podrás guardar la disponibilidad si se solapa con una reserva, un bloqueo u otra disponibilidad.
+              </div>
+
+              {error && (
+                <ErrorMessage
+                  message={
+                    error
+                  }
+                />
               )}
-            </p>
 
-            <p>
-              <strong>
-                Fin:
-              </strong>{" "}
-              {formatDateTime(
-                props.event
-                  .end_at
-              )}
-            </p>
+              <div
+                style={{
+                  display:
+                    "flex",
 
-            <p>
-              <strong>
-                Motivo:
-              </strong>{" "}
-              {props.event
-                .reason ??
-                "Sin motivo"}
-            </p>
+                  gap:
+                    10,
 
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={
+                    loading
+                  }
+                >
+                  {loading
+                    ? "Guardando..."
+                    : "Guardar cambios"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={() => {
+                    setError(
+                      ""
+                    );
+
+                    setEditingSlot(
+                      false
+                    );
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+
+        {/* ==================================================
+            BLOQUEO - VISTA
+            ================================================== */}
+
+        {props.type ===
+          "block" &&
+          !editingBlock && (
             <div
               style={{
                 marginTop:
                   22,
-
-                display:
-                  "flex",
-
-                gap:
-                  10,
-
-                flexWrap:
-                  "wrap",
               }}
             >
-              <button
-                type="button"
-                className="btn"
-                disabled={
-                  loading
-                }
-                onClick={
-                  deleteBlock
-                }
-                style={{
-                  color:
-                    "#b91c1c",
+              <p>
+                <strong>
+                  Inicio:
+                </strong>{" "}
+                {formatDateTime(
+                  props.event
+                    .start_at
+                )}
+              </p>
 
-                  borderColor:
-                    "#fecaca",
+              <p>
+                <strong>
+                  Fin:
+                </strong>{" "}
+                {formatDateTime(
+                  props.event
+                    .end_at
+                )}
+              </p>
+
+              <p>
+                <strong>
+                  Duración:
+                </strong>{" "}
+                {minutesBetween(
+                  props.event
+                    .start_at,
+                  props.event
+                    .end_at
+                )}{" "}
+                minutos
+              </p>
+
+              <p>
+                <strong>
+                  Motivo:
+                </strong>{" "}
+                {props.event
+                  .reason ??
+                  "Sin motivo"}
+              </p>
+
+              <div
+                style={{
+                  marginTop:
+                    22,
+
+                  display:
+                    "flex",
+
+                  gap:
+                    10,
+
+                  flexWrap:
+                    "wrap",
                 }}
               >
-                {loading
-                  ? "Eliminando..."
-                  : "Eliminar bloqueo"}
-              </button>
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={
+                    loading
+                  }
+                  onClick={() => {
+                    setError(
+                      ""
+                    );
 
-              <button
-                type="button"
-                className="btn"
-                onClick={
-                  props.onClose
-                }
-              >
-                Cerrar
-              </button>
+                    setEditingBlock(
+                      true
+                    );
+                  }}
+                >
+                  ✏️ Modificar
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    deleteBlock
+                  }
+                  style={{
+                    color:
+                      "#b91c1c",
+
+                    borderColor:
+                      "#fecaca",
+                  }}
+                >
+                  {loading
+                    ? "Eliminando..."
+                    : "Eliminar bloqueo"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    props.onClose
+                  }
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* ==================================================
-    RESERVA SLOTTYE
-    ================================================== */}
+            BLOQUEO - EDITAR
+            ================================================== */}
 
-{props.type ===
-  "booking" && (
-  <div
-    style={{
-      marginTop:
-        22,
-    }}
-  >
-    <p>
-      <strong>
-        Cliente:
-      </strong>{" "}
-      {props.event
-        .profiles
-        ?.name ??
-        "Cliente"}
-    </p>
+        {props.type ===
+          "block" &&
+          editingBlock && (
+            <form
+              onSubmit={
+                saveBlock
+              }
+              style={{
+                marginTop:
+                  22,
+              }}
+            >
+              <p className="muted">
+                Modifica el periodo bloqueado y su motivo.
+              </p>
 
-    {props.event
-      .profiles
-      ?.email && (
-      <p>
-        <strong>
-          Email:
-        </strong>{" "}
-        {
-          props.event
-            .profiles
-            .email
-        }
-      </p>
-    )}
+              <div
+                style={{
+                  display:
+                    "grid",
 
-    <p>
-      <strong>
-        Servicio:
-      </strong>{" "}
-      {props.event
-        .services
-        ?.name ??
-        "Servicio"}
-    </p>
+                  gridTemplateColumns:
+                    "1fr 1fr",
 
-    {props.event
-      .slots && (
-      <>
-        <p>
-          <strong>
-            Inicio:
-          </strong>{" "}
-          {formatDateTime(
-            props.event
-              .slots
-              .start_at
+                  gap:
+                    10,
+                }}
+              >
+                <label>
+                  <strong>
+                    Fecha
+                  </strong>
+
+                  <input
+                    type="date"
+                    required
+                    value={
+                      blockDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBlockDate(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+                </label>
+
+                <label>
+                  <strong>
+                    Hora
+                  </strong>
+
+                  <input
+                    type="time"
+                    required
+                    step={1800}
+                    value={
+                      blockTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBlockTime(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+                </label>
+              </div>
+
+              <label>
+                <strong>
+                  Duración
+                </strong>
+
+                <select
+                  value={
+                    blockDurationMinutes
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setBlockDurationMinutes(
+                      Number(
+                        event
+                          .target
+                          .value
+                      )
+                    )
+                  }
+                  style={
+                    inputStyle
+                  }
+                >
+                  <option value={30}>
+                    30 minutos
+                  </option>
+
+                  <option value={60}>
+                    1 hora
+                  </option>
+
+                  <option value={90}>
+                    1 hora 30 minutos
+                  </option>
+
+                  <option value={120}>
+                    2 horas
+                  </option>
+
+                  <option value={150}>
+                    2 horas 30 minutos
+                  </option>
+
+                  <option value={180}>
+                    3 horas
+                  </option>
+
+                  <option value={240}>
+                    4 horas
+                  </option>
+
+                  <option value={300}>
+                    5 horas
+                  </option>
+
+                  <option value={360}>
+                    6 horas
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                <strong>
+                  Motivo
+                </strong>
+
+                <input
+                  value={
+                    blockReason
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setBlockReason(
+                      event
+                        .target
+                        .value
+                    )
+                  }
+                  placeholder="Reunión, comida, cierre, cita externa..."
+                  style={
+                    inputStyle
+                  }
+                />
+              </label>
+
+              <div
+                style={{
+                  padding:
+                    "12px 14px",
+
+                  marginBottom:
+                    16,
+
+                  border:
+                    "1px solid #fecaca",
+
+                  borderRadius:
+                    12,
+
+                  background:
+                    "#fef2f2",
+
+                  fontSize:
+                    13,
+                }}
+              >
+                Los slots disponibles que coincidan con el nuevo periodo dejarán de estar disponibles para los clientes.
+              </div>
+
+              {error && (
+                <ErrorMessage
+                  message={
+                    error
+                  }
+                />
+              )}
+
+              <div
+                style={{
+                  display:
+                    "flex",
+
+                  gap:
+                    10,
+
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={
+                    loading
+                  }
+                >
+                  {loading
+                    ? "Guardando..."
+                    : "Guardar cambios"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={() => {
+                    setError(
+                      ""
+                    );
+
+                    setEditingBlock(
+                      false
+                    );
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
           )}
-        </p>
 
-        <p>
-          <strong>
-            Fin:
-          </strong>{" "}
-          {formatDateTime(
-            props.event
-              .slots
-              .end_at
-          )}
-        </p>
-      </>
-    )}
+        {/* ==================================================
+            RESERVA SLOTTYE
+            ================================================== */}
 
-    <p>
-      <strong>
-        Estado:
-      </strong>{" "}
-      {props.event
-        .status ===
-      "CONFIRMED"
-        ? "Confirmada"
-        : props.event
-              .status ===
-            "CANCELLED_BY_USER"
-          ? "Cancelada por el cliente"
-          : props.event
+        {props.type ===
+          "booking" && (
+            <div
+              style={{
+                marginTop:
+                  22,
+              }}
+            >
+              <p>
+                <strong>
+                  Cliente:
+                </strong>{" "}
+                {props.event
+                  .profiles
+                  ?.name ??
+                  "Cliente"}
+              </p>
+
+              {props.event
+                .profiles
+                ?.email && (
+                <p>
+                  <strong>
+                    Email:
+                  </strong>{" "}
+                  {
+                    props.event
+                      .profiles
+                      .email
+                  }
+                </p>
+              )}
+
+              <p>
+                <strong>
+                  Servicio:
+                </strong>{" "}
+                {props.event
+                  .services
+                  ?.name ??
+                  "Servicio"}
+              </p>
+
+              {props.event
+                .slots && (
+                <>
+                  <p>
+                    <strong>
+                      Inicio:
+                    </strong>{" "}
+                    {formatDateTime(
+                      props.event
+                        .slots
+                        .start_at
+                    )}
+                  </p>
+
+                  <p>
+                    <strong>
+                      Fin:
+                    </strong>{" "}
+                    {formatDateTime(
+                      props.event
+                        .slots
+                        .end_at
+                    )}
+                  </p>
+                </>
+              )}
+
+              <p>
+                <strong>
+                  Estado:
+                </strong>{" "}
+                {props.event
+                  .status ===
+                "CONFIRMED"
+                  ? "Confirmada"
+                  : props.event
+                        .status ===
+                      "CANCELLED_BY_USER"
+                    ? "Cancelada por el cliente"
+                    : props.event
+                          .status ===
+                        "CANCELLED_BY_BUSINESS"
+                      ? "Cancelada por el negocio"
+                      : props.event
+                          .status}
+              </p>
+
+              {props.event
                 .status ===
-              "CANCELLED_BY_BUSINESS"
-            ? "Cancelada por el negocio"
-            : props.event
-                .status}
-    </p>
+                "CONFIRMED" && (
+                <div
+                  style={{
+                    marginTop:
+                      16,
 
-    {props.event
-      .status ===
-      "CONFIRMED" && (
-      <div
-        style={{
-          marginTop:
-            16,
+                    padding:
+                      "12px 14px",
 
-          padding:
-            "12px 14px",
+                    background:
+                      "#fef2f2",
 
-          background:
-            "#fef2f2",
+                    border:
+                      "1px solid #fecaca",
 
-          border:
-            "1px solid #fecaca",
+                    borderRadius:
+                      12,
 
-          borderRadius:
-            12,
+                    fontSize:
+                      13,
+                  }}
+                >
+                  Si cancelas la reserva, el cliente recibirá el aviso de cancelación.
+                </div>
+              )}
 
-          fontSize:
-            13,
-        }}
-      >
-        Si cancelas la reserva,
-        el cliente recibirá el
-        aviso de cancelación.
-      </div>
-    )}
+              {error && (
+                <ErrorMessage
+                  message={
+                    error
+                  }
+                />
+              )}
 
-    {error && (
-      <ErrorMessage
-        message={
-          error
-        }
-      />
-    )}
+              <div
+                style={{
+                  marginTop:
+                    22,
 
-<div
-  style={{
-    marginTop:
-      22,
+                  display:
+                    "flex",
 
-    display:
-      "flex",
+                  gap:
+                    10,
 
-    gap:
-      10,
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                {props.event.status ===
+                  "CONFIRMED" &&
+                  bookingHasStarted && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={
+                          loading
+                        }
+                        onClick={
+                          completeOnlineBooking
+                        }
+                      >
+                        {loading
+                          ? "Procesando..."
+                          : "Marcar completada"}
+                      </button>
 
-    flexWrap:
-      "wrap",
-  }}
->
-  {/* ================================================
-      COMPLETAR / NO PRESENTADO
-      Solo aparecen cuando la cita ya ha empezado
-      ================================================ */}
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={
+                          loading
+                        }
+                        onClick={
+                          noShowOnlineBooking
+                        }
+                      >
+                        {loading
+                          ? "Procesando..."
+                          : "No se presentó"}
+                      </button>
+                    </>
+                  )}
 
-  {props.event.status ===
-    "CONFIRMED" &&
-    bookingHasStarted && (
-      <>
-        <button
-          type="button"
-          className="btn primary"
-          disabled={
-            loading
-          }
-          onClick={
-            completeOnlineBooking
-          }
-        >
-          {loading
-            ? "Procesando..."
-            : "Marcar completada"}
-        </button>
+                {props.event.status ===
+                  "CONFIRMED" && (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={
+                      loading
+                    }
+                    onClick={
+                      cancelOnlineBooking
+                    }
+                    style={{
+                      color:
+                        "#b91c1c",
 
-        <button
-          type="button"
-          className="btn"
-          disabled={
-            loading
-          }
-          onClick={
-            noShowOnlineBooking
-          }
-        >
-          {loading
-            ? "Procesando..."
-            : "No se presentó"}
-        </button>
-      </>
-    )}
+                      borderColor:
+                        "#fecaca",
+                    }}
+                  >
+                    {loading
+                      ? "Cancelando..."
+                      : "Cancelar reserva"}
+                  </button>
+                )}
 
-  {/* ================================================
-      CANCELAR RESERVA
-      ================================================ */}
-
-  {props.event.status ===
-    "CONFIRMED" && (
-    <button
-      type="button"
-      className="btn"
-      disabled={
-        loading
-      }
-      onClick={
-        cancelOnlineBooking
-      }
-      style={{
-        color:
-          "#b91c1c",
-
-        borderColor:
-          "#fecaca",
-      }}
-    >
-      {loading
-        ? "Cancelando..."
-        : "Cancelar reserva"}
-    </button>
-  )}
-
-  {/* ================================================
-      CERRAR
-      ================================================ */}
-
-  <button
-    type="button"
-    className="btn"
-    disabled={
-      loading
-    }
-    onClick={
-      props.onClose
-    }
-  >
-    Cerrar
-  </button>
-</div>
-  </div>
-)}
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    props.onClose
+                  }
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          )}
 
         {error &&
-          !editing && (
+          !editing &&
+          !editingBlock &&
+          !editingSlot &&
+          props.type !==
+            "booking" && (
             <ErrorMessage
               message={
                 error
