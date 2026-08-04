@@ -36,6 +36,9 @@ function errorMessage(
   if (
     normalized.includes(
       "reserva manual"
+    ) ||
+    normalized.includes(
+      "manual booking"
     )
   ) {
     return "El nuevo horario coincide con una reserva manual.";
@@ -47,6 +50,9 @@ function errorMessage(
     ) ||
     normalized.includes(
       "online booking"
+    ) ||
+    normalized.includes(
+      "reserva slottye"
     )
   ) {
     return "El nuevo horario coincide con otra reserva.";
@@ -69,9 +75,26 @@ function errorMessage(
     ) ||
     normalized.includes(
       "available slot"
+    ) ||
+    normalized.includes(
+      "slot in this period"
+    ) ||
+    normalized.includes(
+      "already a slot"
     )
   ) {
     return "El nuevo horario coincide con otra disponibilidad.";
+  }
+
+  if (
+    normalized.includes(
+      "bookings_slot_id_fkey"
+    ) ||
+    normalized.includes(
+      "foreign key constraint"
+    )
+  ) {
+    return "No se ha podido liberar el horario anterior de la reserva.";
   }
 
   if (
@@ -91,6 +114,9 @@ function errorMessage(
     ) ||
     normalized.includes(
       "authorized"
+    ) ||
+    normalized.includes(
+      "not authenticated"
     )
   ) {
     return "No tienes permisos para mover este evento.";
@@ -264,6 +290,7 @@ export default function useAgendaDragMove({
         ) {
           return;
         }
+
         setPendingMove(
           null
         );
@@ -442,12 +469,6 @@ export default function useAgendaDragMove({
 
           return;
         }
-
-        /*
-         * Si se ha movido una disponibilidad, avisamos a los
-         * clientes suscritos. El movimiento no se deshace si
-         * falla el envío de las notificaciones.
-         */
 
         if (
           event.type ===
