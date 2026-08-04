@@ -487,99 +487,198 @@ export async function POST(
             html: `
               <div
                 style="
-                  font-family:Arial,sans-serif;
-                  max-width:600px;
-                  margin:auto;
-                  color:#111827;
+                  margin:0;
+                  padding:40px 20px;
+                  background:#f6f7fb;
+                  font-family:Arial,Helvetica,sans-serif;
+                  color:#17171c;
                 "
               >
-                <h1>
-                  Se ha liberado una cita
-                </h1>
-
-                <p>
-                  Hola${
-                    subscriberProfile.name
-                      ? ` ${subscriberProfile.name}`
-                      : ""
-                  },
-                </p>
-
-                <p>
-                  Se acaba de liberar una cita en
-                  <strong>${business.name}</strong>.
-                </p>
-
                 <div
                   style="
-                    margin:24px 0;
-                    padding:18px;
+                    max-width:560px;
+                    margin:0 auto;
+                    background:#ffffff;
                     border:1px solid #e5e7eb;
-                    border-radius:12px;
-                    background:#f9fafb;
+                    border-radius:16px;
+                    padding:40px;
                   "
                 >
-                  ${
-                    service?.name
-                      ? `
-                        <div
-                          style="
-                            font-size:18px;
-                            font-weight:bold;
-                            margin-bottom:8px;
-                          "
-                        >
-                          ${service.name}
-                        </div>
-                      `
-                      : ""
-                  }
+                  <div
+                    style="
+                      text-align:center;
+                      margin-bottom:30px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size:32px;
+                        font-weight:800;
+                        letter-spacing:0.5px;
+                      "
+                    >
+                      <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                    </div>
+                  </div>
+
+                  <h1
+                    style="
+                      margin:0 0 16px;
+                      text-align:center;
+                      font-size:24px;
+                      line-height:1.3;
+                      color:#17171c;
+                    "
+                  >
+                    Se ha liberado una cita
+                  </h1>
+
+                  <p
+                    style="
+                      margin:0 0 12px;
+                      text-align:center;
+                      font-size:15px;
+                      line-height:1.6;
+                      color:#60646f;
+                    "
+                  >
+                    Hola${
+                      subscriberProfile.name
+                        ? ` ${subscriberProfile.name}`
+                        : ""
+                    },
+                  </p>
+
+                  <p
+                    style="
+                      margin:0 0 28px;
+                      text-align:center;
+                      font-size:15px;
+                      line-height:1.6;
+                      color:#60646f;
+                    "
+                  >
+                    Se acaba de liberar una cita en
+                    <strong style="color:#17171c;">${business.name}</strong>.
+                  </p>
 
                   <div
                     style="
-                      font-size:16px;
+                      margin:24px 0;
+                      padding:20px;
+                      background:#f0fdf4;
+                      border:1px solid #bbf7d0;
+                      border-radius:12px;
                     "
                   >
-                    📅 ${formattedDate}
+                    <div
+                      style="
+                        margin-bottom:10px;
+                        font-size:12px;
+                        font-weight:700;
+                        letter-spacing:0.5px;
+                        color:#166534;
+                      "
+                    >
+                      CITA DISPONIBLE
+                    </div>
+
+                    ${
+                      service?.name
+                        ? `
+                          <div
+                            style="
+                              font-size:16px;
+                              font-weight:700;
+                              color:#17171c;
+                            "
+                          >
+                            ${service.name}
+                          </div>
+                        `
+                        : ""
+                    }
+
+                    <div
+                      style="
+                        margin-top:14px;
+                        font-size:15px;
+                        line-height:1.6;
+                        color:#30343b;
+                      "
+                    >
+                      📅 ${formattedDate}
+                    </div>
+                  </div>
+
+                  <div
+                    style="
+                      text-align:center;
+                      margin:30px 0;
+                    "
+                  >
+                    <a
+                      href="${baseUrl}/business/${business.slug}"
+                      style="
+                        display:inline-block;
+                        background:#6c55f7;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-size:15px;
+                        font-weight:700;
+                        padding:14px 26px;
+                        border-radius:10px;
+                      "
+                    >
+                      Reservar esta cita
+                    </a>
+                  </div>
+
+                  <p
+                    style="
+                      margin:28px 0 0;
+                      text-align:center;
+                      font-size:13px;
+                      line-height:1.6;
+                      color:#8a8f9c;
+                    "
+                  >
+                    Este horario vuelve a estar disponible y puede reservarlo cualquier usuario.
+                  </p>
+
+                  <p
+                    style="
+                      margin:16px 0 0;
+                      text-align:center;
+                      font-size:13px;
+                      line-height:1.6;
+                      color:#8a8f9c;
+                    "
+                  >
+                    Recibes este correo porque estás suscrito a ${business.name} en Slottye.
+                  </p>
+
+                  <div
+                    style="
+                      margin-top:32px;
+                      padding-top:22px;
+                      border-top:1px solid #eeeeee;
+                      text-align:center;
+                    "
+                  >
+                    <p
+                      style="
+                        margin:0;
+                        font-size:12px;
+                        color:#9a9da6;
+                      "
+                    >
+                      © 2026
+                      <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                      · Reserva. Confirma. Listo.
+                    </p>
                   </div>
                 </div>
-
-                <p>
-                  Este horario vuelve a estar disponible
-                  y puede reservarlo cualquier usuario.
-                </p>
-
-                <p
-                  style="
-                    margin-top:28px;
-                  "
-                >
-                  <a
-                    href="${baseUrl}/business/${business.slug}"
-                    style="
-                      display:inline-block;
-                      padding:12px 18px;
-                      background:#6955ff;
-                      color:white;
-                      text-decoration:none;
-                      border-radius:10px;
-                      font-weight:bold;
-                    "
-                  >
-                    Reservar esta cita
-                  </a>
-                </p>
-
-                <p
-                  style="
-                    margin-top:30px;
-                    font-size:12px;
-                    color:#6b7280;
-                  "
-                >
-                  Recibes este correo porque estás
-                  suscrito a ${business.name} en Slottye.
-                </p>
               </div>
             `,
           },

@@ -161,35 +161,64 @@ export async function POST(request: Request) {
           to: [profile.email],
           subject: `Tu cita en ${businessName} ha sido cancelada`,
           html: `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-              <h2>Tu cita ha sido cancelada</h2>
+            <div style="margin:0;padding:40px 20px;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#17171c;">
+              <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:40px;box-sizing:border-box;">
 
-              <p>
-                Hola ${profile.name ?? ""},
-              </p>
+                <div style="text-align:center;margin-bottom:30px;">
+                  <div style="font-size:32px;font-weight:800;letter-spacing:0.5px;">
+                    <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                  </div>
+                </div>
 
-              <p>
-                El negocio <strong>${businessName}</strong>
-                ha cancelado tu cita.
-              </p>
+                <h1 style="margin:0 0 16px;text-align:center;font-size:24px;line-height:1.3;color:#17171c;">
+                  Tu cita ha sido cancelada
+                </h1>
 
-              <div style="padding:16px;background:#f5f5f5;border-radius:10px;margin:20px 0;">
-                <strong>${serviceName}</strong>
-                ${
-                  formattedDate
-                    ? `<br>${formattedDate}`
-                    : ""
-                }
+                <p style="margin:0 0 12px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                  Hola ${profile.name ?? ""},
+                </p>
+
+                <p style="margin:0 0 28px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                  <strong style="color:#17171c;">${businessName}</strong> ha cancelado tu cita.
+                </p>
+
+                <div style="margin:24px 0;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;">
+                  <div style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.7px;color:#b91c1c;">
+                    CITA CANCELADA
+                  </div>
+
+                  <div style="font-size:17px;font-weight:800;line-height:1.4;color:#17171c;">
+                    ${serviceName}
+                  </div>
+
+                  ${
+                    formattedDate
+                      ? `<div style="margin-top:14px;font-size:14px;line-height:1.7;color:#3f4652;"><strong>Fecha y hora:</strong><br>${formattedDate}</div>`
+                      : ""
+                  }
+                </div>
+
+                <div style="text-align:center;margin:30px 0;">
+                  <a
+                    href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/"
+                    style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
+                  >
+                    Buscar otra cita
+                  </a>
+                </div>
+
+                <p style="margin:0;text-align:center;font-size:13px;line-height:1.6;color:#8a8f9c;">
+                  Puedes entrar en Slottye para consultar otras citas disponibles.
+                </p>
+
+                <div style="margin-top:32px;padding-top:22px;border-top:1px solid #eeeeee;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#9a9da6;">
+                    © 2026 <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                    · Reserva. Confirma. Listo.
+                  </p>
+                </div>
+
               </div>
-
-              <p>
-                Puedes entrar en Slottye para consultar
-                otras citas disponibles.
-              </p>
-
-              <p>
-                Equipo Slottye
-              </p>
             </div>
           `,
         }),

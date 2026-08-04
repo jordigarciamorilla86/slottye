@@ -162,28 +162,188 @@ export async function GET(request: Request) {
             to: [profile.email],
             subject: `Recordatorio de tu cita en ${businessName}`,
             html: `
-              <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-                <h2>Recuerda tu próxima cita</h2>
+              <div
+                style="
+                  margin:0;
+                  padding:40px 20px;
+                  background:#f6f7fb;
+                  font-family:Arial,Helvetica,sans-serif;
+                  color:#17171c;
+                "
+              >
+                <div
+                  style="
+                    max-width:560px;
+                    margin:0 auto;
+                    background:#ffffff;
+                    border:1px solid #e5e7eb;
+                    border-radius:16px;
+                    padding:40px;
+                  "
+                >
+                  <div
+                    style="
+                      text-align:center;
+                      margin-bottom:30px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size:32px;
+                        font-weight:800;
+                        letter-spacing:0.5px;
+                      "
+                    >
+                      <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                    </div>
+                  </div>
 
-                <p>
-                  Hola ${profile.name ?? ""},
-                </p>
+                  <h1
+                    style="
+                      margin:0 0 16px;
+                      text-align:center;
+                      font-size:24px;
+                      line-height:1.3;
+                      color:#17171c;
+                    "
+                  >
+                    Recuerda tu próxima cita
+                  </h1>
 
-                <p>
-                  Te recordamos que tienes una cita próximamente.
-                </p>
+                  <p
+                    style="
+                      margin:0 0 12px;
+                      text-align:center;
+                      font-size:15px;
+                      line-height:1.6;
+                      color:#60646f;
+                    "
+                  >
+                    Hola ${profile.name ?? ""},
+                  </p>
 
-                <div style="padding:16px;background:#f5f5f5;border-radius:10px;margin:20px 0;">
-                  <strong>${businessName}</strong><br>
-                  ${serviceName}<br>
-                  ${formattedDate}
+                  <p
+                    style="
+                      margin:0 0 28px;
+                      text-align:center;
+                      font-size:15px;
+                      line-height:1.6;
+                      color:#60646f;
+                    "
+                  >
+                    Te recordamos que tienes una cita próximamente.
+                  </p>
+
+                  <div
+                    style="
+                      margin:24px 0;
+                      padding:20px;
+                      background:#eff6ff;
+                      border:1px solid #bfdbfe;
+                      border-radius:12px;
+                    "
+                  >
+                    <div
+                      style="
+                        margin-bottom:10px;
+                        font-size:12px;
+                        font-weight:700;
+                        letter-spacing:0.5px;
+                        color:#1d4ed8;
+                      "
+                    >
+                      PRÓXIMA CITA
+                    </div>
+
+                    <div
+                      style="
+                        font-size:16px;
+                        font-weight:700;
+                        color:#17171c;
+                      "
+                    >
+                      ${businessName}
+                    </div>
+
+                    <div
+                      style="
+                        margin-top:8px;
+                        font-size:15px;
+                        line-height:1.6;
+                        color:#30343b;
+                      "
+                    >
+                      ${serviceName}
+                    </div>
+
+                    <div
+                      style="
+                        margin-top:14px;
+                        font-size:15px;
+                        line-height:1.6;
+                        color:#30343b;
+                      "
+                    >
+                      📅 ${formattedDate}
+                    </div>
+                  </div>
+
+                  <div
+                    style="
+                      text-align:center;
+                      margin:30px 0;
+                    "
+                  >
+                    <a
+                      href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/account/bookings"
+                      style="
+                        display:inline-block;
+                        background:#6c55f7;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-size:15px;
+                        font-weight:700;
+                        padding:14px 26px;
+                        border-radius:10px;
+                      "
+                    >
+                      Ver mis citas
+                    </a>
+                  </div>
+
+                  <p
+                    style="
+                      margin:28px 0 0;
+                      text-align:center;
+                      font-size:13px;
+                      line-height:1.6;
+                      color:#8a8f9c;
+                    "
+                  >
+                    Puedes consultar todos los detalles desde tu cuenta de Slottye.
+                  </p>
+
+                  <div
+                    style="
+                      margin-top:32px;
+                      padding-top:22px;
+                      border-top:1px solid #eeeeee;
+                      text-align:center;
+                    "
+                  >
+                    <p
+                      style="
+                        margin:0;
+                        font-size:12px;
+                        color:#9a9da6;
+                      "
+                    >
+                      © 2026
+                      <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                      · Reserva. Confirma. Listo.
+                    </p>
+                  </div>
                 </div>
-
-                <p>
-                  Puedes consultar los detalles desde tu cuenta de Slottye.
-                </p>
-
-                <p>Equipo Slottye</p>
               </div>
             `,
           }),

@@ -90,11 +90,16 @@ type Props =
       onClose: () => void;
       onReserveManual?: never;
     }
-  | {
+    | {
       type: "booking";
       event: Booking;
       services: Service[];
       onClose: () => void;
+  
+      onRescheduleBooking?: (
+        booking: Booking
+      ) => void;
+  
       onReserveManual?: never;
     }
   | {
@@ -3114,7 +3119,7 @@ export default function AgendaEventModal(
                   }
                 />
               )}
-
+              
               <div
                 style={{
                   marginTop:
@@ -3130,6 +3135,34 @@ export default function AgendaEventModal(
                     "wrap",
                 }}
               >
+
+               {/* ================================================
+    REPROGRAMAR RESERVA
+    ================================================ */}
+
+{props.event.status ===
+  "CONFIRMED" &&
+  props.event.slots &&
+  new Date(
+    props.event.slots.start_at
+  ) > new Date() &&
+  props.onRescheduleBooking && (
+    <button
+      type="button"
+      className="btn primary"
+      disabled={
+        loading
+      }
+      onClick={() =>
+        props.onRescheduleBooking?.(
+          props.event
+        )
+      }
+    >
+      ✏️ Reprogramar
+    </button>
+  )}
+
                 {props.event.status ===
                   "CONFIRMED" &&
                   bookingHasStarted && (

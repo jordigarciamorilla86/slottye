@@ -3,7 +3,21 @@ import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BookingsManager from "./BookingsManager";
 
-export default async function BookingsPage() {
+type Props = {
+  searchParams:
+    Promise<{
+      review?:
+        string;
+    }>;
+};
+
+export default async function BookingsPage({
+  searchParams,
+}: Props) {
+  const {
+    review,
+  } =
+    await searchParams;
   const {
     supabase,
     user,
@@ -122,6 +136,10 @@ export default async function BookingsPage() {
             }
             userId={
               user.id
+            }
+            highlightedBookingId={
+              review ??
+              null
             }
           />
         </section>

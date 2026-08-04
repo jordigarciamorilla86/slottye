@@ -269,60 +269,72 @@ export async function POST(request: Request) {
             `Cita confirmada en ${business.name}`,
 
           html: `
-            <div
-              style="
-                font-family:Arial,sans-serif;
-                max-width:600px;
-                margin:auto;
-                color:#111827;
-              "
-            >
-              <h1>¡Tu cita está confirmada!</h1>
+            <div style="margin:0;padding:40px 20px;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#17171c;">
+              <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:40px;box-sizing:border-box;">
 
-              <p>
-                Hola ${clientProfile.name ?? ""},
-              </p>
+                <div style="text-align:center;margin-bottom:30px;">
+                  <div style="font-size:32px;font-weight:800;letter-spacing:0.5px;">
+                    <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                  </div>
+                </div>
 
-              <p>
-                Tu reserva en
-                <strong>${business.name}</strong>
-                se ha realizado correctamente.
-              </p>
+                <h1 style="margin:0 0 16px;text-align:center;font-size:24px;line-height:1.3;color:#17171c;">
+                  ¡Tu cita está confirmada!
+                </h1>
 
-              <div
-                style="
-                  margin:24px 0;
-                  padding:18px;
-                  background:#f5f5f7;
-                  border-radius:12px;
-                "
-              >
-                <strong>${serviceName}</strong>
+                <p style="margin:0 0 12px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                  Hola ${clientProfile.name ?? ""},
+                </p>
 
-                <br><br>
+                <p style="margin:0 0 28px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                  Tu reserva en <strong style="color:#17171c;">${business.name}</strong> se ha realizado correctamente.
+                </p>
 
-                📅 ${formattedDate}
+                <div style="margin:24px 0;padding:20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">
+                  <div style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.7px;color:#15803d;">
+                    DATOS DE LA CITA
+                  </div>
 
-                ${
-                  fullAddress
-                    ? `<br><br>📍 ${fullAddress}`
-                    : ""
-                }
+                  <div style="font-size:17px;font-weight:800;line-height:1.4;color:#17171c;">
+                    ${serviceName}
+                  </div>
+
+                  <div style="margin-top:14px;font-size:14px;line-height:1.7;color:#3f4652;">
+                    <strong>Fecha y hora:</strong><br>
+                    ${formattedDate}
+                    ${
+                      fullAddress
+                        ? `<br><br><strong>Dirección:</strong><br>${fullAddress}`
+                        : ""
+                    }
+                  </div>
+                </div>
+
+                <div style="text-align:center;margin:30px 0;">
+                  <a
+                    href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/account/bookings"
+                    style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
+                  >
+                    Ver mis citas
+                  </a>
+                </div>
+
+                <p style="margin:0 0 10px;text-align:center;font-size:14px;line-height:1.6;color:#60646f;">
+                  También te enviaremos un recordatorio antes de la cita.
+                </p>
+
+                <p style="margin:0;text-align:center;font-size:13px;line-height:1.6;color:#8a8f9c;">
+                  Puedes consultar o cancelar la reserva desde <strong>Mi Slottye → Mis citas</strong>.
+                </p>
+
+                <div style="margin-top:32px;padding-top:22px;border-top:1px solid #eeeeee;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#9a9da6;">
+                    © 2026 <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                    · Reserva. Confirma. Listo.
+                  </p>
+                </div>
+
               </div>
-
-              <p>
-                También te enviaremos un recordatorio
-                antes de la cita.
-              </p>
-
-              <p>
-                Puedes consultar o cancelar la reserva
-                desde <strong>Mi Slottye → Mis citas</strong>.
-              </p>
-
-              <p style="margin-top:30px;">
-                Equipo Slottye
-              </p>
             </div>
           `,
         }),
@@ -400,54 +412,64 @@ export async function POST(request: Request) {
                 `Nueva reserva en Slottye · ${serviceName}`,
 
               html: `
-                <div
-                  style="
-                    font-family:Arial,sans-serif;
-                    max-width:600px;
-                    margin:auto;
-                    color:#111827;
-                  "
-                >
-                  <h1>Nueva reserva</h1>
+                <div style="margin:0;padding:40px 20px;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#17171c;">
+                  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:40px;box-sizing:border-box;">
 
-                  <p>
-                    Has recibido una nueva reserva
-                    a través de Slottye.
-                  </p>
+                    <div style="text-align:center;margin-bottom:30px;">
+                      <div style="font-size:32px;font-weight:800;letter-spacing:0.5px;">
+                        <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                      </div>
+                    </div>
 
-                  <div
-                    style="
-                      margin:24px 0;
-                      padding:18px;
-                      background:#f5f5f7;
-                      border-radius:12px;
-                    "
-                  >
-                    <strong>${serviceName}</strong>
+                    <h1 style="margin:0 0 16px;text-align:center;font-size:24px;line-height:1.3;color:#17171c;">
+                      Nueva reserva recibida
+                    </h1>
 
-                    <br><br>
+                    <p style="margin:0 0 28px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                      Has recibido una nueva reserva a través de Slottye.
+                    </p>
 
-                    📅 ${formattedDate}
+                    <div style="margin:24px 0;padding:20px;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:12px;">
+                      <div style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.7px;color:#6d28d9;">
+                        DATOS DE LA RESERVA
+                      </div>
 
-                    <br><br>
+                      <div style="font-size:17px;font-weight:800;line-height:1.4;color:#17171c;">
+                        ${serviceName}
+                      </div>
 
-                    👤 ${clientProfile.name ?? "Cliente"}
+                      <div style="margin-top:14px;font-size:14px;line-height:1.7;color:#3f4652;">
+                        <strong>Fecha y hora:</strong><br>
+                        ${formattedDate}
+                        <br><br>
+                        <strong>Cliente:</strong><br>
+                        ${clientProfile.name ?? "Cliente"}
+                        <br>
+                        ${clientProfile.email}
+                      </div>
+                    </div>
 
-                    <br>
+                    <div style="text-align:center;margin:30px 0;">
+                      <a
+                        href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/business-dashboard/agenda"
+                        style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
+                      >
+                        Gestionar reserva
+                      </a>
+                    </div>
 
-                    ✉ ${clientProfile.email}
+                    <p style="margin:0;text-align:center;font-size:13px;line-height:1.6;color:#8a8f9c;">
+                      También puedes gestionarla desde <strong>Mi panel → Agenda</strong>.
+                    </p>
+
+                    <div style="margin-top:32px;padding-top:22px;border-top:1px solid #eeeeee;text-align:center;">
+                      <p style="margin:0;font-size:12px;color:#9a9da6;">
+                        © 2026 <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                        · Reserva. Confirma. Listo.
+                      </p>
+                    </div>
+
                   </div>
-
-                  <p>
-                    Puedes gestionarla desde
-                    <strong>
-                      Mi panel → Reservas
-                    </strong>.
-                  </p>
-
-                  <p style="margin-top:30px;">
-                    Equipo Slottye
-                  </p>
                 </div>
               `,
             }),

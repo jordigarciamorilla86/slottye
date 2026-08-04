@@ -1,7 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { AvailableSlots } from "@/components/AvailableSlots";
+import {
+  useRef,
+  useState,
+} from "react";
+
+import {
+  AvailableSlots,
+} from "@/components/AvailableSlots";
 
 type Service = {
   id: string;
@@ -29,22 +35,40 @@ export function BusinessBookingSection({
   slots,
   loggedIn,
 }: Props) {
-  const [selectedServiceId, setSelectedServiceId] =
-    useState<string>("all");
+  const [
+    selectedServiceId,
+    setSelectedServiceId,
+  ] =
+    useState<string>(
+      "all"
+    );
 
-  const slotsRef = useRef<HTMLElement | null>(null);
+  const slotsRef =
+    useRef<HTMLElement | null>(
+      null
+    );
 
-  function showSlots(serviceId: string) {
-    setSelectedServiceId(serviceId);
+  function showSlots(
+    serviceId:
+      string
+  ) {
+    setSelectedServiceId(
+      serviceId
+    );
 
-    // Esperamos a que React actualice el filtro
-    // antes de bajar hasta las citas.
-    setTimeout(() => {
-      slotsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 50);
+    window.setTimeout(
+      () => {
+        slotsRef.current
+          ?.scrollIntoView({
+            behavior:
+              "smooth",
+
+            block:
+              "start",
+          });
+      },
+      50
+    );
   }
 
   return (
@@ -52,7 +76,9 @@ export function BusinessBookingSection({
       <section className="section">
         <div className="section-head">
           <div>
-            <h2>Servicios</h2>
+            <h2>
+              Servicios
+            </h2>
 
             <p className="muted">
               Selecciona un servicio para consultar disponibilidad.
@@ -60,43 +86,66 @@ export function BusinessBookingSection({
           </div>
         </div>
 
-        {services.length > 0 ? (
+        {services.length >
+        0 ? (
           <div className="cards">
-            {services.map((service) => (
-              <div
-                className="card"
-                key={service.id}
-              >
-                <div className="card-body">
-                  <h3>{service.name}</h3>
+            {services.map(
+              (
+                service
+              ) => (
+                <div
+                  className="card"
+                  key={
+                    service.id
+                  }
+                >
+                  <div className="card-body">
+                    <h3>
+                      {service.name}
+                    </h3>
 
-                  {service.description && (
-                    <p className="muted">
-                      {service.description}
-                    </p>
-                  )}
+                    {service.description && (
+                      <p className="muted">
+                        {service.description}
+                      </p>
+                    )}
 
-                  <div
-                    className="meta"
-                    style={{ marginTop: 12 }}
-                  >
-                    ⏱ {service.duration_minutes} min
-                  </div>
-
-                  <div style={{ marginTop: 18 }}>
-                    <button
-                      type="button"
-                      className="btn primary"
-                      onClick={() =>
-                        showSlots(service.id)
-                      }
+                    <div
+                      className="meta"
+                      style={{
+                        marginTop:
+                          12,
+                      }}
                     >
-                      Ver citas
-                    </button>
+                      ⏱{" "}
+                      {
+                        service.duration_minutes
+                      }{" "}
+                      min
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop:
+                          18,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn primary"
+                        onClick={() =>
+                          showSlots(
+                            service.id
+                          )
+                        }
+                      >
+                        Ver citas
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         ) : (
           <div className="panel">
@@ -113,14 +162,19 @@ export function BusinessBookingSection({
 
       <section
         className="section"
-        ref={slotsRef}
+        ref={
+          slotsRef
+        }
         style={{
-          scrollMarginTop: 20,
+          scrollMarginTop:
+            20,
         }}
       >
         <div className="section-head">
           <div>
-            <h2>Citas disponibles</h2>
+            <h2>
+              Citas disponibles
+            </h2>
 
             <p className="muted">
               Elige el día y la hora que mejor te vaya.
@@ -129,11 +183,21 @@ export function BusinessBookingSection({
         </div>
 
         <AvailableSlots
-          slots={slots}
-          services={services}
-          loggedIn={loggedIn}
-          selectedServiceId={selectedServiceId}
-          onServiceChange={setSelectedServiceId}
+          slots={
+            slots
+          }
+          services={
+            services
+          }
+          loggedIn={
+            loggedIn
+          }
+          selectedServiceId={
+            selectedServiceId
+          }
+          onServiceChange={
+            setSelectedServiceId
+          }
         />
       </section>
     </>

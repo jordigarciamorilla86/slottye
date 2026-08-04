@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ReviewForm } from "@/components/ReviewForm";
@@ -59,6 +64,9 @@ type Booking = {
 type Props = {
   initialBookings: Booking[];
   userId: string;
+  highlightedBookingId:
+    string |
+    null;
 };
 
 type MessageType =
@@ -69,8 +77,19 @@ type MessageType =
 export default function BookingsManager({
   initialBookings,
   userId,
+  highlightedBookingId,
 }: Props) {
-  const supabase = createClient();
+  const supabase =
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
+
+  const highlightedRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
 
   const [bookings, setBookings] =
     useState<Booking[]>(
@@ -124,6 +143,43 @@ export default function BookingsManager({
     useState<MessageType>(
       null
     );
+
+  /*
+   * ============================================================
+   * ABRIR RESEÑA DESDE EL EMAIL
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (
+      !highlightedBookingId
+    ) {
+      return;
+    }
+
+    const timer =
+      window.setTimeout(
+        () => {
+          highlightedRef.current
+            ?.scrollIntoView({
+              behavior:
+                "smooth",
+
+              block:
+                "center",
+            });
+        },
+        150
+      );
+
+    return () => {
+      window.clearTimeout(
+        timer
+      );
+    };
+  }, [
+    highlightedBookingId,
+  ]);
 
   /*
    * ============================================================
@@ -1531,6 +1587,32 @@ fetch(
                   key={
                     booking.id
                   }
+
+                  id={`booking-${booking.id}`}
+
+                  ref={
+                    highlightedBookingId ===
+                    booking.id
+                      ? highlightedRef
+                      : undefined
+                  }
+
+                  style={{
+                    borderColor:
+                      highlightedBookingId ===
+                      booking.id
+                        ? "#8b5cf6"
+                        : undefined,
+
+                    boxShadow:
+                      highlightedBookingId ===
+                      booking.id
+                        ? "0 0 0 3px rgba(139, 92, 246, 0.16)"
+                        : undefined,
+
+                    scrollMarginTop:
+                      120,
+                  }}
                 >
                   <div className="card-body">
                     <strong>
@@ -1595,25 +1677,61 @@ fetch(
                     {booking.status ===
                       "COMPLETED" &&
                       booking.businesses && (
-                        <ReviewForm
-                          bookingId={
-                            booking.id
-                          }
+                        <>
+                          {highlightedBookingId ===
+                            booking.id &&
+                            !booking.reviews && (
+                              <div
+                                style={{
+                                  marginTop:
+                                    16,
 
-                          businessId={
-                            booking
-                              .businesses
-                              .id
-                          }
+                                  padding:
+                                    "12px 14px",
 
-                          userId={
-                            userId
-                          }
+                                  border:
+                                    "1px solid #ddd6fe",
 
-                          initialReview={
-                            booking.reviews
-                          }
-                        />
+                                  borderRadius:
+                                    12,
+
+                                  background:
+                                    "#faf5ff",
+
+                                  color:
+                                    "#5b21b6",
+
+                                  fontSize:
+                                    14,
+
+                                  fontWeight:
+                                    700,
+                                }}
+                              >
+                                ⭐ Cuéntanos cómo fue tu experiencia.
+                              </div>
+                            )}
+
+                          <ReviewForm
+                            bookingId={
+                              booking.id
+                            }
+
+                            businessId={
+                              booking
+                                .businesses
+                                .id
+                            }
+
+                            userId={
+                              userId
+                            }
+
+                            initialReview={
+                              booking.reviews
+                            }
+                          />
+                        </>
                       )}
                   </div>
                 </div>
