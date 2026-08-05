@@ -574,19 +574,92 @@ export default function useAgendaReschedule({
           return;
         }
 
-        setPendingRescheduleSlot(
-          null
-        );
+        /*
+ * ============================================================
+ * ENVIAR CORREOS DE REPROGRAMACIÓN
+ * ============================================================
+ */
 
-        setReschedulingBooking(
-          null
-        );
+        try {
+          const previousStartAt =
+            reschedulingBooking
+              .slots
+              ?.start_at;
+        
+          const previousEndAt =
+            reschedulingBooking
+              .slots
+              ?.end_at;
+        
+          if (
+            previousStartAt &&
+            previousEndAt
+          ) {
+            const response =
+              await fetch(
+                "/api/business/bookings/rescheduled",
+                {
+                  method:
+                    "POST",
+        
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+        
+                  body:
+                    JSON.stringify({
+                      bookingId:
+                        reschedulingBooking.id,
+        
+                      previousStartAt,
+        
+                      previousEndAt,
+        
+                      newStartAt:
+                        pendingRescheduleSlot.start_at,
+        
+                      newEndAt:
+                        pendingRescheduleSlot.end_at,
+                    }),
+                }
+              );
+        
+            if (
+              !response.ok
+            ) {
+              console.error(
+                "La reserva se reprogramó, pero no se pudo enviar el email:",
+                await response.text()
+              );
+            }
+          } else {
+            console.error(
+              "La reserva se reprogramó, pero faltaba el horario anterior para enviar el email."
+            );
+          }
+        } catch (
+          notificationError
+        ) {
+          console.error(
+            "Error enviando el email de reprogramación:",
+            notificationError
+          );
+        }
 
-        setReschedulingLoading(
-          false
-        );
+setPendingRescheduleSlot(
+  null
+);
 
-        await reloadAgenda();
+setReschedulingBooking(
+  null
+);
+
+setReschedulingLoading(
+  false
+);
+
+await reloadAgenda();
       },
       [
         pendingRescheduleSlot,

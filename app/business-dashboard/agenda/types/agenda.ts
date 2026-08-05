@@ -44,7 +44,7 @@ export type AgendaBookingSlot = {
 export type AgendaBooking = {
   id: string;
   slot_id: string;
-  user_id: string;
+  user_id: string | null;
   service_id: string | null;
   status: string;
   cancelled_at: string | null;

@@ -70,12 +70,105 @@ export async function POST(request: Request) {
       );
     }
 
-    if (booking.user_id !== user.id) {
-      return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 403 }
-      );
+    /*
+ * Puede notificar la reprogramación:
+ *
+ * - el propio cliente;
+ * - el propietario del negocio;
+ * - un super administrador.
+ */
+
+const [
+  businessAuthorizationResult,
+  adminProfileResult,
+] = await Promise.all([
+  admin
+    .from("businesses")
+    .select(`
+      id,
+      owner_id
+    `)
+    .eq(
+      "id",
+      booking.business_id
+    )
+    .maybeSingle(),
+
+  admin
+    .from("profiles")
+    .select(`
+      id,
+      is_admin
+    `)
+    .eq(
+      "id",
+      user.id
+    )
+    .maybeSingle(),
+]);
+
+if (
+  businessAuthorizationResult.error
+) {
+  console.error(
+    "Error checking reschedule authorization:",
+    businessAuthorizationResult.error
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        "No se han podido comprobar los permisos",
+    },
+    {
+      status:
+        500,
     }
+  );
+}
+
+const businessAuthorization =
+  businessAuthorizationResult.data;
+
+const isCustomer =
+  booking.user_id ===
+  user.id;
+
+const isOwner =
+  businessAuthorization
+    ?.owner_id ===
+  user.id;
+
+const isAdmin =
+  adminProfileResult.data
+    ?.is_admin === true;
+
+if (
+  !isCustomer &&
+  !isOwner &&
+  !isAdmin
+) {
+  return NextResponse.json(
+    {
+      error:
+        "No autorizado",
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
+
+const rescheduleActor:
+  | "customer"
+  | "business"
+  | "admin" =
+  isAdmin
+    ? "admin"
+    : isOwner
+      ? "business"
+      : "customer";
 
     const slot =
       Array.isArray(booking.slots)
@@ -300,7 +393,13 @@ export async function POST(request: Request) {
                     </h1>
 
                     <p style="margin:0 0 28px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
-                      Un cliente ha modificado el horario de una reserva existente.
+                    ${
+                      rescheduleActor === "admin"
+                        ? "Un administrador de Slottye ha modificado el horario de esta reserva."
+                        : rescheduleActor === "business"
+                          ? "El horario de esta reserva se ha modificado desde el panel del negocio."
+                          : "El cliente ha modificado el horario de una reserva existente."
+                    }
                     </p>
 
                     <div style="margin:24px 0;padding:20px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;">

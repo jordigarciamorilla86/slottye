@@ -642,8 +642,14 @@ export default async function AdminBusinessesPage() {
                         }}
                       >
                         <Link
+  href={`/admin/businesses/${business.id}`}
+  className="btn primary"
+>
+  Administrar negocio
+</Link>
+                        <Link
                           href={`/business/${business.slug}`}
-                          className="btn primary"
+                          className="btn"
                         >
                           Ver ficha pública
                         </Link>

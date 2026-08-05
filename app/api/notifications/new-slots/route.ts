@@ -42,26 +42,84 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: business } = await supabase
-      .from("businesses")
-      .select("id,name,slug,owner_id")
-      .eq("id", businessId)
-      .eq("owner_id", user.id)
-      .maybeSingle();
-
-    if (!business) {
+    const [
+      businessResult,
+      adminProfileResult,
+    ] = await Promise.all([
+      admin
+        .from("businesses")
+        .select(`
+          id,
+          name,
+          slug,
+          owner_id
+        `)
+        .eq("id", businessId)
+        .maybeSingle(),
+    
+      admin
+        .from("profiles")
+        .select(`
+          id,
+          is_admin
+        `)
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
+    
+    if (businessResult.error) {
+      console.error(
+        "Error loading notification business:",
+        businessResult.error
+      );
+    
       return NextResponse.json(
-        { error: "Negocio no autorizado" },
-        { status: 403 }
+        {
+          error:
+            "No se ha podido comprobar el negocio",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+    
+    const business =
+      businessResult.data;
+    
+    const isAdmin =
+      adminProfileResult.data
+        ?.is_admin === true;
+    
+    const isOwner =
+      business?.owner_id ===
+      user.id;
+    
+    if (
+      !business ||
+      (!isOwner && !isAdmin)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Negocio no autorizado",
+        },
+        {
+          status: 403,
+        }
       );
     }
 
-    const { data: slots } = await admin
+    const {
+      data: slots,
+      error: slotsError,
+    } = await admin
       .from("slots")
       .select(`
         id,
         start_at,
         service_id,
+        status,
         services (
           name
         )
@@ -70,17 +128,48 @@ export async function POST(request: Request) {
       .eq("business_id", businessId)
       .eq("status", "AVAILABLE")
       .order("start_at");
-
-    if (!slots || slots.length === 0) {
+    
+    if (slotsError) {
+      console.error(
+        "Error loading slots for notification:",
+        slotsError
+      );
+    
+      return NextResponse.json(
+        {
+          error:
+            "No se han podido cargar las disponibilidades",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+    
+    if (!slots?.length) {
+      console.warn(
+        "No available slots found for notification:",
+        {
+          businessId,
+          slotIds,
+        }
+      );
+    
       return NextResponse.json({
         sent: 0,
+        reason:
+          "NO_AVAILABLE_SLOTS",
       });
     }
 
-    const { data: subscriptions } = await admin
+    const {
+      data: subscriptions,
+      error: subscriptionsError,
+    } = await admin
       .from("business_subscriptions")
       .select(`
         user_id,
+        email_enabled,
         profiles (
           email,
           name
@@ -88,10 +177,36 @@ export async function POST(request: Request) {
       `)
       .eq("business_id", businessId)
       .eq("email_enabled", true);
-
+    
+    if (subscriptionsError) {
+      console.error(
+        "Error loading subscriptions:",
+        subscriptionsError
+      );
+    
+      return NextResponse.json(
+        {
+          error:
+            "No se han podido cargar los suscriptores",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+    
     if (!subscriptions?.length) {
+      console.warn(
+        "No email-enabled subscribers found:",
+        {
+          businessId,
+        }
+      );
+    
       return NextResponse.json({
         sent: 0,
+        reason:
+          "NO_SUBSCRIBERS",
       });
     }
 
@@ -129,9 +244,25 @@ export async function POST(request: Request) {
           .select("id")
           .single();
 
-      if (notificationError || !notification) {
-        continue;
-      }
+          if (notificationError || !notification) {
+            console.error(
+              "Error creating new-slot notification:",
+              {
+                subscriptionUserId:
+                  subscription.user_id,
+          
+                businessId:
+                  business.id,
+          
+                slotIds,
+          
+                error:
+                  notificationError,
+              }
+            );
+          
+            continue;
+          }
 
       const formattedSlots = slots
         .slice(0, 8)
@@ -225,8 +356,9 @@ export async function POST(request: Request) {
                     color:#60646f;
                   "
                 >
-                  <strong style="color:#17171c;">${business.name}</strong>
-                  acaba de publicar nuevas citas en Slottye.
+                Se han publicado nuevas citas de
+                <strong style="color:#17171c;">${business.name}</strong>
+                en Slottye.
                 </p>
 
                 <div
@@ -318,6 +450,20 @@ export async function POST(request: Request) {
       );
 
       if (result.error) {
+        console.error(
+          "Resend new-slot email error:",
+          {
+            recipient:
+              profile.email,
+      
+            notificationId:
+              notification.id,
+      
+            error:
+              result.error,
+          }
+        );
+      
         await admin
           .from("notifications")
           .update({

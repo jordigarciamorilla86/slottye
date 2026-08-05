@@ -505,6 +505,14 @@ export default function useAgendaDragMove({
                 "La disponibilidad se movió, pero no se pudo avisar a los suscriptores:",
                 await response.text()
               );
+            }else {
+              const result =
+                await response.json();
+            
+              console.log(
+                "Resultado de notificación de disponibilidad movida:",
+                result
+              );
             }
           } catch (
             notificationError

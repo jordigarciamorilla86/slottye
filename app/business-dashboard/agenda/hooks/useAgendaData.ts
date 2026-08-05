@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
+import {
+  createClient,
+} from "@/lib/supabase/client";
 
 import type {
   AgendaBooking,
@@ -19,15 +21,38 @@ import type {
 type Props = {
   businessId: string;
   weekStart: Date;
+
+  mode?:
+    | "business"
+    | "admin";
+
   initialSlots: AgendaSlot[];
   initialBookings: AgendaBooking[];
   initialBlocks: AgendaBusinessBlock[];
   initialManualBookings: AgendaManualBooking[];
 };
 
+type AdminWeekResponse = {
+  slots:
+    AgendaSlot[];
+
+  bookings:
+    AgendaBooking[];
+
+  blocks:
+    AgendaBusinessBlock[];
+
+  manualBookings:
+    AgendaManualBooking[];
+
+  error?:
+    string;
+};
+
 export default function useAgendaData({
   businessId,
   weekStart,
+  mode = "business",
   initialSlots,
   initialBookings,
   initialBlocks,
@@ -89,23 +114,103 @@ export default function useAgendaData({
   const loadWeekData =
     useCallback(
       async (
-        start: Date
+        start:
+          Date
       ) => {
         setLoadingWeek(
           true
         );
 
-        const end =
+        const normalizedStart =
           new Date(
             start
           );
 
+        normalizedStart.setHours(
+          0,
+          0,
+          0,
+          0
+        );
+
+        const end =
+          new Date(
+            normalizedStart
+          );
+
         end.setDate(
-          start.getDate() +
+          normalizedStart.getDate() +
             7
         );
 
         try {
+          /*
+           * ====================================================
+           * MODO ADMIN
+           * ====================================================
+           */
+
+          if (
+            mode ===
+            "admin"
+          ) {
+            const response =
+              await fetch(
+                `/api/admin/businesses/${businessId}/agenda/week?start=${encodeURIComponent(
+                  normalizedStart.toISOString()
+                )}`,
+                {
+                  method:
+                    "GET",
+
+                  cache:
+                    "no-store",
+                }
+              );
+
+            const result =
+              (
+                await response.json()
+              ) as AdminWeekResponse;
+
+            if (
+              !response.ok
+            ) {
+              throw new Error(
+                result.error ??
+                  "No se ha podido cargar la semana."
+              );
+            }
+
+            setSlots(
+              result.slots ??
+                []
+            );
+
+            setBookings(
+              result.bookings ??
+                []
+            );
+
+            setBlocks(
+              result.blocks ??
+                []
+            );
+
+            setManualBookings(
+              result.manualBookings ??
+                []
+            );
+
+            return;
+          }
+
+          /*
+           * ====================================================
+           * MODO NEGOCIO
+           * ====================================================
+           */
+
           const {
             data:
               slotsData,
@@ -133,7 +238,7 @@ export default function useAgendaData({
               )
               .gt(
                 "end_at",
-                start.toISOString()
+                normalizedStart.toISOString()
               )
               .order(
                 "start_at"
@@ -150,7 +255,9 @@ export default function useAgendaData({
               slotsData ??
               []
             ).map(
-              (slot) =>
+              (
+                slot
+              ) =>
                 slot.id
             );
 
@@ -278,7 +385,7 @@ export default function useAgendaData({
               )
               .gt(
                 "end_at",
-                start.toISOString()
+                normalizedStart.toISOString()
               )
               .order(
                 "start_at"
@@ -329,7 +436,7 @@ export default function useAgendaData({
               )
               .gt(
                 "end_at",
-                start.toISOString()
+                normalizedStart.toISOString()
               )
               .order(
                 "start_at"
@@ -394,6 +501,7 @@ export default function useAgendaData({
       },
       [
         businessId,
+        mode,
         supabase,
       ]
     );

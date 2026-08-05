@@ -35,6 +35,10 @@ type Props = {
   businessName: string;
   initialWeekStart: string;
 
+  mode?:
+    | "business"
+    | "admin";
+
   services: AgendaService[];
 
   businessHours: AgendaBusinessHour[];
@@ -58,6 +62,7 @@ export default function WeeklyAgenda({
   businessId,
   businessName,
   initialWeekStart,
+  mode = "business",
   services,
   businessHours,
   initialSlots,
@@ -157,10 +162,11 @@ export default function WeeklyAgenda({
     loadingWeek,
     loadWeekData,
   } =
-    useAgendaData({
-      businessId,
-      weekStart,
-      initialSlots,
+  useAgendaData({
+    businessId,
+    weekStart,
+    mode,
+    initialSlots,
       initialBookings,
       initialBlocks,
       initialManualBookings,

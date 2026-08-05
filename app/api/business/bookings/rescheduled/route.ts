@@ -242,22 +242,102 @@ import {
           ? booking.slots[0]
           : booking.slots;
   
-      if (
-        !business ||
-        business.owner_id !==
-          user.id
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "No autorizado",
-          },
-          {
-            status:
-              403,
-          }
-        );
-      }
+      /*
+ * ============================================================
+ * AUTORIZACIÓN
+ * ============================================================
+ *
+ * Puede enviar el aviso:
+ *
+ * - el propietario del negocio;
+ * - un administrador de Slottye.
+ */
+
+const {
+  data:
+    authenticatedProfile,
+  error:
+    authenticatedProfileError,
+} =
+  await admin
+    .from(
+      "profiles"
+    )
+    .select(`
+      id,
+      is_admin
+    `)
+    .eq(
+      "id",
+      user.id
+    )
+    .maybeSingle();
+
+if (
+  authenticatedProfileError
+) {
+  console.error(
+    "Error checking reschedule admin permissions:",
+    authenticatedProfileError
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        "No se han podido comprobar los permisos",
+    },
+    {
+      status:
+        500,
+    }
+  );
+}
+
+const isOwner =
+  business?.owner_id ===
+  user.id;
+
+const isAdmin =
+  authenticatedProfile
+    ?.is_admin ===
+  true;
+
+if (
+  !business ||
+  (!isOwner && !isAdmin)
+) {
+  console.error(
+    "Unauthorized booking reschedule notification:",
+    {
+      authenticatedUserId:
+        user.id,
+
+      businessOwnerId:
+        business?.owner_id ??
+        null,
+
+      isAdmin,
+    }
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        "No autorizado",
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
+
+const rescheduleActor:
+  | "business"
+  | "admin" =
+  isAdmin
+    ? "admin"
+    : "business";
   
       if (
         booking.status !==
@@ -517,17 +597,21 @@ import {
                       </p>
 
                       <p
-                        style="
-                          margin:0 0 28px;
-                          text-align:center;
-                          font-size:15px;
-                          line-height:1.6;
-                          color:#60646f;
-                        "
-                      >
-                        <strong style="color:#17171c;">${business.name}</strong>
-                        ha cambiado el horario de tu cita.
-                      </p>
+  style="
+    margin:0 0 28px;
+    text-align:center;
+    font-size:15px;
+    line-height:1.6;
+    color:#60646f;
+  "
+>
+  ${
+    rescheduleActor ===
+    "admin"
+      ? `Un administrador de Slottye ha cambiado el horario de tu cita en <strong style="color:#17171c;">${business.name}</strong>.`
+      : `<strong style="color:#17171c;">${business.name}</strong> ha cambiado el horario de tu cita.`
+  }
+</p>
 
                       <div
                         style="

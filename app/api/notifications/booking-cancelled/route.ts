@@ -65,21 +65,97 @@ export async function POST(request: Request) {
       );
     }
 
-    // Seguridad: comprobamos que el usuario autenticado
-    // sea propietario del negocio.
-    const { data: business } = await admin
-      .from("businesses")
-      .select("id")
-      .eq("id", booking.business_id)
-      .eq("owner_id", user.id)
-      .maybeSingle();
+    /*
+ * Puede enviar la cancelación:
+ *
+ * - el propietario del negocio;
+ * - un super administrador.
+ */
 
-    if (!business) {
-      return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 403 }
-      );
+const [
+  businessResult,
+  adminProfileResult,
+] = await Promise.all([
+  admin
+    .from("businesses")
+    .select(`
+      id,
+      owner_id
+    `)
+    .eq(
+      "id",
+      booking.business_id
+    )
+    .maybeSingle(),
+
+  admin
+    .from("profiles")
+    .select(`
+      id,
+      is_admin
+    `)
+    .eq(
+      "id",
+      user.id
+    )
+    .maybeSingle(),
+]);
+
+if (
+  businessResult.error
+) {
+  console.error(
+    "Error checking cancellation business:",
+    businessResult.error
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        "No se ha podido comprobar el negocio",
+    },
+    {
+      status:
+        500,
     }
+  );
+}
+
+const businessAuthorization =
+  businessResult.data;
+
+  const isOwner =
+  businessAuthorization
+    ?.owner_id ===
+  user.id;
+
+const isAdmin =
+  adminProfileResult.data
+    ?.is_admin === true;
+
+if (
+  !businessAuthorization ||
+  (!isOwner && !isAdmin)
+) {
+  return NextResponse.json(
+    {
+      error:
+        "No autorizado",
+    },
+    {
+      status:
+        403,
+    }
+  );
+}
+
+const cancellationActor:
+  | "business"
+  | "admin" =
+  isAdmin
+    ? "admin"
+    : "business";
+  
 
     const profile = Array.isArray(booking.profiles)
       ? booking.profiles[0]
@@ -179,9 +255,12 @@ export async function POST(request: Request) {
                 </p>
 
                 <p style="margin:0 0 28px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
-                  <strong style="color:#17171c;">${businessName}</strong> ha cancelado tu cita.
-                </p>
-
+  ${
+    cancellationActor === "admin"
+      ? `Un administrador de Slottye ha cancelado tu cita en <strong style="color:#17171c;">${businessName}</strong>.`
+      : `<strong style="color:#17171c;">${businessName}</strong> ha cancelado tu cita.`
+  }
+</p>
                 <div style="margin:24px 0;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;">
                   <div style="margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:0.7px;color:#b91c1c;">
                     CITA CANCELADA
