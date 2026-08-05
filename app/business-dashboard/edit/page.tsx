@@ -4,7 +4,27 @@ import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BusinessEditForm from "./BusinessEditForm";
 
-export default async function EditBusinessPage() {
+type Props = {
+  searchParams: Promise<{
+    setup?: string;
+    review?: string;
+  }>;
+};
+
+export default async function EditBusinessPage({
+  searchParams,
+}: Props) {
+  const {
+    setup,
+    review,
+  } =
+    await searchParams;
+  
+  const fromSetup =
+    setup === "1";
+  
+  const reviewingPolicies =
+    review === "policies";
   const {
     supabase,
     user,
@@ -29,7 +49,8 @@ export default async function EditBusinessPage() {
       min_booking_notice_hours,
       max_booking_advance_days,
       allow_cancellations,
-      min_cancellation_notice_hours
+min_cancellation_notice_hours,
+booking_policies_reviewed_at
     `)
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -37,7 +58,42 @@ export default async function EditBusinessPage() {
   if (!business) {
     redirect("/business-dashboard/create");
   }
+/*
+ * ============================================================
+ * MARCAR POLÍTICAS COMO REVISADAS
+ * ============================================================
+ */
 
+if (
+  reviewingPolicies &&
+  !business.booking_policies_reviewed_at
+) {
+  const {
+    error:
+      reviewedError,
+  } =
+    await supabase
+      .from(
+        "businesses"
+      )
+      .update({
+        booking_policies_reviewed_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        business.id
+      );
+
+  if (
+    reviewedError
+  ) {
+    console.error(
+      "Error marking booking policies as reviewed:",
+      reviewedError
+    );
+  }
+}
   return (
     <>
       <Header />
@@ -65,16 +121,30 @@ export default async function EditBusinessPage() {
         </section>
 
         <section
-          className="section"
-          style={{ marginTop: 16 }}
-        >
-          <Link
-            href="/business-dashboard"
-            className="btn"
-          >
-            ← Volver al panel
-          </Link>
-        </section>
+  className="section"
+  style={{
+    marginTop: 16,
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+  }}
+>
+  {fromSetup ? (
+    <Link
+      href="/business-dashboard/setup"
+      className="btn primary"
+    >
+      ← Volver a la configuración inicial
+    </Link>
+  ) : (
+    <Link
+      href="/business-dashboard"
+      className="btn"
+    >
+      ← Volver al panel
+    </Link>
+  )}
+</section>
       </main>
     </>
   );

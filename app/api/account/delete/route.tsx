@@ -104,7 +104,9 @@ export async function DELETE() {
 
     if (
       profile.role ===
-      "customer"
+        "customer" ||
+      profile.role ===
+        "business"
     ) {
       const result =
         await prepareCustomerDeletion({

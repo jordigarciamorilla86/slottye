@@ -14,6 +14,11 @@ type Props = {
   initialImages: BusinessImage[];
 };
 
+type MessageType =
+  | "success"
+  | "error"
+  | null;
+
 export default function BusinessImagesManager({
   businessId,
   initialImages,
@@ -28,6 +33,27 @@ export default function BusinessImagesManager({
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] =
+    useState<MessageType>(null);
+
+  function clearMessage() {
+    setMessage("");
+    setMessageType(null);
+  }
+
+  function showSuccess(
+    text: string
+  ) {
+    setMessage(text);
+    setMessageType("success");
+  }
+
+  function showError(
+    text: string
+  ) {
+    setMessage(text);
+    setMessageType("error");
+  }
 
   async function saveOrder(
     orderedImages: BusinessImage[]
@@ -68,19 +94,19 @@ export default function BusinessImagesManager({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setMessage("Selecciona una imagen válida.");
+      showError("Selecciona una imagen válida.");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setMessage(
+      showError(
         "La imagen no puede superar 5 MB."
       );
       return;
     }
 
     setLoading(true);
-    setMessage("");
+    clearMessage();
 
     const extension =
       file.name.split(".").pop() ?? "jpg";
@@ -100,7 +126,7 @@ export default function BusinessImagesManager({
         });
 
     if (uploadError) {
-      setMessage(uploadError.message);
+      showError(uploadError.message);
       setLoading(false);
       return;
     }
@@ -132,7 +158,7 @@ export default function BusinessImagesManager({
         .from("business-images")
         .remove([path]);
 
-      setMessage(error.message);
+      showError(error.message);
       setLoading(false);
       return;
     }
@@ -142,7 +168,7 @@ export default function BusinessImagesManager({
       data,
     ]);
 
-    setMessage(
+    showSuccess(
       "Imagen subida correctamente."
     );
 
@@ -158,7 +184,7 @@ export default function BusinessImagesManager({
     }
 
     setLoading(true);
-    setMessage("");
+    clearMessage();
 
     try {
       const reordered = [
@@ -173,11 +199,11 @@ export default function BusinessImagesManager({
 
       setImages(normalized);
 
-      setMessage(
+      showSuccess(
         "Portada actualizada correctamente."
       );
     } catch (error) {
-      setMessage(
+      showError(
         error instanceof Error
           ? error.message
           : "No se pudo cambiar la portada."
@@ -211,7 +237,7 @@ export default function BusinessImagesManager({
     }
 
     setLoading(true);
-    setMessage("");
+    clearMessage();
 
     try {
       const reordered = [...images];
@@ -229,11 +255,11 @@ export default function BusinessImagesManager({
 
       setImages(normalized);
 
-      setMessage(
+      showSuccess(
         "Orden actualizado correctamente."
       );
     } catch (error) {
-      setMessage(
+      showError(
         error instanceof Error
           ? error.message
           : "No se pudo cambiar el orden."
@@ -253,7 +279,7 @@ export default function BusinessImagesManager({
     if (!confirmed) return;
 
     setLoading(true);
-    setMessage("");
+    clearMessage();
 
     const url = new URL(
       image.image_url
@@ -272,7 +298,7 @@ export default function BusinessImagesManager({
         .remove([path]);
 
     if (storageError) {
-      setMessage(
+      showError(
         storageError.message
       );
       setLoading(false);
@@ -286,7 +312,7 @@ export default function BusinessImagesManager({
       .eq("business_id", businessId);
 
     if (error) {
-      setMessage(error.message);
+      showError(error.message);
       setLoading(false);
       return;
     }
@@ -300,12 +326,12 @@ export default function BusinessImagesManager({
         await saveOrder(remaining);
 
       setImages(normalized);
-      setMessage("Imagen eliminada.");
+      showSuccess("Imagen eliminada.");
     } catch {
       setImages(remaining);
 
-      setMessage(
-        "Imagen eliminada, aunque no se pudo normalizar el orden."
+      showError(
+        "La imagen se ha eliminado, pero no se pudo normalizar el orden."
       );
     }
 
@@ -339,9 +365,92 @@ export default function BusinessImagesManager({
       </p>
 
       {message && (
-        <p className="muted">
-          {message}
-        </p>
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            marginTop: 16,
+            padding: "16px 18px",
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 14,
+            background:
+              messageType === "error"
+                ? "#fef2f2"
+                : "#f0fdf4",
+            border:
+              messageType === "error"
+                ? "1px solid #f87171"
+                : "1px solid #4ade80",
+            color:
+              messageType === "error"
+                ? "#b91c1c"
+                : "#166534",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                fontSize: 22,
+                lineHeight: 1,
+              }}
+            >
+              {messageType === "error"
+                ? "⚠️"
+                : "✅"}
+            </span>
+
+            <div>
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: 16,
+                  marginBottom: 4,
+                }}
+              >
+                {messageType === "error"
+                  ? "No se ha podido completar la acción"
+                  : "Acción completada"}
+              </div>
+
+              <div
+                style={{
+                  lineHeight: 1.5,
+                }}
+              >
+                {message}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={clearMessage}
+            aria-label="Cerrar mensaje"
+            style={{
+              border: 0,
+              background: "transparent",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: 20,
+              lineHeight: 1,
+              padding: 0,
+              opacity: 0.75,
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
       )}
 
       {images.length === 0 ? (

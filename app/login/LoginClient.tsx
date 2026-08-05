@@ -518,6 +518,32 @@ export default function Login() {
       }
 
       /*
+       * Cuando la protección contra enumeración de usuarios
+       * está activa, Supabase puede devolver un usuario simulado
+       * para un correo que ya existe.
+       *
+       * En ese caso no hay identidades nuevas asociadas.
+       */
+      if (
+        data.user &&
+        Array.isArray(
+          data.user.identities
+        ) &&
+        data.user.identities.length ===
+          0
+      ) {
+        setMessage(
+          "Ya existe una cuenta con este correo electrónico. Inicia sesión o recupera tu contraseña."
+        );
+
+        setLoading(
+          false
+        );
+
+        return;
+      }
+
+      /*
        * Si Supabase devuelve sesión,
        * no necesitamos confirmación.
        */
@@ -553,6 +579,7 @@ export default function Login() {
      */
 
     const {
+      data,
       error,
     } =
       await supabase.auth
@@ -577,8 +604,80 @@ export default function Login() {
       return;
     }
 
+    /*
+     * ==========================================================
+     * COMPROBAR SI LA CUENTA ESTÁ BLOQUEADA
+     * ==========================================================
+     */
+
+    const {
+      data: profile,
+      error: profileError,
+    } =
+      await supabase
+        .from(
+          "profiles"
+        )
+        .select(`
+          role,
+          is_blocked
+        `)
+        .eq(
+          "id",
+          data.user.id
+        )
+        .maybeSingle();
+
+    if (
+      profileError
+    ) {
+      console.error(
+        "Error loading profile:",
+        profileError
+      );
+
+      await supabase.auth
+        .signOut();
+
+      setMessage(
+        "No se ha podido verificar el estado de tu cuenta."
+      );
+
+      setLoading(
+        false
+      );
+
+      return;
+    }
+
+    if (
+      profile?.is_blocked
+    ) {
+      await supabase.auth
+        .signOut();
+
+      setMessage(
+        "Tu cuenta está bloqueada temporalmente. Si crees que se trata de un error, ponte en contacto con el equipo de Slottye. contacto@slottye.com"
+      );
+
+      setLoading(
+        false
+      );
+
+      return;
+    }
+
+    /*
+     * ==========================================================
+     * REDIRECCIÓN SEGÚN EL ROL
+     * ==========================================================
+     */
+
     router.push(
-      "/account"
+      profile?.role ===
+        "business"
+        ? "/business-dashboard"
+        : "/account"
     );
 
     router.refresh();

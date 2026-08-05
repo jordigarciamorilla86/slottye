@@ -167,6 +167,9 @@ export default function AgendaHeader({
         gap: 12,
         flexWrap: "wrap",
         marginBottom: 20,
+        position: "relative",
+        zIndex: 1200,
+        isolation: "isolate",
       }}
     >
       <button
@@ -225,6 +228,9 @@ export default function AgendaHeader({
           ref={newAppointmentRef}
           style={{
             position: "relative",
+            zIndex: showNewAppointment
+              ? 1220
+              : 1,
           }}
         >
           <button
@@ -253,7 +259,7 @@ export default function AgendaHeader({
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
-                zIndex: 110,
+                zIndex: 1230,
                 width: 290,
                 maxWidth: "calc(100vw - 32px)",
                 padding: 16,
@@ -361,6 +367,9 @@ export default function AgendaHeader({
           ref={datePickerRef}
           style={{
             position: "relative",
+            zIndex: showDatePicker
+              ? 1220
+              : 1,
           }}
         >
           <button
@@ -386,7 +395,7 @@ export default function AgendaHeader({
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
-                zIndex: 100,
+                zIndex: 1230,
                 width: 250,
                 maxWidth: "calc(100vw - 32px)",
                 padding: 14,

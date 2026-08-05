@@ -22,12 +22,14 @@ type Props = {
   bookings: AgendaBooking[];
   blocks: AgendaBusinessBlock[];
   manualBookings: AgendaManualBooking[];
+
   onSelectEvent: (
     event: AgendaSelectedEvent
   ) => void;
 };
 
-const SLOT_MINUTES = 30;
+const GRID_ROW_MINUTES =
+  30;
 
 function minutesFromTime(
   value: string
@@ -48,11 +50,93 @@ function minutesFromTime(
         Number
       );
 
+  if (
+    !Number.isInteger(
+      hour
+    ) ||
+    !Number.isInteger(
+      minute
+    )
+  ) {
+    return null;
+  }
+
   return (
     hour *
       60 +
     minute
   );
+}
+
+function intervalsOverlap(
+  firstStart: number,
+  firstEnd: number,
+  secondStart: number,
+  secondEnd: number
+) {
+  return (
+    firstStart <
+      secondEnd &&
+    firstEnd >
+      secondStart
+  );
+}
+
+function dateIntervalsOverlap(
+  firstStart: Date,
+  firstEnd: Date,
+  secondStart: Date,
+  secondEnd: Date
+) {
+  return (
+    firstStart.getTime() <
+      secondEnd.getTime() &&
+    firstEnd.getTime() >
+      secondStart.getTime()
+  );
+}
+
+function validDateInterval(
+  start: Date,
+  end: Date
+) {
+  return (
+    Number.isFinite(
+      start.getTime()
+    ) &&
+    Number.isFinite(
+      end.getTime()
+    ) &&
+    end.getTime() >
+      start.getTime()
+  );
+}
+
+function eventPriority(
+  event: AgendaCellEvent
+) {
+  if (
+    event.type ===
+    "manual"
+  ) {
+    return 1;
+  }
+
+  if (
+    event.type ===
+    "booking"
+  ) {
+    return 2;
+  }
+
+  if (
+    event.type ===
+    "block"
+  ) {
+    return 3;
+  }
+
+  return 4;
 }
 
 export default function useAgendaEvents({
@@ -88,7 +172,14 @@ export default function useAgendaEvents({
           return false;
         }
 
-        function inRange(
+        const rowStart =
+          minute;
+
+        const rowEnd =
+          minute +
+          GRID_ROW_MINUTES;
+
+        function overlapsSchedule(
           start:
             string |
             null,
@@ -113,20 +204,31 @@ export default function useAgendaEvents({
               end
             );
 
-          return (
-            minute >=
-              startMinute &&
-            minute <
-              endMinute
+          if (
+            startMinute ===
+              null ||
+            endMinute ===
+              null ||
+            endMinute <=
+              startMinute
+          ) {
+            return false;
+          }
+
+          return intervalsOverlap(
+            rowStart,
+            rowEnd,
+            startMinute,
+            endMinute
           );
         }
 
         return (
-          inRange(
+          overlapsSchedule(
             schedule.open_time,
             schedule.close_time
           ) ||
-          inRange(
+          overlapsSchedule(
             schedule.open_time_2,
             schedule.close_time_2
           )
@@ -137,6 +239,10 @@ export default function useAgendaEvents({
       ]
     );
 
+  /*
+   * Devuelve TODOS los eventos que atraviesan esta fila.
+   * AgendaCell decidirá cuáles empiezan realmente dentro de ella.
+   */
   const getCellData =
     useCallback(
       (
@@ -145,8 +251,7 @@ export default function useAgendaEvents({
         minute:
           number
       ):
-        AgendaCellEvent |
-        null => {
+        AgendaCellEvent[] => {
         const cellStart =
           new Date(
             date
@@ -166,261 +271,325 @@ export default function useAgendaEvents({
         const cellEnd =
           new Date(
             cellStart.getTime() +
-              SLOT_MINUTES *
+              GRID_ROW_MINUTES *
                 60 *
                 1000
           );
 
-        const manualBooking =
-          manualBookings.find(
-            (
-              booking
-            ) => {
-              const start =
-                new Date(
-                  booking.start_at
-                );
+        const result:
+          AgendaCellEvent[] =
+          [];
 
-              const end =
-                new Date(
-                  booking.end_at
-                );
-
-              return (
-                start <
-                  cellEnd &&
-                end >
-                  cellStart
-              );
-            }
-          );
-
-        if (
-          manualBooking
+        for (
+          const booking of
+            manualBookings
         ) {
-          return {
-            type:
-              "manual",
+          const start =
+            new Date(
+              booking.start_at
+            );
 
-            id:
-              manualBooking.id,
+          const end =
+            new Date(
+              booking.end_at
+            );
 
-            title:
-              manualBooking.customer_name,
+          if (
+            validDateInterval(
+              start,
+              end
+            ) &&
+            dateIntervalsOverlap(
+              start,
+              end,
+              cellStart,
+              cellEnd
+            )
+          ) {
+            result.push({
+              type:
+                "manual",
 
-            subtitle:
-              manualBooking.services
-                ?.name ??
-              "Reserva manual",
+              id:
+                booking.id,
 
-            source:
-              manualBooking,
+              title:
+                booking.customer_name,
 
-            startAt:
-              manualBooking.start_at,
+              subtitle:
+                booking.services
+                  ?.name ??
+                "Reserva manual",
 
-            endAt:
-              manualBooking.end_at,
-          };
+              source:
+                booking,
+
+              startAt:
+                booking.start_at,
+
+              endAt:
+                booking.end_at,
+            });
+          }
         }
 
-        const onlineBooking =
-          bookings.find(
-            (
-              booking
-            ) => {
-              if (
-                ![
-                  "CONFIRMED",
-                  "COMPLETED",
-                ].includes(
-                  booking.status
-                ) ||
-                !booking.slots
-              ) {
-                return false;
-              }
-
-              const start =
-                new Date(
-                  booking.slots
-                    .start_at
-                );
-
-              const end =
-                new Date(
-                  booking.slots
-                    .end_at
-                );
-
-              return (
-                start <
-                  cellEnd &&
-                end >
-                  cellStart
-              );
-            }
-          );
-
-        if (
-          onlineBooking &&
-          onlineBooking.slots
+        for (
+          const booking of
+            bookings
         ) {
-          return {
-            type:
-              "booking",
+          if (
+            ![
+              "CONFIRMED",
+              "COMPLETED",
+            ].includes(
+              booking.status
+            ) ||
+            !booking.slots
+          ) {
+            continue;
+          }
 
-            id:
-              onlineBooking.id,
+          const start =
+            new Date(
+              booking.slots
+                .start_at
+            );
 
-            title:
-              onlineBooking.profiles
-                ?.name ??
-              "Cliente",
+          const end =
+            new Date(
+              booking.slots
+                .end_at
+            );
 
-            subtitle:
-              onlineBooking.status ===
-              "COMPLETED"
-                ? `✓ Completada · ${
-                    onlineBooking.services
+          if (
+            validDateInterval(
+              start,
+              end
+            ) &&
+            dateIntervalsOverlap(
+              start,
+              end,
+              cellStart,
+              cellEnd
+            )
+          ) {
+            result.push({
+              type:
+                "booking",
+
+              id:
+                booking.id,
+
+              title:
+                booking.profiles
+                  ?.name ??
+                "Cliente",
+
+              subtitle:
+                booking.status ===
+                "COMPLETED"
+                  ? `✓ Completada · ${
+                      booking.services
+                        ?.name ??
+                      "Reserva Slottye"
+                    }`
+                  : booking.services
                       ?.name ??
-                    "Reserva Slottye"
-                  }`
-                : onlineBooking.services
-                    ?.name ??
-                  "Reserva Slottye",
+                    "Reserva Slottye",
 
-            source:
-              onlineBooking,
+              source:
+                booking,
 
-            startAt:
-              onlineBooking.slots
-                .start_at,
+              startAt:
+                booking.slots
+                  .start_at,
 
-            endAt:
-              onlineBooking.slots
-                .end_at,
-          };
+              endAt:
+                booking.slots
+                  .end_at,
+            });
+          }
         }
 
-        const block =
-          blocks.find(
-            (
-              item
-            ) => {
-              const start =
-                new Date(
-                  item.start_at
-                );
-
-              const end =
-                new Date(
-                  item.end_at
-                );
-
-              return (
-                start <
-                  cellEnd &&
-                end >
-                  cellStart
-              );
-            }
-          );
-
-        if (
-          block
+        for (
+          const block of
+            blocks
         ) {
-          return {
-            type:
-              "block",
+          const start =
+            new Date(
+              block.start_at
+            );
 
-            id:
-              block.id,
+          const end =
+            new Date(
+              block.end_at
+            );
 
-            title:
-              "Bloqueado",
+          if (
+            validDateInterval(
+              start,
+              end
+            ) &&
+            dateIntervalsOverlap(
+              start,
+              end,
+              cellStart,
+              cellEnd
+            )
+          ) {
+            result.push({
+              type:
+                "block",
 
-            subtitle:
-              block.reason ??
-              "",
+              id:
+                block.id,
 
-            source:
-              block,
+              title:
+                "Bloqueado",
 
-            startAt:
-              block.start_at,
+              subtitle:
+                block.reason ??
+                "",
 
-            endAt:
-              block.end_at,
-          };
+              source:
+                block,
+
+              startAt:
+                block.start_at,
+
+              endAt:
+                block.end_at,
+            });
+          }
         }
 
-        const slot =
-          slots.find(
-            (
-              item
-            ) => {
+        for (
+          const slot of
+            slots
+        ) {
+          if (
+            slot.status !==
+              "AVAILABLE"
+          ) {
+            continue;
+          }
+
+          const start =
+            new Date(
+              slot.start_at
+            );
+
+          const end =
+            new Date(
+              slot.end_at
+            );
+
+            if (
+              validDateInterval(
+                start,
+                end
+              ) &&
+              dateIntervalsOverlap(
+                start,
+                end,
+                cellStart,
+                cellEnd
+              )
+            ) {
+            
+              // Si existe un bloqueo que ocupa este slot,
+              // no mostramos la disponibilidad.
+              const coveredByBlock =
+                blocks.some(
+                  (
+                    block
+                  ) => {
+                    const blockStart =
+                      new Date(
+                        block.start_at
+                      );
+            
+                    const blockEnd =
+                      new Date(
+                        block.end_at
+                      );
+            
+                    return dateIntervalsOverlap(
+                      start,
+                      end,
+                      blockStart,
+                      blockEnd
+                    );
+                  }
+                );
+            
               if (
-                item.status !==
-                  "AVAILABLE"
+                coveredByBlock
               ) {
-                return false;
+                continue;
               }
+            result.push({
+              type:
+                "slot",
 
-              const start =
-                new Date(
-                  item.start_at
-                );
+              id:
+                slot.id,
 
-              const end =
-                new Date(
-                  item.end_at
-                );
+              title:
+                "Disponible",
 
-              return (
-                start <
-                  cellEnd &&
-                end >
-                  cellStart
-              );
-            }
-          );
+              subtitle:
+                services.find(
+                  (
+                    service
+                  ) =>
+                    service.id ===
+                    slot.service_id
+                )?.name ??
+                "",
 
-        if (
-          slot
-        ) {
-          return {
-            type:
-              "slot",
+              source:
+                slot,
 
-            id:
-              slot.id,
+              startAt:
+                slot.start_at,
 
-            title:
-              "Disponible",
-
-            subtitle:
-              services.find(
-                (
-                  service
-                ) =>
-                  service.id ===
-                  slot.service_id
-              )?.name ??
-              "",
-
-            source:
-              slot,
-
-            startAt:
-              slot.start_at,
-
-            endAt:
-              slot.end_at,
-          };
+              endAt:
+                slot.end_at,
+            });
+          }
         }
 
-        return null;
+        return result.sort(
+          (
+            first,
+            second
+          ) => {
+            const startDifference =
+              new Date(
+                first.startAt
+              ).getTime() -
+              new Date(
+                second.startAt
+              ).getTime();
+
+            if (
+              startDifference !==
+              0
+            ) {
+              return startDifference;
+            }
+
+            return (
+              eventPriority(
+                first
+              ) -
+              eventPriority(
+                second
+              )
+            );
+          }
+        );
       },
       [
         manualBookings,

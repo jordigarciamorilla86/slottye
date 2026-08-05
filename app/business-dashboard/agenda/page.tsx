@@ -5,7 +5,22 @@ import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import WeeklyAgenda from "./WeeklyAgenda";
 
-export default async function AgendaPage() {
+type Props = {
+  searchParams: Promise<{
+    setup?: string;
+  }>;
+};
+
+export default async function AgendaPage({
+  searchParams,
+}: Props) {
+  const {
+    setup,
+  } =
+    await searchParams;
+
+  const fromSetup =
+    setup === "1";
   const {
     supabase,
     user,
@@ -416,27 +431,47 @@ export default async function AgendaPage() {
         </section>
 
         <section
-          style={{
-            marginTop: 20,
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <Link
-            href="/business-dashboard"
-            className="btn"
-          >
-            ← Volver al panel
-          </Link>
+  style={{
+    marginTop:
+      20,
 
-          <Link
-            href="/business-dashboard/calendar"
-            className="btn"
-          >
-            Calendario y disponibilidad
-          </Link>
-        </section>
+    display:
+      "flex",
+
+    gap:
+      10,
+
+    flexWrap:
+      "wrap",
+  }}
+>
+  {fromSetup ? (
+    <Link
+      href="/business-dashboard/setup"
+      className="btn primary"
+    >
+      ← Volver a la configuración inicial
+    </Link>
+  ) : (
+    <Link
+      href="/business-dashboard"
+      className="btn"
+    >
+      ← Volver al panel
+    </Link>
+  )}
+
+  <Link
+    href={
+      fromSetup
+        ? "/business-dashboard/calendar?setup=1"
+        : "/business-dashboard/calendar"
+    }
+    className="btn"
+  >
+    Calendario y disponibilidad
+  </Link>
+</section>
       </main>
     </>
   );

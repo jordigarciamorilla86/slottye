@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Booking = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   status: string;
   created_at: string;
   cancelled_at: string | null;
@@ -85,10 +85,13 @@ export default function BusinessBookingsManager({
       case "CANCELLED_BY_USER":
         return "Cancelada por el cliente";
 
-      case "CANCELLED_BY_BUSINESS":
-        return "Cancelada por el negocio";
-
-      case "COMPLETED":
+        case "CANCELLED_BY_BUSINESS":
+          return "Cancelada por el negocio";
+        
+        case "CANCELLED_ACCOUNT_DELETED":
+          return "Cancelada por eliminación de cuenta";
+        
+        case "COMPLETED":
         return "Completada";
 
       case "NO_SHOW":
@@ -418,37 +421,13 @@ export default function BusinessBookingsManager({
         (
           first,
           second
-        ) => {
-          if (
-            !first.slots &&
-            !second.slots
-          ) {
-            return 0;
-          }
-  
-          if (
-            !first.slots
-          ) {
-            return 1;
-          }
-  
-          if (
-            !second.slots
-          ) {
-            return -1;
-          }
-  
-          return (
-            new Date(
-              first.slots
-                .start_at
-            ).getTime() -
-            new Date(
-              second.slots
-                .start_at
-            ).getTime()
-          );
-        }
+        ) =>
+          new Date(
+            second.created_at
+          ).getTime() -
+          new Date(
+            first.created_at
+          ).getTime()
       );
 
   return (
@@ -755,10 +734,13 @@ export default function BusinessBookingsManager({
                 key={booking.id}
               >
                 <div className="card-body">
-                  <strong>
-                    {booking.profiles?.name ??
-                      "Cliente"}
-                  </strong>
+                <strong>
+  {booking.status ===
+  "CANCELLED_ACCOUNT_DELETED"
+    ? "👤 Usuario eliminado"
+    : booking.profiles?.name ??
+      "Cliente"}
+</strong>
 
                   <div
                     style={{
@@ -814,7 +796,22 @@ export default function BusinessBookingsManager({
                       booking.status
                     )}
                   </div>
+                  
+                  {booking.status ===
+  "CANCELLED_ACCOUNT_DELETED" && (
+  <div
+    className="muted"
+    style={{
+      marginTop:
+        8,
 
+      fontSize:
+        13,
+    }}
+  >
+    La cuenta del cliente fue eliminada. Sus datos personales ya no están disponibles.
+  </div>
+)}
                   {booking.services && (
                     <div
                       className="meta"

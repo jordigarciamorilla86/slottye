@@ -438,12 +438,14 @@ min_cancellation_notice_hours:
       </label>
       
       <div
+  id="booking-policies"
   style={{
     marginTop: 20,
     paddingTop: 24,
     borderTop: "1px solid var(--border)",
     display: "grid",
     gap: 16,
+    scrollMarginTop: 24,
   }}
 >
   <div>

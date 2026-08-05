@@ -20,16 +20,17 @@ export default async function BusinessDashboardPage() {
   const { data: business } = await supabase
     .from("businesses")
     .select(`
-      id,
-      name,
-      slug,
-      description,
-      address,
-      city,
-      phone,
-      email,
-      active
-    `)
+  id,
+  name,
+  slug,
+  description,
+  address,
+  city,
+  phone,
+  email,
+  active,
+  onboarding_completed_at
+`)
     .eq("owner_id", user.id)
     .maybeSingle();
 
@@ -80,6 +81,20 @@ export default async function BusinessDashboardPage() {
       </>
     );
   }
+
+  /*
+ * ============================================================
+ * CONFIGURACIÓN INICIAL PENDIENTE
+ * ============================================================
+ */
+
+if (
+  !business.onboarding_completed_at
+) {
+  redirect(
+    "/business-dashboard/setup"
+  );
+}
 
   /*
    * ============================================================

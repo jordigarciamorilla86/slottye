@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import AdminBusinessStatusButton from "./AdminBusinessStatusButton";
+import AdminBusinessDeleteButton from "./AdminBusinessDeleteButton";
 
 export default async function AdminBusinessesPage() {
   const supabase =
@@ -663,6 +664,14 @@ export default async function AdminBusinessesPage() {
   businessId={business.id}
   businessName={business.name}
   active={business.active}
+/>
+<AdminBusinessDeleteButton
+  businessId={
+    business.id
+  }
+  businessName={
+    business.name
+  }
 />
                       </div>
                     </div>

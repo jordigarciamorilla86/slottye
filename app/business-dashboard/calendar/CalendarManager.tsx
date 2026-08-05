@@ -79,6 +79,12 @@ export default function CalendarManager({
     setServiceId,
   ] =
     useState("");
+  
+    const [
+      slotDurationMinutes,
+      setSlotDurationMinutes,
+    ] =
+      useState(30);
 
   const [
     date,
@@ -144,6 +150,12 @@ export default function CalendarManager({
   ] =
     useState("");
 
+    const [
+      bulkDurationMinutes,
+      setBulkDurationMinutes,
+    ] =
+      useState(30);
+
   const [
     bulkLoading,
     setBulkLoading,
@@ -165,6 +177,12 @@ export default function CalendarManager({
     setWeekStartDate,
   ] =
     useState("");
+
+    const [
+      weekDurationMinutes,
+      setWeekDurationMinutes,
+    ] =
+      useState(30);
 
   const [
     weekLoading,
@@ -317,6 +335,72 @@ export default function CalendarManager({
 
   /*
    * ============================================================
+   * TRADUCCIÓN DE ERRORES DE SUPABASE
+   * ============================================================
+   */
+
+  function getFriendlyError(
+    error:
+      | {
+          message?:
+            string;
+        }
+      | null
+      | undefined,
+
+    fallback:
+      string
+  ) {
+    const rawMessage =
+      error?.message
+        ?.trim() ??
+      "";
+
+    const normalizedMessage =
+      rawMessage
+        .toLowerCase();
+
+    if (
+      normalizedMessage.includes(
+        "row-level security"
+      ) ||
+      normalizedMessage.includes(
+        "violates row-level security policy"
+      )
+    ) {
+      return "Tu cuenta está bloqueada.";
+    }
+
+    if (
+      normalizedMessage.includes(
+        "duplicate key"
+      ) ||
+      normalizedMessage.includes(
+        "unique constraint"
+      )
+    ) {
+      return "Ya existe un elemento en ese horario.";
+    }
+
+    if (
+      normalizedMessage.includes(
+        "cuenta está bloqueada"
+      ) ||
+      normalizedMessage.includes(
+        "cuenta esta bloqueada"
+      )
+    ) {
+      return "Tu cuenta está bloqueada.";
+    }
+
+    return (
+      rawMessage ||
+      fallback
+    );
+  }
+
+  /*
+   * ============================================================
    * BLOQUEOS
    * ============================================================
    */
@@ -345,6 +429,73 @@ export default function CalendarManager({
         );
       }
     );
+  }
+  function handleServiceChange(
+    value: string
+  ) {
+    setServiceId(
+      value
+    );
+  
+    const service =
+      services.find(
+        (item) =>
+          item.id ===
+          value
+      );
+  
+    if (service) {
+      setSlotDurationMinutes(
+        service.duration_minutes
+      );
+    }
+  
+    clearMessage();
+  }
+  function handleBulkServiceChange(
+    value: string
+  ) {
+    setBulkServiceId(
+      value
+    );
+  
+    const service =
+      services.find(
+        (item) =>
+          item.id ===
+          value
+      );
+  
+    if (service) {
+      setBulkDurationMinutes(
+        service.duration_minutes
+      );
+    }
+  
+    clearMessage();
+  }
+
+  function handleWeekServiceChange(
+    value: string
+  ) {
+    setWeekServiceId(
+      value
+    );
+  
+    const service =
+      services.find(
+        (item) =>
+          item.id ===
+          value
+      );
+  
+    if (service) {
+      setWeekDurationMinutes(
+        service.duration_minutes
+      );
+    }
+  
+    clearMessage();
   }
 
   /*
@@ -387,6 +538,22 @@ export default function CalendarManager({
       return;
     }
 
+    if (
+      !Number.isInteger(
+        slotDurationMinutes
+      ) ||
+      slotDurationMinutes <=
+        0 ||
+      slotDurationMinutes >
+        1440
+    ) {
+      showError(
+        "La duración no es válida."
+      );
+    
+      return;
+    }
+
     const start =
       new Date(
         `${date}T${time}`
@@ -404,12 +571,12 @@ export default function CalendarManager({
     }
 
     const end =
-      new Date(
-        start.getTime() +
-          service.duration_minutes *
-            60 *
-            1000
-      );
+  new Date(
+    start.getTime() +
+      slotDurationMinutes *
+        60 *
+        1000
+  );
 
     if (
       overlapsBlock(
@@ -461,7 +628,10 @@ export default function CalendarManager({
 
     if (error) {
       showError(
-        error.message
+        getFriendlyError(
+          error,
+          "No se ha podido crear la disponibilidad."
+        )
       );
 
       setLoading(
@@ -517,7 +687,11 @@ export default function CalendarManager({
     );
 
     setDate("");
-    setTime("");
+setTime("");
+
+setSlotDurationMinutes(
+  service.duration_minutes
+);
 
     showSuccess(
       "Cita disponible creada correctamente."
@@ -585,7 +759,10 @@ export default function CalendarManager({
       historyError
     ) {
       showError(
-        historyError.message
+        getFriendlyError(
+          historyError,
+          "No se ha podido comprobar el historial del hueco."
+        )
       );
 
       return;
@@ -620,7 +797,10 @@ export default function CalendarManager({
         blockError
       ) {
         showError(
-          blockError.message
+          getFriendlyError(
+            blockError,
+            "No se ha podido bloquear el hueco."
+          )
         );
 
         return;
@@ -666,7 +846,10 @@ export default function CalendarManager({
 
     if (error) {
       showError(
-        error.message
+        getFriendlyError(
+          error,
+          "No se ha podido crear la disponibilidad."
+        )
       );
 
       return;
@@ -753,7 +936,10 @@ export default function CalendarManager({
       historyError
     ) {
       showError(
-        historyError.message
+        getFriendlyError(
+          historyError,
+          "No se ha podido comprobar el historial del hueco."
+        )
       );
 
       return;
@@ -811,7 +997,10 @@ export default function CalendarManager({
         deleteError
       ) {
         showError(
-          deleteError.message
+          getFriendlyError(
+            deleteError,
+            "No se han podido eliminar los huecos."
+          )
         );
 
         return;
@@ -846,7 +1035,10 @@ export default function CalendarManager({
         blockError
       ) {
         showError(
-          blockError.message
+          getFriendlyError(
+            blockError,
+            "No se ha podido bloquear el hueco."
+          )
         );
 
         return;
@@ -949,6 +1141,21 @@ export default function CalendarManager({
 
       return;
     }
+    if (
+      !Number.isInteger(
+        bulkDurationMinutes
+      ) ||
+      bulkDurationMinutes <=
+        0 ||
+      bulkDurationMinutes >
+        1440
+    ) {
+      showError(
+        "La duración de los huecos no es válida."
+      );
+    
+      return;
+    }
 
     const start =
       new Date(
@@ -1005,12 +1212,12 @@ export default function CalendarManager({
 
     while (true) {
       const end =
-        new Date(
-          current.getTime() +
-            service.duration_minutes *
-              60 *
-              1000
-        );
+  new Date(
+    current.getTime() +
+      bulkDurationMinutes *
+        60 *
+        1000
+  );
 
       if (
         end >
@@ -1095,7 +1302,10 @@ export default function CalendarManager({
       existingError
     ) {
       showError(
-        existingError.message
+        getFriendlyError(
+          existingError,
+          "No se han podido comprobar las disponibilidades existentes."
+        )
       );
 
       return;
@@ -1158,7 +1368,10 @@ export default function CalendarManager({
 
     if (error) {
       showError(
-        error.message
+        getFriendlyError(
+          error,
+          "No se ha podido crear la disponibilidad."
+        )
       );
 
       setBulkLoading(
@@ -1229,6 +1442,10 @@ export default function CalendarManager({
     setBulkDate("");
     setBulkStartTime("");
     setBulkEndTime("");
+
+    setBulkDurationMinutes(
+      service.duration_minutes
+    );
 
     const existingCount =
       rows.length -
@@ -1305,10 +1522,7 @@ export default function CalendarManager({
     }
 
     const selectedServiceId =
-      service.id;
-
-    const selectedServiceDuration =
-      service.duration_minutes;
+  service.id;
 
     if (
       !weekStartDate
@@ -1317,6 +1531,21 @@ export default function CalendarManager({
         "Selecciona el inicio de la semana."
       );
 
+      return;
+    }
+    if (
+      !Number.isInteger(
+        weekDurationMinutes
+      ) ||
+      weekDurationMinutes <=
+        0 ||
+      weekDurationMinutes >
+        1440
+    ) {
+      showError(
+        "La duración de los huecos no es válida."
+      );
+    
       return;
     }
 
@@ -1425,12 +1654,12 @@ export default function CalendarManager({
 
       while (true) {
         const end =
-          new Date(
-            current.getTime() +
-              selectedServiceDuration *
-                60 *
-                1000
-          );
+  new Date(
+    current.getTime() +
+      weekDurationMinutes *
+        60 *
+        1000
+  );
 
         if (
           end >
@@ -1580,7 +1809,10 @@ export default function CalendarManager({
       existingError
     ) {
       showError(
-        existingError.message
+        getFriendlyError(
+          existingError,
+          "No se han podido comprobar las disponibilidades existentes."
+        )
       );
 
       setWeekLoading(
@@ -1647,7 +1879,10 @@ export default function CalendarManager({
 
     if (error) {
       showError(
-        error.message
+        getFriendlyError(
+          error,
+          "No se ha podido crear la disponibilidad."
+        )
       );
 
       setWeekLoading(
@@ -1752,7 +1987,9 @@ export default function CalendarManager({
         `Semana generada correctamente. Se han creado ${newSlots.length} citas disponibles.`
       );
     }
-
+    setWeekDurationMinutes(
+      service.duration_minutes
+    );
     setWeekLoading(
       false
     );
@@ -1949,9 +2186,10 @@ export default function CalendarManager({
       !block
     ) {
       showError(
-        blockError
-          ?.message ??
+        getFriendlyError(
+          blockError,
           "No se pudo crear el bloqueo."
+        )
       );
 
       setBlockLoading(
@@ -2010,7 +2248,10 @@ export default function CalendarManager({
         updateError
       ) {
         updateWarning =
-          `Bloqueo creado, pero no se pudieron bloquear algunos huecos: ${updateError.message}`;
+          getFriendlyError(
+            updateError,
+            "El bloqueo se ha creado, pero no se han podido retirar algunos huecos."
+          );
       } else {
         const blockedIds =
           new Set(
@@ -2124,7 +2365,10 @@ export default function CalendarManager({
       error
     ) {
       showError(
-        error.message
+        getFriendlyError(
+          error,
+          "No se ha podido crear la disponibilidad."
+        )
       );
 
       return;
@@ -2559,9 +2803,8 @@ export default function CalendarManager({
                 onChange={(
                   e
                 ) =>
-                  setServiceId(
-                    e.target
-                      .value
+                  handleServiceChange(
+                    e.target.value
                   )
                 }
                 style={
@@ -2597,7 +2840,48 @@ export default function CalendarManager({
                 )}
               </select>
             </label>
+            <label>
+  <strong>
+    Duración exacta (minutos)
+  </strong>
 
+  <input
+    required
+    type="number"
+    min={1}
+    max={1440}
+    step={1}
+    value={
+      slotDurationMinutes
+    }
+    onChange={(
+      e
+    ) =>
+      setSlotDurationMinutes(
+        Number(
+          e.target.value
+        )
+      )
+    }
+    style={
+      inputStyle
+    }
+  />
+
+  <div
+    className="muted"
+    style={{
+      marginTop:
+        6,
+
+      fontSize:
+        12,
+    }}
+  >
+    Duración seleccionada:{" "}
+    {slotDurationMinutes} min
+  </div>
+</label>
             <div
               style={{
                 display:
@@ -2709,8 +2993,8 @@ export default function CalendarManager({
             </h2>
 
             <p className="muted">
-              Slottye creará automáticamente todos los huecos según la duración del servicio.
-            </p>
+  Slottye creará automáticamente todos los huecos usando la duración que indiques.
+</p>
           </div>
 
           <label>
@@ -2726,9 +3010,8 @@ export default function CalendarManager({
               onChange={(
                 e
               ) =>
-                setBulkServiceId(
-                  e.target
-                    .value
+                handleBulkServiceChange(
+                  e.target.value
                 )
               }
               style={
@@ -2764,7 +3047,48 @@ export default function CalendarManager({
               )}
             </select>
           </label>
+          <label>
+  <strong>
+    Duración de cada hueco (minutos)
+  </strong>
 
+  <input
+    required
+    type="number"
+    min={1}
+    max={1440}
+    step={1}
+    value={
+      bulkDurationMinutes
+    }
+    onChange={(
+      e
+    ) =>
+      setBulkDurationMinutes(
+        Number(
+          e.target.value
+        )
+      )
+    }
+    style={
+      inputStyle
+    }
+  />
+
+  <div
+    className="muted"
+    style={{
+      marginTop:
+        6,
+
+      fontSize:
+        12,
+    }}
+  >
+    Cada disponibilidad durará{" "}
+    {bulkDurationMinutes} min.
+  </div>
+</label>
           <label>
             <strong>
               Fecha
@@ -2901,8 +3225,8 @@ export default function CalendarManager({
             </h2>
 
             <p className="muted">
-              Slottye utilizará automáticamente el horario configurado del negocio, incluidos los turnos de mañana y tarde.
-            </p>
+  Slottye utilizará el horario configurado del negocio y generará huecos con la duración que indiques.
+</p>
           </div>
 
           <label>
@@ -2918,9 +3242,8 @@ export default function CalendarManager({
               onChange={(
                 e
               ) =>
-                setWeekServiceId(
-                  e.target
-                    .value
+                handleWeekServiceChange(
+                  e.target.value
                 )
               }
               style={
@@ -2956,7 +3279,48 @@ export default function CalendarManager({
               )}
             </select>
           </label>
+          <label>
+  <strong>
+    Duración de cada hueco (minutos)
+  </strong>
 
+  <input
+    required
+    type="number"
+    min={1}
+    max={1440}
+    step={1}
+    value={
+      weekDurationMinutes
+    }
+    onChange={(
+      e
+    ) =>
+      setWeekDurationMinutes(
+        Number(
+          e.target.value
+        )
+      )
+    }
+    style={
+      inputStyle
+    }
+  />
+
+  <div
+    className="muted"
+    style={{
+      marginTop:
+        6,
+
+      fontSize:
+        12,
+    }}
+  >
+    Cada disponibilidad durará{" "}
+    {weekDurationMinutes} min.
+  </div>
+</label>
           <label>
             <strong>
               Primer día de la semana

@@ -4,7 +4,22 @@ import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import BusinessHoursManager from "./BusinessHoursManager";
 
-export default async function BusinessHoursPage() {
+type Props = {
+  searchParams: Promise<{
+    setup?: string;
+  }>;
+};
+
+export default async function BusinessHoursPage({
+  searchParams,
+}: Props) {
+  const {
+    setup,
+  } =
+    await searchParams;
+
+  const fromSetup =
+    setup === "1";
   const {
     supabase,
     user,
@@ -61,14 +76,37 @@ export default async function BusinessHoursPage() {
           />
         </section>
 
-        <section style={{ marginTop: 20 }}>
-          <Link
-            href="/business-dashboard"
-            className="btn"
-          >
-            ← Volver al panel
-          </Link>
-        </section>
+        <section
+  style={{
+    marginTop:
+      20,
+
+    display:
+      "flex",
+
+    gap:
+      10,
+
+    flexWrap:
+      "wrap",
+  }}
+>
+  {fromSetup ? (
+    <Link
+      href="/business-dashboard/setup"
+      className="btn primary"
+    >
+      ← Volver a la configuración inicial
+    </Link>
+  ) : (
+    <Link
+      href="/business-dashboard"
+      className="btn"
+    >
+      ← Volver al panel
+    </Link>
+  )}
+</section>
       </main>
     </>
   );

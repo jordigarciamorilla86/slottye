@@ -1,12 +1,14 @@
 "use client";
 
 import {
-  useRouter,
-} from "next/navigation";
-
-import {
+  useEffect,
+  useMemo,
   useState,
 } from "react";
+
+import {
+  useRouter,
+} from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -25,7 +27,11 @@ export default function AdminBusinessStatusButton({
     useRouter();
 
   const supabase =
-    createClient();
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
 
   const [
     loading,
@@ -33,9 +39,35 @@ export default function AdminBusinessStatusButton({
   ] =
     useState(false);
 
+  const [
+    currentActive,
+    setCurrentActive,
+  ] =
+    useState(
+      active
+    );
+
+  /*
+   * Sincroniza el estado local cuando el servidor
+   * devuelve nuevos datos después de router.refresh().
+   */
+  useEffect(() => {
+    setCurrentActive(
+      active
+    );
+  }, [
+    active,
+  ]);
+
   async function changeStatus() {
+    if (
+      loading
+    ) {
+      return;
+    }
+
     const nextActive =
-      !active;
+      !currentActive;
 
     const confirmed =
       window.confirm(
@@ -44,54 +76,76 @@ export default function AdminBusinessStatusButton({
           : `¿Desactivar "${businessName}"? Dejará de aparecer públicamente en Slottye.`
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
-    setLoading(true);
+    setLoading(
+      true
+    );
 
-    const {
-      error,
-    } =
-      await supabase.rpc(
-        "admin_set_business_active",
-        {
-          p_business_id:
-            businessId,
+    try {
+      const {
+        error,
+      } =
+        await supabase.rpc(
+          "admin_set_business_active",
+          {
+            p_business_id:
+              businessId,
 
-          p_active:
-            nextActive,
-        }
-      );
+            p_active:
+              nextActive,
+          }
+        );
 
-    if (error) {
-      console.error(
-        "Error changing business status:",
+      if (
         error
+      ) {
+        console.error(
+          "Error changing business status:",
+          error
+        );
+
+        window.alert(
+          error.message ||
+            "No se pudo cambiar el estado del negocio."
+        );
+
+        return;
+      }
+
+      /*
+       * Actualización optimista:
+       * el botón cambia inmediatamente al nuevo estado
+       * sin esperar a que termine router.refresh().
+       */
+      setCurrentActive(
+        nextActive
       );
 
-      alert(
-        "No se pudo cambiar el estado del negocio."
+      router.refresh();
+    } finally {
+      setLoading(
+        false
       );
-
-      setLoading(false);
-
-      return;
     }
-
-    router.refresh();
   }
 
   return (
     <button
       type="button"
       className="btn"
-      disabled={loading}
+      disabled={
+        loading
+      }
       onClick={
         changeStatus
       }
       style={
-        active
+        currentActive
           ? {
               color:
                 "#b91c1c",
@@ -110,7 +164,7 @@ export default function AdminBusinessStatusButton({
     >
       {loading
         ? "Procesando..."
-        : active
+        : currentActive
           ? "Desactivar negocio"
           : "Reactivar negocio"}
     </button>

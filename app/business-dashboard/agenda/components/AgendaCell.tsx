@@ -2,6 +2,8 @@
 
 import {
   type DragEvent,
+  type MouseEvent,
+  useMemo,
   useState,
 } from "react";
 
@@ -13,29 +15,45 @@ type Props = {
   day: Date;
   minute: number;
   open: boolean;
-  event: AgendaCellEvent | null;
+  events: AgendaCellEvent[];
   currentTime: Date;
   dragEnabled: boolean;
   draggingEvent: AgendaCellEvent | null;
+
   onOpenEvent: (
     event: AgendaCellEvent
   ) => void;
+
   onOpenEmptySlot: (
     day: Date,
     minute: number
   ) => void;
+
   onStartDragging: (
     event: AgendaCellEvent
   ) => void;
+
   onFinishDragging: () => void;
+
   onDropAt: (
     day: Date,
     minute: number
   ) => void;
 };
 
+type PositionedEvent = {
+  event: AgendaCellEvent;
+  lane: number;
+  laneCount: number;
+};
+
 const SLOT_MINUTES = 30;
+const SNAP_MINUTES = 15;
 const ROW_HEIGHT = 58;
+const EVENT_HORIZONTAL_INSET = 6;
+const EVENT_HORIZONTAL_GAP = 4;
+const EVENT_VERTICAL_INSET = 1;
+const MIN_EVENT_HEIGHT = 14;
 
 function sameLocalDay(
   a: Date,
@@ -51,11 +69,299 @@ function sameLocalDay(
   );
 }
 
+function clamp(
+  value: number,
+  min: number,
+  max: number
+) {
+  return Math.min(
+    max,
+    Math.max(
+      min,
+      value
+    )
+  );
+}
+
+function formatTime(
+  value: string
+) {
+  return new Intl.DateTimeFormat(
+    "es-ES",
+    {
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+    }
+  ).format(
+    new Date(
+      value
+    )
+  );
+}
+
+function snapToQuarterHour(
+  minute: number
+) {
+  return (
+    Math.round(
+      minute /
+        SNAP_MINUTES
+    ) *
+    SNAP_MINUTES
+  );
+}
+
+function minuteFromPointerPosition(
+  clientY: number,
+  element: HTMLElement,
+  rowStartMinute: number
+) {
+  const rect =
+    element.getBoundingClientRect();
+
+  if (
+    rect.height <=
+    0
+  ) {
+    return rowStartMinute;
+  }
+
+  const relativeY =
+    clamp(
+      clientY -
+        rect.top,
+      0,
+      rect.height
+    );
+
+  const rawMinute =
+    rowStartMinute +
+    (
+      relativeY /
+      rect.height
+    ) *
+      SLOT_MINUTES;
+
+  return clamp(
+    snapToQuarterHour(
+      rawMinute
+    ),
+    0,
+    24 * 60 -
+      SNAP_MINUTES
+  );
+}
+
+function eventStartsInCell(
+  event: AgendaCellEvent,
+  cellStart: Date,
+  cellEnd: Date
+) {
+  const start =
+    new Date(
+      event.startAt
+    ).getTime();
+
+  return (
+    start >=
+      cellStart.getTime() &&
+    start <
+      cellEnd.getTime()
+  );
+}
+
+
+function eventOverlapsRange(
+  event: AgendaCellEvent,
+  rangeStart: Date,
+  rangeEnd: Date
+) {
+  const eventStart =
+    new Date(
+      event.startAt
+    ).getTime();
+
+  const eventEnd =
+    new Date(
+      event.endAt
+    ).getTime();
+
+  return (
+    Number.isFinite(
+      eventStart
+    ) &&
+    Number.isFinite(
+      eventEnd
+    ) &&
+    eventStart <
+      rangeEnd.getTime() &&
+    eventEnd >
+      rangeStart.getTime()
+  );
+}
+
+/*
+ * Solo asigna columnas a eventos que empiezan en esta fila
+ * y que se solapan realmente entre sí.
+ */
+function positionStartingEvents(
+  events: AgendaCellEvent[]
+): PositionedEvent[] {
+  const sorted =
+    [...events].sort(
+      (
+        first,
+        second
+      ) =>
+        new Date(
+          first.startAt
+        ).getTime() -
+          new Date(
+            second.startAt
+          ).getTime() ||
+        new Date(
+          first.endAt
+        ).getTime() -
+          new Date(
+            second.endAt
+          ).getTime()
+    );
+
+  const result:
+    PositionedEvent[] =
+    [];
+
+  let groupStart =
+    0;
+
+  while (
+    groupStart <
+    sorted.length
+  ) {
+    let groupEnd =
+      groupStart +
+      1;
+
+    let furthestEnd =
+      new Date(
+        sorted[
+          groupStart
+        ].endAt
+      ).getTime();
+
+    while (
+      groupEnd <
+        sorted.length &&
+      new Date(
+        sorted[
+          groupEnd
+        ].startAt
+      ).getTime() <
+        furthestEnd
+    ) {
+      furthestEnd =
+        Math.max(
+          furthestEnd,
+          new Date(
+            sorted[
+              groupEnd
+            ].endAt
+          ).getTime()
+        );
+
+      groupEnd +=
+        1;
+    }
+
+    const group =
+      sorted.slice(
+        groupStart,
+        groupEnd
+      );
+
+    const laneEnds:
+      number[] =
+      [];
+
+    const assigned =
+      group.map(
+        (
+          event
+        ) => {
+          const start =
+            new Date(
+              event.startAt
+            ).getTime();
+
+          const end =
+            new Date(
+              event.endAt
+            ).getTime();
+
+          let lane =
+            laneEnds.findIndex(
+              (
+                laneEnd
+              ) =>
+                laneEnd <=
+                start
+            );
+
+          if (
+            lane ===
+            -1
+          ) {
+            lane =
+              laneEnds.length;
+
+            laneEnds.push(
+              end
+            );
+          } else {
+            laneEnds[
+              lane
+            ] =
+              end;
+          }
+
+          return {
+            event,
+            lane,
+          };
+        }
+      );
+
+    const laneCount =
+      Math.max(
+        1,
+        laneEnds.length
+      );
+
+    for (
+      const item of
+        assigned
+    ) {
+      result.push({
+        ...item,
+        laneCount,
+      });
+    }
+
+    groupStart =
+      groupEnd;
+  }
+
+  return result;
+}
+
 export default function AgendaCell({
   day,
   minute,
   open,
-  event,
+  events,
   currentTime,
   dragEnabled,
   draggingEvent,
@@ -66,15 +372,140 @@ export default function AgendaCell({
   onDropAt,
 }: Props) {
   const [
-    dragOver,
-    setDragOver,
+    dragOverMinute,
+    setDragOverMinute,
   ] =
-    useState(false);
+    useState<
+      number | null
+    >(
+      null
+    );
+
+  const cellStart =
+    new Date(
+      day
+    );
+
+  cellStart.setHours(
+    Math.floor(
+      minute /
+        60
+    ),
+    minute %
+      60,
+    0,
+    0
+  );
+
+  const cellEnd =
+    new Date(
+      cellStart.getTime() +
+        SLOT_MINUTES *
+          60 *
+          1000
+    );
+
+  /*
+   * Importante: getCellData devuelve todos los eventos que
+   * atraviesan esta fila. Aquí dibujamos solamente los que
+   * EMPIEZAN en ella, para no duplicar eventos largos.
+   */
+  const startingEvents =
+    useMemo(
+      () =>
+        events.filter(
+          (
+            event
+          ) =>
+            eventStartsInCell(
+              event,
+              cellStart,
+              cellEnd
+            )
+        ),
+      [
+        events,
+        cellStart.getTime(),
+        cellEnd.getTime(),
+      ]
+    );
+
+  const positionedEvents =
+    useMemo(
+      () =>
+        positionStartingEvents(
+          startingEvents
+        ),
+      [
+        startingEvents,
+      ]
+    );
+
+
+  const freeQuarterStarts =
+    useMemo(
+      () => {
+        const quarters =
+          [
+            minute,
+            minute +
+              SNAP_MINUTES,
+          ];
+
+        return quarters.filter(
+          (
+            quarterStartMinute
+          ) => {
+            const rangeStart =
+              new Date(
+                day
+              );
+
+            rangeStart.setHours(
+              Math.floor(
+                quarterStartMinute /
+                  60
+              ),
+              quarterStartMinute %
+                60,
+              0,
+              0
+            );
+
+            const rangeEnd =
+              new Date(
+                rangeStart.getTime() +
+                  SNAP_MINUTES *
+                    60 *
+                    1000
+              );
+
+            return !events.some(
+              (
+                event
+              ) =>
+                eventOverlapsRange(
+                  event,
+                  rangeStart,
+                  rangeEnd
+                )
+            );
+          }
+        );
+      },
+      [
+        day,
+        minute,
+        events,
+      ]
+    );
 
   const currentMinutes =
     currentTime.getHours() *
       60 +
-    currentTime.getMinutes();
+    currentTime.getMinutes() +
+    currentTime.getSeconds() /
+      60;
 
   const isCurrentTimeCell =
     sameLocalDay(
@@ -99,192 +530,58 @@ export default function AgendaCell({
         100
       : 0;
 
-  const cellStart =
-    new Date(day);
-
-  cellStart.setHours(
-    Math.floor(
-      minute / 60
-    ),
-    minute % 60,
-    0,
-    0
-  );
-
-  const cellEnd =
-    new Date(
-      cellStart.getTime() +
-        SLOT_MINUTES *
-          60 *
-          1000
-    );
-
-  const isEventStart =
-    event
-      ? new Date(
-          event.startAt
-        ).getTime() >=
-          cellStart.getTime() &&
-        new Date(
-          event.startAt
-        ).getTime() <
-          cellEnd.getTime()
-      : false;
-
-  const isEventEnd =
-    event
-      ? new Date(
-          event.endAt
-        ).getTime() >
-          cellStart.getTime() &&
-        new Date(
-          event.endAt
-        ).getTime() <=
-          cellEnd.getTime()
-      : false;
-
-  const eventDurationMinutes =
-    event
-      ? (
-          new Date(
-            event.endAt
-          ).getTime() -
-          new Date(
-            event.startAt
-          ).getTime()
-        ) /
-        60000
-      : 0;
-
-  const compactEvent =
-    eventDurationMinutes <=
-    30;
-
-  const completedBooking =
-    Boolean(
-      event?.type ===
-        "booking" &&
-      event.source.status ===
-        "COMPLETED"
-    );
-
-  const draggableEvent =
-    Boolean(
-      dragEnabled &&
-      isEventStart &&
-      event &&
-      !completedBooking
-    );
-
   const dropTargetActive =
     Boolean(
       draggingEvent
     );
 
-  let background:
-    string;
-
-  if (
-    event?.type ===
-    "booking"
-  ) {
-    background =
-      completedBooking
-        ? "#f3f4f6"
-        : "#f3e8ff";
-  } else if (
-    event?.type ===
-    "manual"
-  ) {
-    background =
-      "#eff6ff";
-  } else if (
-    event?.type ===
-    "block"
-  ) {
-    background =
-      "#fef2f2";
-  } else if (
-    event?.type ===
-    "slot"
-  ) {
-    background =
-      "#f0fdf4";
-  } else if (
-    !open
-  ) {
-    background =
-      "#f8fafc";
-  } else {
-    background =
-      "#ffffff";
-  }
-
-  let eventBorderColor =
-    "transparent";
-
-  if (
-    event?.type ===
-    "slot"
-  ) {
-    eventBorderColor =
-      "#bbf7d0";
-  } else if (
-    event?.type ===
-    "booking"
-  ) {
-    eventBorderColor =
-      completedBooking
-        ? "#9ca3af"
-        : "#e9d5ff";
-  } else if (
-    event?.type ===
-    "manual"
-  ) {
-    eventBorderColor =
-      "#bfdbfe";
-  } else if (
-    event?.type ===
-    "block"
-  ) {
-    eventBorderColor =
-      "#fecaca";
-  }
-
-  function handleDragStart(
-    dragEvent:
-      DragEvent<HTMLButtonElement>
-  ) {
-    if (
-      !draggableEvent ||
-      !event
-    ) {
-      dragEvent.preventDefault();
-
-      return;
-    }
-
-    dragEvent.dataTransfer.effectAllowed =
-      "move";
-
-    dragEvent.dataTransfer.setData(
-      "application/x-slottye-agenda-event",
-      `${event.type}:${event.id}`
-    );
-
-    dragEvent.dataTransfer.setData(
-      "text/plain",
-      `${event.type}:${event.id}`
-    );
-
-    onStartDragging(
-      event
-    );
-  }
+  const draggingDurationMinutes =
+    draggingEvent
+      ? Math.max(
+          1,
+          (
+            new Date(
+              draggingEvent.endAt
+            ).getTime() -
+            new Date(
+              draggingEvent.startAt
+            ).getTime()
+          ) /
+            60000
+        )
+      : 0;
+  
+  const dragIndicatorPosition =
+    dragOverMinute ===
+    null
+      ? null
+      : (
+          (
+            dragOverMinute -
+            minute
+          ) /
+          SLOT_MINUTES
+        ) *
+        100;
+  
+  const dragEndIndicatorPosition =
+    dragOverMinute ===
+      null ||
+    !draggingEvent
+      ? null
+      : (
+          (
+            dragOverMinute +
+            draggingDurationMinutes -
+            minute
+          ) /
+          SLOT_MINUTES
+        ) *
+        100;
 
   function handleDragOver(
     dragEvent:
-      DragEvent<HTMLElement>
+      DragEvent<HTMLDivElement>
   ) {
     if (
       !dropTargetActive
@@ -297,14 +594,18 @@ export default function AgendaCell({
     dragEvent.dataTransfer.dropEffect =
       "move";
 
-    setDragOver(
-      true
+    setDragOverMinute(
+      minuteFromPointerPosition(
+        dragEvent.clientY,
+        dragEvent.currentTarget,
+        minute
+      )
     );
   }
 
   function handleDragLeave(
     dragEvent:
-      DragEvent<HTMLElement>
+      DragEvent<HTMLDivElement>
   ) {
     const nextTarget =
       dragEvent.relatedTarget;
@@ -319,14 +620,14 @@ export default function AgendaCell({
       return;
     }
 
-    setDragOver(
-      false
+    setDragOverMinute(
+      null
     );
   }
 
   function handleDrop(
     dragEvent:
-      DragEvent<HTMLElement>
+      DragEvent<HTMLDivElement>
   ) {
     if (
       !dropTargetActive
@@ -336,18 +637,63 @@ export default function AgendaCell({
 
     dragEvent.preventDefault();
 
-    setDragOver(
-      false
+    const exactMinute =
+      minuteFromPointerPosition(
+        dragEvent.clientY,
+        dragEvent.currentTarget,
+        minute
+      );
+
+    setDragOverMinute(
+      null
     );
 
     onDropAt(
       day,
-      minute
+      exactMinute
     );
   }
 
+
+  function handleCellClick(
+    mouseEvent:
+      MouseEvent<HTMLDivElement>
+  ) {
+    /*
+     * Solo actuamos cuando se pulsa directamente
+     * sobre el fondo libre de la celda.
+     */
+    if (
+      mouseEvent.target !==
+      mouseEvent.currentTarget
+    ) {
+      return;
+    }
+
+    /*
+     * En una celda parcialmente ocupada,
+     * usamos la posición vertical para escoger
+     * el cuarto de hora libre.
+     */
+    const selectedMinute =
+      minuteFromPointerPosition(
+        mouseEvent.clientY,
+        mouseEvent.currentTarget,
+        minute
+      );
+
+    onOpenEmptySlot(
+      day,
+      selectedMinute
+    );
+  }
+
+
   return (
     <div
+      onClick={
+        handleCellClick
+      }
       onDragOver={
         handleDragOver
       }
@@ -370,200 +716,566 @@ export default function AgendaCell({
         position:
           "relative",
 
-        paddingTop:
-          event &&
-          !isEventStart
-            ? 0
-            : 6,
-
-        paddingBottom:
-          event &&
-          !isEventEnd
-            ? 0
-            : 6,
-
-        paddingLeft:
-          6,
-
-        paddingRight:
-          6,
+        padding:
+          0,
 
         borderLeft:
           "1px solid var(--border)",
 
         borderBottom:
-          event &&
-          !isEventEnd
-            ? "none"
-            : "1px solid var(--border)",
+          "1px solid var(--border)",
 
-        background:
-          dragOver
-            ? "#dcfce7"
-            : background,
+          background:
+          dragOverMinute !== null
+            ? "transparent"
+            : open
+              ? "#ffffff"
+              : "#f8fafc",
 
-        boxShadow:
-          dragOver
-            ? "inset 0 0 0 3px #16a34a"
-            : "none",
+            zIndex:
+  dragOverMinute !==
+  null
+    ? 200
+    : positionedEvents.length >
+        0
+      ? 100 -
+        Math.floor(
+          minute /
+            SLOT_MINUTES
+        )
+      : 1,
+
+        overflow:
+          "visible",
 
         transition:
           "background 0.12s ease, box-shadow 0.12s ease",
       }}
     >
-      {event ? (
-        <button
-          type="button"
-          title={
-            completedBooking
-              ? "Reserva completada"
-              : draggableEvent
-                ? "Arrastrar para mover"
-                : event.type ===
-                    "slot"
-                  ? "Pulsar para gestionar"
-                  : "Pulsar para ver"
-          }
-          draggable={
-            draggableEvent
-          }
-          onDragStart={
-            handleDragStart
-          }
-          onDragEnd={() => {
-            setDragOver(
-              false
+
+{freeQuarterStarts.length >
+        0 && (
+        <>
+          {freeQuarterStarts.length ===
+          2 ? (
+            <button
+              type="button"
+              onClick={(
+                mouseEvent
+              ) => {
+                mouseEvent.stopPropagation();
+
+                onOpenEmptySlot(
+                  day,
+                  minute
+                );
+              }}
+              style={{
+                position:
+                  "absolute",
+
+                inset:
+                  0,
+
+                zIndex:
+                  12,
+
+                border:
+                  "1px dashed var(--border)",
+
+                borderRadius:
+                  10,
+
+                background:
+                  "transparent",
+
+                color:
+                  "var(--muted)",
+
+                cursor:
+                  "pointer",
+
+                display:
+                  "flex",
+
+                alignItems:
+                  "center",
+
+                justifyContent:
+                  "center",
+
+                padding:
+                  0,
+
+                font:
+                  "inherit",
+              }}
+              title={
+                open
+                  ? "Crear a esta hora"
+                  : "Crear una excepción fuera del horario habitual"
+              }
+            >
+              <span
+                style={{
+                  display:
+                    "flex",
+
+                  alignItems:
+                    "center",
+
+                  justifyContent:
+                    "center",
+
+                  width:
+                    22,
+
+                  height:
+                    22,
+
+                  borderRadius:
+                    "50%",
+
+                  background:
+                    "rgba(255, 255, 255, 0.95)",
+
+                  border:
+                    "1px dashed var(--border)",
+
+                  fontSize:
+                    16,
+
+                  fontWeight:
+                    700,
+
+                  lineHeight:
+                    1,
+
+                  boxShadow:
+                    "0 1px 4px rgba(15, 23, 42, 0.10)",
+                }}
+              >
+                +
+              </span>
+            </button>
+          ) : (
+            freeQuarterStarts.map(
+              (
+                quarterStartMinute
+              ) => {
+                const quarterIndex =
+                  quarterStartMinute ===
+                  minute
+                    ? 0
+                    : 1;
+
+                return (
+                  <button
+                    key={
+                      quarterStartMinute
+                    }
+                    type="button"
+                    onClick={(
+                      mouseEvent
+                    ) => {
+                      mouseEvent.stopPropagation();
+
+                      onOpenEmptySlot(
+                        day,
+                        quarterStartMinute
+                      );
+                    }}
+                    style={{
+                      position:
+                        "absolute",
+
+                      top:
+                        quarterIndex ===
+                        0
+                          ? 0
+                          : "50%",
+
+                      left:
+                        0,
+
+                      right:
+                        0,
+
+                      height:
+                        "50%",
+
+                      zIndex:
+                        12,
+
+                      border:
+                        "none",
+
+                      background:
+                        "transparent",
+
+                      color:
+                        "var(--muted)",
+
+                      cursor:
+                        "pointer",
+
+                      display:
+                        "flex",
+
+                      alignItems:
+                        "center",
+
+                      justifyContent:
+                        "center",
+
+                      padding:
+                        0,
+
+                      font:
+                        "inherit",
+                    }}
+                    title={`Crear a las ${String(
+                      Math.floor(
+                        quarterStartMinute /
+                          60
+                      )
+                    ).padStart(
+                      2,
+                      "0"
+                    )}:${String(
+                      quarterStartMinute %
+                        60
+                    ).padStart(
+                      2,
+                      "0"
+                    )}`}
+                  >
+                    <span
+                      style={{
+                        display:
+                          "flex",
+
+                        alignItems:
+                          "center",
+
+                        justifyContent:
+                          "center",
+
+                        width:
+                          22,
+
+                        height:
+                          22,
+
+                        borderRadius:
+                          "50%",
+
+                        background:
+                          "rgba(255, 255, 255, 0.95)",
+
+                        border:
+                          "1px dashed var(--border)",
+
+                        fontSize:
+                          16,
+
+                        fontWeight:
+                          700,
+
+                        lineHeight:
+                          1,
+
+                        boxShadow:
+                          "0 1px 4px rgba(15, 23, 42, 0.10)",
+                      }}
+                    >
+                      +
+                    </span>
+                  </button>
+                );
+              }
+            )
+          )}
+        </>
+      )}
+      {positionedEvents.map(
+        ({
+          event,
+          lane,
+          laneCount,
+        }) => {
+          const eventStart =
+            new Date(
+              event.startAt
             );
 
-            onFinishDragging();
-          }}
-          onClick={() => {
-            onOpenEvent(
-              event
+          const eventEnd =
+            new Date(
+              event.endAt
             );
-          }}
-          style={{
-            width:
-              "100%",
 
-            height:
-              event
-                ? `calc(100% + ${
-                    !isEventStart
-                      ? 1
-                      : 0
-                  }px + ${
-                    !isEventEnd
-                      ? 1
-                      : 0
-                  }px)`
-                : "100%",
+          const eventDurationMinutes =
+            Math.max(
+              1,
+              (
+                eventEnd.getTime() -
+                eventStart.getTime()
+              ) /
+                60000
+            );
 
-            marginTop:
-              event &&
-              !isEventStart
-                ? -1
-                : 0,
+          const eventStartMinutes =
+            eventStart.getHours() *
+              60 +
+            eventStart.getMinutes() +
+            eventStart.getSeconds() /
+              60;
 
-            marginBottom:
-              event &&
-              !isEventEnd
-                ? -1
-                : 0,
+          const eventOffsetMinutes =
+            clamp(
+              eventStartMinutes -
+                minute,
+              0,
+              SLOT_MINUTES
+            );
 
-            position:
-              "relative",
+          const eventTop =
+            (
+              eventOffsetMinutes /
+              SLOT_MINUTES
+            ) *
+              ROW_HEIGHT +
+            EVENT_VERTICAL_INSET;
 
-            zIndex:
-              2,
+          const exactEventHeight =
+            (
+              eventDurationMinutes /
+              SLOT_MINUTES
+            ) *
+            ROW_HEIGHT;
 
-            borderLeft:
-              `1px solid ${eventBorderColor}`,
+          const eventHeight =
+            Math.max(
+              MIN_EVENT_HEIGHT,
+              exactEventHeight -
+                EVENT_VERTICAL_INSET *
+                  2
+            );
 
-            borderRight:
-              `1px solid ${eventBorderColor}`,
+          const compactEvent =
+            eventHeight <
+            42;
 
-            borderTop:
-              isEventStart
-                ? `1px solid ${eventBorderColor}`
-                : "none",
+          const completedBooking =
+            Boolean(
+              event.type ===
+                "booking" &&
+              event.source.status ===
+                "COMPLETED"
+            );
 
-            borderBottom:
-              isEventEnd
-                ? `1px solid ${eventBorderColor}`
-                : "none",
+          const draggableEvent =
+            Boolean(
+              dragEnabled &&
+              !completedBooking
+            );
 
-            borderTopLeftRadius:
-              isEventStart
-                ? 10
-                : 0,
+          let eventBackground =
+            "#ffffff";
 
-            borderTopRightRadius:
-              isEventStart
-                ? 10
-                : 0,
+          let eventBorderColor =
+            "var(--border)";
 
-            borderBottomLeftRadius:
-              isEventEnd
-                ? 10
-                : 0,
-
-            borderBottomRightRadius:
-              isEventEnd
-                ? 10
-                : 0,
-
-            background,
-
-            cursor:
+          if (
+            event.type ===
+            "booking"
+          ) {
+            eventBackground =
               completedBooking
-                ? "default"
-                : draggableEvent
-                  ? "grab"
-                  : "pointer",
+                ? "#f3f4f6"
+                : "#f3e8ff";
 
-            opacity:
-              draggingEvent &&
-              draggingEvent.id ===
-                event.id &&
-              draggingEvent.type ===
-                event.type
-                ? 0.45
-                : 1,
+            eventBorderColor =
+              completedBooking
+                ? "#9ca3af"
+                : "#e9d5ff";
+          } else if (
+            event.type ===
+            "manual"
+          ) {
+            eventBackground =
+              "#eff6ff";
 
-            boxShadow:
-              draggableEvent
-                ? "0 2px 8px rgba(15, 23, 42, 0.14)"
-                : "none",
+            eventBorderColor =
+              "#bfdbfe";
+          } else if (
+            event.type ===
+            "block"
+          ) {
+            eventBackground =
+              "#fef2f2";
 
-            transform:
-              "none",
+            eventBorderColor =
+              "#fecaca";
+          } else {
+            eventBackground =
+              "#f0fdf4";
 
-            transition:
-              "box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease",
+            eventBorderColor =
+              "#bbf7d0";
+          }
 
-            textAlign:
-              "left",
+          const widthPercent =
+            100 /
+            laneCount;
 
-            padding:
-              compactEvent
-                ? "5px 8px"
-                : isEventStart
-                  ? "6px 8px"
-                  : "2px 8px",
+          const leftPercent =
+            lane *
+            widthPercent;
 
-            color:
-              "inherit",
+          function handleDragStart(
+            dragEvent:
+              DragEvent<HTMLButtonElement>
+          ) {
+            if (
+              !draggableEvent
+            ) {
+              dragEvent.preventDefault();
 
-            font:
-              "inherit",
+              return;
+            }
 
-            overflow:
-              "hidden",
-          }}
-        >
-          {isEventStart && (
-            <>
+            dragEvent.dataTransfer.effectAllowed =
+              "move";
+
+            dragEvent.dataTransfer.setData(
+              "application/x-slottye-agenda-event",
+              `${event.type}:${event.id}`
+            );
+
+            dragEvent.dataTransfer.setData(
+              "text/plain",
+              `${event.type}:${event.id}`
+            );
+
+            onStartDragging(
+              event
+            );
+          }
+
+          return (
+            <button
+              key={`${event.type}:${event.id}`}
+              type="button"
+              title={`${formatTime(
+                event.startAt
+              )}–${formatTime(
+                event.endAt
+              )}`}
+              draggable={
+                draggableEvent
+              }
+              onDragStart={
+                handleDragStart
+              }
+              onDragEnd={() => {
+                setDragOverMinute(
+                  null
+                );
+
+                onFinishDragging();
+              }}
+              onClick={(
+                mouseEvent
+              ) => {
+                mouseEvent.stopPropagation();
+
+                onOpenEvent(
+                  event
+                );
+              }}
+              style={{
+                position:
+                  "absolute",
+
+                top:
+                  eventTop,
+
+                left:
+                  `calc(${leftPercent}% + ${
+                    EVENT_HORIZONTAL_INSET +
+                    lane *
+                      EVENT_HORIZONTAL_GAP
+                  }px)`,
+
+                width:
+                  `calc(${widthPercent}% - ${
+                    EVENT_HORIZONTAL_INSET *
+                      2 +
+                    EVENT_HORIZONTAL_GAP
+                  }px)`,
+
+                height:
+                  eventHeight,
+
+                minHeight:
+                  MIN_EVENT_HEIGHT,
+
+                zIndex:
+                  15 +
+                  lane,
+
+                border:
+                  `1px solid ${eventBorderColor}`,
+
+                borderRadius:
+                  10,
+
+                background:
+                  eventBackground,
+
+                cursor:
+                  completedBooking
+                    ? "default"
+                    : draggableEvent
+                      ? "grab"
+                      : "pointer",
+
+                opacity:
+                  draggingEvent &&
+                  draggingEvent.id ===
+                    event.id &&
+                  draggingEvent.type ===
+                    event.type
+                    ? 0.45
+                    : 1,
+
+                boxShadow:
+                  draggableEvent
+                    ? "0 2px 8px rgba(15, 23, 42, 0.14)"
+                    : "none",
+
+                transition:
+                  "box-shadow 0.12s ease, opacity 0.12s ease",
+
+                textAlign:
+                  "left",
+
+                padding:
+                  compactEvent
+                    ? "3px 7px"
+                    : "6px 8px",
+
+                color:
+                  "inherit",
+
+                font:
+                  "inherit",
+
+                overflow:
+                  "hidden",
+              }}
+            >
               <strong
                 style={{
                   display:
@@ -592,27 +1304,6 @@ export default function AgendaCell({
                 {event.title}
               </strong>
 
-              {completedBooking &&
-                !compactEvent && (
-                <div
-                  style={{
-                    marginTop:
-                      3,
-
-                    fontSize:
-                      10,
-
-                    fontWeight:
-                      800,
-
-                    color:
-                      "#4b5563",
-                  }}
-                >
-                  ✓ COMPLETADA
-                </div>
-              )}
-
               {event.subtitle &&
                 !compactEvent && (
                 <div
@@ -640,84 +1331,113 @@ export default function AgendaCell({
                   {event.subtitle}
                 </div>
               )}
+            </button>
+          );
+        }
+      )}
 
-            </>
-          )}
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            onOpenEmptySlot(
-              day,
-              minute
-            );
-          }}
+      {dragIndicatorPosition !==
+        null && (
+        <div
           style={{
-            width:
-              "100%",
+            position:
+              "absolute",
+
+            left:
+              0,
+
+            right:
+              0,
+
+            top:
+              `${dragIndicatorPosition}%`,
 
             height:
-              "100%",
-
-            minHeight:
-              44,
-
-            border:
-              "1px dashed var(--border)",
-
-            borderRadius:
-              10,
+              2,
 
             background:
-              "transparent",
+              "#16a34a",
 
-            cursor:
-              "pointer",
+            zIndex:
+              30,
 
-            color:
-              "var(--muted)",
-
-            opacity:
-              open
-                ? 1
-                : 0.65,
-
-            fontSize:
-              open
-                ? 18
-                : 10,
-
-            padding:
-              "2px 4px",
+            pointerEvents:
+              "none",
           }}
-          title={
-            open
-              ? "Crear disponibilidad, reserva manual o bloqueo"
-              : "Crear una excepción fuera del horario habitual"
-          }
-        >
-          {open ? (
-            "+"
-          ) : (
-            <>
-              <span
-                style={{
-                  fontSize:
-                    16,
-
-                  marginRight:
-                    4,
-                }}
-              >
-                +
-              </span>
-
-              Fuera de horario
-            </>
-          )}
-        </button>
+        />
       )}
+      {dragEndIndicatorPosition !==
+  null && (
+  <div
+    style={{
+      position:
+        "absolute",
+
+      left:
+        0,
+
+      right:
+        0,
+
+      top:
+        `${dragEndIndicatorPosition}%`,
+
+      height:
+        2,
+
+      background:
+        "#dc2626",
+
+      boxShadow:
+        "0 0 0 1px rgba(220, 38, 38, 0.18)",
+
+      zIndex:
+        31,
+
+      pointerEvents:
+        "none",
+    }}
+  >
+    <div
+      style={{
+        position:
+          "absolute",
+
+        right:
+          4,
+
+        top:
+          -18,
+
+        padding:
+          "1px 5px",
+
+        borderRadius:
+          5,
+
+        background:
+          "#dc2626",
+
+        color:
+          "#ffffff",
+
+        fontSize:
+          9,
+
+        fontWeight:
+          700,
+
+        lineHeight:
+          1.4,
+
+        whiteSpace:
+          "nowrap",
+      }}
+    >
+      Fin
+    </div>
+  </div>
+)}
 
       {isCurrentTimeCell && (
         <div
@@ -746,32 +1466,7 @@ export default function AgendaCell({
             pointerEvents:
               "none",
           }}
-        >
-          <div
-            style={{
-              position:
-                "absolute",
-
-              left:
-                -4,
-
-              top:
-                -3,
-
-              width:
-                8,
-
-              height:
-                8,
-
-              borderRadius:
-                "50%",
-
-              background:
-                "#ef4444",
-            }}
-          />
-        </div>
+        />
       )}
     </div>
   );

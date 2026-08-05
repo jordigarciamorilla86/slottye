@@ -920,17 +920,29 @@ fetch(
    */
 
   const upcomingBookings =
-    bookings.filter(
-      (booking) =>
-        booking.status ===
-          "CONFIRMED" &&
-        booking.slots &&
-        new Date(
-          booking.slots
-            .start_at
-        ) >
-          new Date()
-    );
+    bookings
+      .filter(
+        (booking) =>
+          booking.status ===
+            "CONFIRMED" &&
+          booking.slots &&
+          new Date(
+            booking.slots
+              .start_at
+          ) >
+            new Date()
+      )
+      .sort(
+        (a, b) =>
+          new Date(
+            a.slots!
+              .start_at
+          ).getTime() -
+          new Date(
+            b.slots!
+              .start_at
+          ).getTime()
+      );
 
   const upcomingIds =
     new Set(

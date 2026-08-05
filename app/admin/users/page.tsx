@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import AdminUserBlockButton from "./AdminUserBlockButton";
+import AdminUserDeleteButton from "./AdminUserDeleteButton";
 
 export default async function AdminUsersPage() {
   const supabase =
@@ -388,6 +389,19 @@ export default async function AdminUsersPage() {
                           profile.is_admin
                         }
                       />
+                      <AdminUserDeleteButton
+  userId={
+    profile.id
+  }
+  userName={
+    profile.name?.trim() ||
+    profile.email ||
+    "Usuario"
+  }
+  isAdmin={
+    profile.is_admin
+  }
+/>
                     </div>
                   </div>
                 </div>

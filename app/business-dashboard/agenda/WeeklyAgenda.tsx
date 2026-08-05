@@ -207,7 +207,7 @@ export default function WeeklyAgenda({
     reschedulingError,
     startRescheduling,
     cancelRescheduling,
-    chooseRescheduleSlot,
+    chooseRescheduleTarget,
     closeRescheduleConfirmation,
     confirmRescheduling,
   } =
@@ -423,25 +423,47 @@ export default function WeeklyAgenda({
         />
       )}
 
-      <AgendaSearch<
-        AgendaManualBooking,
-        AgendaBooking
-      >
-        searchText={searchText}
-        showResults={showSearchResults}
-        loading={loadingSearch}
-        results={globalSearchResults}
-        onSearchTextChange={(value) => {
-          setSearchText(value);
-          setShowSearchResults(true);
-        }}
-        onFocus={() =>
-          setShowSearchResults(true)
-        }
-        onSelectResult={(result) =>
-          goToSearchResult(result)
-        }
-      />
+<AgendaSearch<
+  AgendaManualBooking,
+  AgendaBooking
+>
+  searchText={
+    searchText
+  }
+  showResults={
+    showSearchResults
+  }
+  loading={
+    loadingSearch
+  }
+  results={
+    globalSearchResults
+  }
+  onSearchTextChange={(value) => {
+    setSearchText(
+      value
+    );
+
+    setShowSearchResults(
+      true
+    );
+  }}
+  onFocus={() => {
+    setShowSearchResults(
+      true
+    );
+  }}
+  onCloseResults={() => {
+    setShowSearchResults(
+      false
+    );
+  }}
+  onSelectResult={(result) => {
+    goToSearchResult(
+      result
+    );
+  }}
+/>
 
       {isMobile && (
         <AgendaMobileDaySelector
@@ -502,6 +524,13 @@ export default function WeeklyAgenda({
         }
         draggingEvent={
           draggedEvent
+        }
+        reschedulingBooking={
+          reschedulingBooking
+        }
+        
+        onChooseRescheduleTarget={
+          chooseRescheduleTarget
         }
         isOpenAt={
           isOpenAt

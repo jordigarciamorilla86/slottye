@@ -148,6 +148,37 @@ function minutesBetween(
   );
 }
 
+function formatDuration(
+  minutes: number
+) {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return "0 min";
+  }
+
+  const wholeMinutes =
+    Math.round(minutes);
+
+  const hours =
+    Math.floor(
+      wholeMinutes / 60
+    );
+
+  const remainingMinutes =
+    wholeMinutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes} min`;
+  }
+
+  if (remainingMinutes === 0) {
+    return hours === 1
+      ? "1 h"
+      : `${hours} h`;
+  }
+
+  return `${hours} h ${remainingMinutes} min`;
+}
+
 function dateInputValue(
   value: string
 ) {
@@ -604,6 +635,20 @@ export default function AgendaEventModal(
       return;
     }
 
+    if (
+      !Number.isInteger(
+        durationMinutes
+      ) ||
+      durationMinutes <= 0 ||
+      durationMinutes > 1440
+    ) {
+      setError(
+        "Introduce una duración válida entre 1 y 1440 minutos."
+      );
+
+      return;
+    }
+
     const [
       year,
       month,
@@ -756,11 +801,14 @@ export default function AgendaEventModal(
     }
 
     if (
-      blockDurationMinutes <=
-      0
+      !Number.isInteger(
+        blockDurationMinutes
+      ) ||
+      blockDurationMinutes <= 0 ||
+      blockDurationMinutes > 1440
     ) {
       setError(
-        "La duración del bloqueo no es válida."
+        "Introduce una duración válida entre 1 y 1440 minutos."
       );
 
       return;
@@ -923,11 +971,14 @@ export default function AgendaEventModal(
     }
 
     if (
-      slotDurationMinutes <=
-      0
+      !Number.isInteger(
+        slotDurationMinutes
+      ) ||
+      slotDurationMinutes <= 0 ||
+      slotDurationMinutes > 1440
     ) {
       setError(
-        "La duración no es válida."
+        "Introduce una duración válida entre 1 y 1440 minutos."
       );
 
       return;
@@ -1112,32 +1163,64 @@ export default function AgendaEventModal(
       error:
         deleteError,
     } =
-      await supabase
-        .from(
-          "manual_bookings"
-        )
-        .delete()
-        .eq(
-          "id",
-          props.event.id
+      await supabase.rpc(
+        "delete_manual_booking",
+        {
+          p_booking_id:
+            props.event.id,
+        }
+      );
+
+      if (deleteError) {
+        console.error(
+          "Error deleting manual booking:",
+          deleteError
         );
-
-    if (deleteError) {
-      console.error(
-        "Error deleting manual booking:",
-        deleteError
-      );
-
-      setError(
-        "No se ha podido eliminar la reserva manual."
-      );
-
-      setLoading(
-        false
-      );
-
-      return;
-    }
+      
+        const message =
+          deleteError.message
+            .toLowerCase();
+      
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "no existe"
+          )
+        ) {
+          setError(
+            "La reserva manual ya no existe."
+          );
+        } else if (
+          message.includes(
+            "permisos"
+          )
+        ) {
+          setError(
+            "No tienes permisos para eliminar esta reserva manual."
+          );
+        } else {
+          setError(
+            deleteError.message ||
+              "No se ha podido eliminar la reserva manual."
+          );
+        }
+      
+        setLoading(
+          false
+        );
+      
+        return;
+      }
 
     setLoading(
       false
@@ -1179,32 +1262,64 @@ export default function AgendaEventModal(
       error:
         deleteError,
     } =
-      await supabase
-        .from(
-          "business_blocks"
-        )
-        .delete()
-        .eq(
-          "id",
-          props.event.id
+      await supabase.rpc(
+        "delete_agenda_block",
+        {
+          p_block_id:
+            props.event.id,
+        }
+      );
+
+      if (deleteError) {
+        console.error(
+          "Error deleting block:",
+          deleteError
         );
-
-    if (deleteError) {
-      console.error(
-        "Error deleting block:",
-        deleteError
-      );
-
-      setError(
-        "No se ha podido eliminar el bloqueo."
-      );
-
-      setLoading(
-        false
-      );
-
-      return;
-    }
+      
+        const message =
+          deleteError.message
+            .toLowerCase();
+      
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "no existe"
+          )
+        ) {
+          setError(
+            "El bloqueo ya no existe."
+          );
+        } else if (
+          message.includes(
+            "permisos"
+          )
+        ) {
+          setError(
+            "No tienes permisos para eliminar este bloqueo."
+          );
+        } else {
+          setError(
+            deleteError.message ||
+              "No se ha podido eliminar el bloqueo."
+          );
+        }
+      
+        setLoading(
+          false
+        );
+      
+        return;
+      }
 
     setLoading(
       false
@@ -1254,22 +1369,63 @@ export default function AgendaEventModal(
         }
       );
 
-    if (rpcError) {
-      console.error(
-        "Error deleting agenda slot:",
-        rpcError
-      );
-
-      setError(
-        "No se ha podido eliminar esta disponibilidad."
-      );
-
-      setLoading(
-        false
-      );
-
-      return;
-    }
+      if (rpcError) {
+        console.error(
+          "Error deleting agenda slot:",
+          rpcError
+        );
+      
+        const message =
+          rpcError.message
+            .toLowerCase();
+      
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "only available slots"
+          )
+        ) {
+          setError(
+            "Solo puedes eliminar disponibilidades que estén libres."
+          );
+        } else if (
+          message.includes(
+            "not authorized"
+          )
+        ) {
+          setError(
+            "No tienes permisos para eliminar esta disponibilidad."
+          );
+        } else if (
+          message.includes(
+            "slot not found"
+          )
+        ) {
+          setError(
+            "La disponibilidad ya no existe."
+          );
+        } else {
+          setError(
+            "No se ha podido eliminar esta disponibilidad."
+          );
+        }
+      
+        setLoading(
+          false
+        );
+      
+        return;
+      }
 
     setLoading(
       false
@@ -2008,7 +2164,7 @@ export default function AgendaEventModal(
                   <input
                     type="time"
                     required
-                    step={1800}
+                    step={60}
                     value={
                       bookingTime
                     }
@@ -2033,7 +2189,12 @@ export default function AgendaEventModal(
                   Duración
                 </strong>
 
-                <select
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  step={1}
+                  required
                   value={
                     durationMinutes
                   }
@@ -2051,31 +2212,25 @@ export default function AgendaEventModal(
                   style={
                     inputStyle
                   }
+                />
+
+                <div
+                  className="muted"
+                  style={{
+                    marginTop:
+                      -8,
+
+                    marginBottom:
+                      14,
+
+                    fontSize:
+                      12,
+                  }}
                 >
-                  <option value={30}>
-                    30 minutos
-                  </option>
-
-                  <option value={60}>
-                    1 hora
-                  </option>
-
-                  <option value={90}>
-                    1 hora 30 minutos
-                  </option>
-
-                  <option value={120}>
-                    2 horas
-                  </option>
-
-                  <option value={150}>
-                    2 horas 30 minutos
-                  </option>
-
-                  <option value={180}>
-                    3 horas
-                  </option>
-                </select>
+                  Duración actual: {formatDuration(
+                    durationMinutes
+                  )}
+                </div>
               </label>
 
               <label>
@@ -2210,13 +2365,14 @@ export default function AgendaEventModal(
                 <strong>
                   Duración:
                 </strong>{" "}
-                {minutesBetween(
-                  props.event
-                    .start_at,
-                  props.event
-                    .end_at
-                )}{" "}
-                minutos
+                {formatDuration(
+                  minutesBetween(
+                    props.event
+                      .start_at,
+                    props.event
+                      .end_at
+                  )
+                )}
               </p>
 
               <div
@@ -2452,7 +2608,7 @@ export default function AgendaEventModal(
                   <input
                     type="time"
                     required
-                    step={1800}
+                    step={60}
                     value={
                       slotTime
                     }
@@ -2477,7 +2633,12 @@ export default function AgendaEventModal(
                   Duración
                 </strong>
 
-                <select
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  step={1}
+                  required
                   value={
                     slotDurationMinutes
                   }
@@ -2495,43 +2656,25 @@ export default function AgendaEventModal(
                   style={
                     inputStyle
                   }
+                />
+
+                <div
+                  className="muted"
+                  style={{
+                    marginTop:
+                      -8,
+
+                    marginBottom:
+                      14,
+
+                    fontSize:
+                      12,
+                  }}
                 >
-                  <option value={30}>
-                    30 minutos
-                  </option>
-
-                  <option value={60}>
-                    1 hora
-                  </option>
-
-                  <option value={90}>
-                    1 hora 30 minutos
-                  </option>
-
-                  <option value={120}>
-                    2 horas
-                  </option>
-
-                  <option value={150}>
-                    2 horas 30 minutos
-                  </option>
-
-                  <option value={180}>
-                    3 horas
-                  </option>
-
-                  <option value={240}>
-                    4 horas
-                  </option>
-
-                  <option value={300}>
-                    5 horas
-                  </option>
-
-                  <option value={360}>
-                    6 horas
-                  </option>
-                </select>
+                  Duración actual: {formatDuration(
+                    slotDurationMinutes
+                  )}
+                </div>
               </label>
 
               <div
@@ -2649,13 +2792,14 @@ export default function AgendaEventModal(
                 <strong>
                   Duración:
                 </strong>{" "}
-                {minutesBetween(
-                  props.event
-                    .start_at,
-                  props.event
-                    .end_at
-                )}{" "}
-                minutos
+                {formatDuration(
+                  minutesBetween(
+                    props.event
+                      .start_at,
+                    props.event
+                      .end_at
+                  )
+                )}
               </p>
 
               <p>
@@ -2805,7 +2949,7 @@ export default function AgendaEventModal(
                   <input
                     type="time"
                     required
-                    step={1800}
+                    step={60}
                     value={
                       blockTime
                     }
@@ -2830,7 +2974,12 @@ export default function AgendaEventModal(
                   Duración
                 </strong>
 
-                <select
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  step={1}
+                  required
                   value={
                     blockDurationMinutes
                   }
@@ -2848,43 +2997,25 @@ export default function AgendaEventModal(
                   style={
                     inputStyle
                   }
+                />
+
+                <div
+                  className="muted"
+                  style={{
+                    marginTop:
+                      -8,
+
+                    marginBottom:
+                      14,
+
+                    fontSize:
+                      12,
+                  }}
                 >
-                  <option value={30}>
-                    30 minutos
-                  </option>
-
-                  <option value={60}>
-                    1 hora
-                  </option>
-
-                  <option value={90}>
-                    1 hora 30 minutos
-                  </option>
-
-                  <option value={120}>
-                    2 horas
-                  </option>
-
-                  <option value={150}>
-                    2 horas 30 minutos
-                  </option>
-
-                  <option value={180}>
-                    3 horas
-                  </option>
-
-                  <option value={240}>
-                    4 horas
-                  </option>
-
-                  <option value={300}>
-                    5 horas
-                  </option>
-
-                  <option value={360}>
-                    6 horas
-                  </option>
-                </select>
+                  Duración actual: {formatDuration(
+                    blockDurationMinutes
+                  )}
+                </div>
               </label>
 
               <label>

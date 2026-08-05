@@ -963,10 +963,11 @@ export default function CreateBusinessForm({
     }
 
     router.push(
-      "/business-dashboard"
+      "/business-dashboard/setup"
     );
-
+    
     router.refresh();
+
   }
 
   return (

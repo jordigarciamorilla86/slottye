@@ -1,7 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useRouter,
+} from "next/navigation";
+
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -17,56 +25,121 @@ export default function AdminUserBlockButton({
   blocked,
   isAdmin,
 }: Props) {
-  const router = useRouter();
-  const supabase = createClient();
+  const router =
+    useRouter();
 
-  const [loading, setLoading] = useState(false);
+  const supabase =
+    useMemo(
+      () =>
+        createClient(),
+      []
+    );
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(false);
+
+  const [
+    currentBlocked,
+    setCurrentBlocked,
+  ] =
+    useState(
+      blocked
+    );
+
+  /*
+   * Sincroniza el estado local cuando el servidor
+   * devuelve nuevos datos después de router.refresh().
+   */
+  useEffect(() => {
+    setCurrentBlocked(
+      blocked
+    );
+  }, [
+    blocked,
+  ]);
 
   async function changeBlockedStatus() {
-    if (isAdmin) {
+    if (
+      isAdmin ||
+      loading
+    ) {
       return;
     }
 
-    const nextBlocked = !blocked;
+    const nextBlocked =
+      !currentBlocked;
 
-    const confirmed = window.confirm(
-      nextBlocked
-        ? `¿Bloquear a "${userName}"? No podrá acceder a las zonas privadas de Slottye.`
-        : `¿Desbloquear a "${userName}"? Podrá volver a utilizar su cuenta normalmente.`
-    );
+    const confirmed =
+      window.confirm(
+        nextBlocked
+          ? `¿Bloquear a "${userName}"? No podrá acceder a las zonas privadas de Slottye.`
+          : `¿Desbloquear a "${userName}"? Podrá volver a utilizar su cuenta normalmente.`
+      );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
-    setLoading(true);
-
-    const { error } = await supabase.rpc(
-      "admin_set_user_blocked",
-      {
-        p_user_id: userId,
-        p_blocked: nextBlocked,
-      }
+    setLoading(
+      true
     );
 
-    if (error) {
-      console.error(
-        "Error changing user blocked status:",
+    try {
+      const {
+        error,
+      } =
+        await supabase.rpc(
+          "admin_set_user_blocked",
+          {
+            p_user_id:
+              userId,
+
+            p_blocked:
+              nextBlocked,
+          }
+        );
+
+      if (
         error
+      ) {
+        console.error(
+          "Error changing user blocked status:",
+          error
+        );
+
+        window.alert(
+          error.message ||
+            "No se pudo cambiar el estado del usuario."
+        );
+
+        return;
+      }
+
+      /*
+       * Actualización optimista:
+       * el botón cambia inmediatamente al nuevo estado
+       * sin esperar a que termine router.refresh().
+       */
+      setCurrentBlocked(
+        nextBlocked
       );
 
-      alert(
-        "No se pudo cambiar el estado del usuario."
+      router.refresh();
+    } finally {
+      setLoading(
+        false
       );
-
-      setLoading(false);
-      return;
     }
-
-    router.refresh();
   }
 
-  if (isAdmin) {
+  if (
+    isAdmin
+  ) {
     return (
       <button
         type="button"
@@ -83,23 +156,33 @@ export default function AdminUserBlockButton({
     <button
       type="button"
       className="btn"
-      disabled={loading}
-      onClick={changeBlockedStatus}
+      disabled={
+        loading
+      }
+      onClick={
+        changeBlockedStatus
+      }
       style={
-        blocked
+        currentBlocked
           ? {
-              color: "#166534",
-              borderColor: "#bbf7d0",
+              color:
+                "#166534",
+
+              borderColor:
+                "#bbf7d0",
             }
           : {
-              color: "#b91c1c",
-              borderColor: "#fecaca",
+              color:
+                "#b91c1c",
+
+              borderColor:
+                "#fecaca",
             }
       }
     >
       {loading
         ? "Procesando..."
-        : blocked
+        : currentBlocked
           ? "Desbloquear usuario"
           : "Bloquear usuario"}
     </button>

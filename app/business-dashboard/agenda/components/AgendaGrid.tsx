@@ -7,7 +7,9 @@ import type {
 import AgendaCell from "./AgendaCell";
 
 import type {
+  AgendaBooking,
   AgendaCellEvent,
+  AgendaSlot,
   AgendaVisibleDay,
 } from "../types/agenda";
 
@@ -20,25 +22,41 @@ type Props = {
   currentTime: Date;
   timeRows: number[];
   draggingEvent: AgendaCellEvent | null;
+  reschedulingBooking: AgendaBooking | null;
+
+  onChooseRescheduleTarget: (
+    day: Date,
+    minute: number,
+    sourceSlot:
+      AgendaSlot |
+      null
+  ) => void;
+
   isOpenAt: (
     dayIndex: number,
     minute: number
   ) => boolean;
+
   getCellData: (
     date: Date,
     minute: number
-  ) => AgendaCellEvent | null;
+  ) => AgendaCellEvent[];
+
   openExistingEvent: (
     event: AgendaCellEvent
   ) => void;
+
   openSlotModal: (
     day: Date,
     minute: number
   ) => void;
+
   startDragging: (
     event: AgendaCellEvent
   ) => void;
+
   finishDragging: () => void;
+
   dropAt: (
     day: Date,
     minute: number
@@ -53,11 +71,13 @@ function formatTime(
 ) {
   const hour =
     Math.floor(
-      minutes / 60
+      minutes /
+        60
     );
 
   const minute =
-    minutes % 60;
+    minutes %
+    60;
 
   return `${String(
     hour
@@ -86,6 +106,21 @@ function sameLocalDay(
   );
 }
 
+function minutesFromStartOfDay(
+  value: string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  return (
+    date.getHours() *
+      60 +
+    date.getMinutes()
+  );
+}
+
 export default function AgendaGrid({
   agendaScrollRef,
   loadingWeek,
@@ -95,6 +130,8 @@ export default function AgendaGrid({
   currentTime,
   timeRows,
   draggingEvent,
+  reschedulingBooking,
+  onChooseRescheduleTarget,
   isOpenAt,
   getCellData,
   openExistingEvent,
@@ -154,17 +191,20 @@ export default function AgendaGrid({
             borderBottom:
               "1px solid var(--border)",
 
-            position:
+              position:
               "sticky",
-
+            
             top:
               0,
-
+            
             zIndex:
-              30,
-
+              500,
+            
             background:
               "#ffffff",
+            
+            isolation:
+              "isolate",
           }}
         >
           <div
@@ -179,7 +219,7 @@ export default function AgendaGrid({
                 0,
 
               zIndex:
-                40,
+                510,
 
               background:
                 "#ffffff",
@@ -206,6 +246,12 @@ export default function AgendaGrid({
 
                   borderLeft:
                     "1px solid var(--border)",
+
+                    position:
+                    "relative",
+              
+                  zIndex:
+                    505,
 
                   background:
                     sameLocalDay(
@@ -317,53 +363,100 @@ export default function AgendaGrid({
                 ({
                   day,
                   dayIndex,
-                }) => (
-                  <AgendaCell
-                    key={`${day.toISOString()}-${minute}`}
-                    day={
-                      day
-                    }
-                    minute={
+                }) => {
+                  const cellEvents =
+                    getCellData(
+                      day,
                       minute
-                    }
-                    open={
-                      isOpenAt(
-                        dayIndex,
+                    );
+
+                  return (
+                    <AgendaCell
+                      key={`${day.toISOString()}-${minute}`}
+                      day={
+                        day
+                      }
+                      minute={
                         minute
-                      )
-                    }
-                    event={
-                      getCellData(
-                        day,
-                        minute
-                      )
-                    }
-                    currentTime={
-                      currentTime
-                    }
-                    dragEnabled={
-                      !isMobile
-                    }
-                    draggingEvent={
-                      draggingEvent
-                    }
-                    onOpenEvent={
-                      openExistingEvent
-                    }
-                    onOpenEmptySlot={
-                      openSlotModal
-                    }
-                    onStartDragging={
-                      startDragging
-                    }
-                    onFinishDragging={
-                      finishDragging
-                    }
-                    onDropAt={
-                      dropAt
-                    }
-                  />
-                )
+                      }
+                      open={
+                        isOpenAt(
+                          dayIndex,
+                          minute
+                        )
+                      }
+                      events={
+                        cellEvents
+                      }
+                      currentTime={
+                        currentTime
+                      }
+                      dragEnabled={
+                        !isMobile &&
+                        !reschedulingBooking
+                      }
+                      draggingEvent={
+                        draggingEvent
+                      }
+                      onOpenEvent={(
+                        event
+                      ) => {
+                        if (
+                          reschedulingBooking
+                        ) {
+                          if (
+                            event.type ===
+                              "slot"
+                          ) {
+                            onChooseRescheduleTarget(
+                              day,
+                              minutesFromStartOfDay(
+                                event.startAt
+                              ),
+                              event.source
+                            );
+                          }
+
+                          return;
+                        }
+
+                        openExistingEvent(
+                          event
+                        );
+                      }}
+                      onOpenEmptySlot={(
+                        selectedDay,
+                        selectedMinute
+                      ) => {
+                        if (
+                          reschedulingBooking
+                        ) {
+                          onChooseRescheduleTarget(
+                            selectedDay,
+                            selectedMinute,
+                            null
+                          );
+
+                          return;
+                        }
+
+                        openSlotModal(
+                          selectedDay,
+                          selectedMinute
+                        );
+                      }}
+                      onStartDragging={
+                        startDragging
+                      }
+                      onFinishDragging={
+                        finishDragging
+                      }
+                      onDropAt={
+                        dropAt
+                      }
+                    />
+                  );
+                }
               )}
             </div>
           )

@@ -16,9 +16,11 @@ type Props = {
   weekStart: Date;
   weekDays: Date[];
   selectedMobileDay: number;
+
   setSelectedMobileDay: (
     value: number
   ) => void;
+
   setWeekStart: (
     value: Date
   ) => void;
@@ -82,6 +84,37 @@ function getMondayDayIndex(
     : day - 1;
 }
 
+function minutesFromStartOfDay(
+  date: Date
+) {
+  return (
+    date.getHours() *
+      60 +
+    date.getMinutes() +
+    date.getSeconds() /
+      60
+  );
+}
+
+function scrollTopForMinute(
+  minute: number
+) {
+  const normalizedMinute =
+    Math.max(
+      0,
+      Math.min(
+        24 * 60,
+        minute
+      )
+    );
+
+  return (
+    normalizedMinute /
+    SLOT_MINUTES
+  ) *
+    ROW_HEIGHT;
+}
+
 export default function useAgendaView({
   weekStart,
   weekDays,
@@ -108,6 +141,12 @@ export default function useAgendaView({
       null
     );
 
+  /*
+   * ============================================================
+   * HORA ACTUAL
+   * ============================================================
+   */
+
   useEffect(() => {
     const interval =
       window.setInterval(
@@ -125,6 +164,12 @@ export default function useAgendaView({
       );
     };
   }, []);
+
+  /*
+   * ============================================================
+   * RESPONSIVE
+   * ============================================================
+   */
 
   useEffect(() => {
     const mediaQuery =
@@ -153,6 +198,12 @@ export default function useAgendaView({
     };
   }, []);
 
+  /*
+   * ============================================================
+   * DÍAS VISIBLES
+   * ============================================================
+   */
+
   const visibleDays =
     useMemo<
       AgendaVisibleDay[]
@@ -179,6 +230,7 @@ export default function useAgendaView({
           index
         ) => ({
           day,
+
           dayIndex:
             index,
         })
@@ -193,6 +245,17 @@ export default function useAgendaView({
     isMobile
       ? "72px minmax(220px, 1fr)"
       : "80px repeat(7, minmax(130px, 1fr))";
+
+  /*
+   * ============================================================
+   * FILAS VISUALES
+   * ============================================================
+   *
+   * La agenda conserva líneas cada 30 minutos.
+   * Los eventos, clics, movimientos y scroll pueden trabajar
+   * con minutos exactos dentro de cada fila.
+   * ============================================================
+   */
 
   const timeRows =
     useMemo(() => {
@@ -216,6 +279,12 @@ export default function useAgendaView({
       return result;
     }, []);
 
+  /*
+   * ============================================================
+   * SCROLL A FECHA Y HORA EXACTAS
+   * ============================================================
+   */
+
   const scrollToDate =
     useCallback(
       (
@@ -225,26 +294,22 @@ export default function useAgendaView({
       ) => {
         const performScroll =
           () => {
-            const hour =
+            const targetMinute =
               Math.max(
                 0,
-                date.getHours() -
-                  1
-              );
-
-            const rowsBeforeHour =
-              hour *
-              (
-                60 /
-                SLOT_MINUTES
+                minutesFromStartOfDay(
+                  date
+                ) -
+                  60
               );
 
             if (
               agendaScrollRef.current
             ) {
               agendaScrollRef.current.scrollTop =
-                rowsBeforeHour *
-                ROW_HEIGHT;
+                scrollTopForMinute(
+                  targetMinute
+                );
             }
           };
 
@@ -262,6 +327,12 @@ export default function useAgendaView({
       },
       []
     );
+
+  /*
+   * ============================================================
+   * IR A UNA FECHA DE LA AGENDA
+   * ============================================================
+   */
 
   const goToAgendaDate =
     useCallback(
@@ -306,6 +377,12 @@ export default function useAgendaView({
       ]
     );
 
+  /*
+   * ============================================================
+   * SCROLL INICIAL
+   * ============================================================
+   */
+
   useEffect(() => {
     const container =
       agendaScrollRef.current;
@@ -325,35 +402,40 @@ export default function useAgendaView({
       ).getTime() ===
       weekStart.getTime();
 
-    let scrollHour =
-      INITIAL_SCROLL_HOUR;
+    let scrollMinute =
+      INITIAL_SCROLL_HOUR *
+      60;
 
     if (
       viewingCurrentWeek &&
-      now.getHours() >
-        INITIAL_SCROLL_HOUR
+      minutesFromStartOfDay(
+        now
+      ) >
+        scrollMinute
     ) {
-      scrollHour =
+      scrollMinute =
         Math.max(
-          INITIAL_SCROLL_HOUR,
-          now.getHours() -
-            1
+          scrollMinute,
+          minutesFromStartOfDay(
+            now
+          ) -
+            60
         );
     }
 
-    const rowsBeforeHour =
-      scrollHour *
-      (
-        60 /
-        SLOT_MINUTES
-      );
-
     container.scrollTop =
-      rowsBeforeHour *
-      ROW_HEIGHT;
+      scrollTopForMinute(
+        scrollMinute
+      );
   }, [
     weekStart,
   ]);
+
+  /*
+   * ============================================================
+   * DÍA ACTUAL EN MÓVIL
+   * ============================================================
+   */
 
   useEffect(() => {
     if (

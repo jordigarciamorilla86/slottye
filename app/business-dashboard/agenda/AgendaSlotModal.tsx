@@ -57,6 +57,99 @@ function formatTime(
   );
 }
 
+function timeInputValue(
+  date: Date
+) {
+  return `${String(
+    date.getHours()
+  ).padStart(
+    2,
+    "0"
+  )}:${String(
+    date.getMinutes()
+  ).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function dateWithTime(
+  date: Date,
+  time: string
+) {
+  const [
+    hour,
+    minute,
+  ] =
+    time
+      .split(":")
+      .map(Number);
+
+  const result =
+    new Date(
+      date
+    );
+
+  result.setHours(
+    hour,
+    minute,
+    0,
+    0
+  );
+
+  return result;
+}
+
+function normalizeToExactMinute(
+  date: Date
+) {
+  const normalizedDate =
+    new Date(date);
+
+  normalizedDate.setSeconds(
+    0,
+    0
+  );
+
+  return normalizedDate;
+}
+
+function addMinutes(
+  date: Date,
+  minutes: number
+) {
+  return new Date(
+    date.getTime() +
+      minutes *
+        60 *
+        1000
+  );
+}
+
+function formatDuration(
+  minutes: number
+) {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours =
+    Math.floor(
+      minutes / 60
+    );
+
+  const remainingMinutes =
+    minutes % 60;
+
+  if (remainingMinutes === 0) {
+    return hours === 1
+      ? "1 hora"
+      : `${hours} horas`;
+  }
+
+  return `${hours} h ${remainingMinutes} min`;
+}
+
 export default function AgendaSlotModal({
   businessId,
   date,
@@ -70,6 +163,28 @@ export default function AgendaSlotModal({
       []
     );
 
+    const [
+      selectedTime,
+      setSelectedTime,
+    ] =
+      useState(
+        timeInputValue(
+          date
+        )
+      );
+    
+    const selectedDate =
+      useMemo(
+        () =>
+          dateWithTime(
+            date,
+            selectedTime
+          ),
+        [
+          date,
+          selectedTime,
+        ]
+      );
   /*
    * ============================================================
    * MODO
@@ -138,6 +253,12 @@ export default function AgendaSlotModal({
   ] =
     useState("");
 
+  const [
+    availabilityDurationMinutes,
+    setAvailabilityDurationMinutes,
+  ] =
+    useState(30);
+
   /*
    * ============================================================
    * ESTADO GENERAL
@@ -156,17 +277,17 @@ export default function AgendaSlotModal({
   ] =
     useState("");
 
-    const [
-        blockDurationMinutes,
-        setBlockDurationMinutes,
-      ] =
-        useState(30);
-      
-      const [
-        blockReason,
-        setBlockReason,
-      ] =
-        useState(""); 
+  const [
+    blockDurationMinutes,
+    setBlockDurationMinutes,
+  ] =
+    useState(30);
+
+  const [
+    blockReason,
+    setBlockReason,
+  ] =
+    useState("");
 
   /*
    * ============================================================
@@ -196,6 +317,31 @@ export default function AgendaSlotModal({
         service.id ===
         availabilityServiceId
     ) ?? null;
+
+  function handleAvailabilityServiceChange(
+    value: string
+  ) {
+    setAvailabilityServiceId(
+      value
+    );
+
+    const service =
+      activeServices.find(
+        (item) =>
+          item.id ===
+          value
+      );
+
+    if (service) {
+      setAvailabilityDurationMinutes(
+        service.duration_minutes
+      );
+    }
+
+    setError(
+      ""
+    );
+  }
 
   /*
    * ============================================================
@@ -249,8 +395,13 @@ export default function AgendaSlotModal({
     }
 
     if (
+      !Number.isInteger(
+        manualDurationMinutes
+      ) ||
       manualDurationMinutes <=
-      0
+        0 ||
+      manualDurationMinutes >
+        1440
     ) {
       setError(
         "La duración no es válida."
@@ -264,14 +415,14 @@ export default function AgendaSlotModal({
     );
 
     const startAt =
-      new Date(date);
+      normalizeToExactMinute(
+        selectedDate
+      );
 
     const endAt =
-      new Date(
-        startAt.getTime() +
-          manualDurationMinutes *
-            60 *
-            1000
+      addMinutes(
+        startAt,
+        manualDurationMinutes
       );
 
     const {
@@ -308,45 +459,92 @@ export default function AgendaSlotModal({
         }
       );
 
-    if (rpcError) {
-      console.error(
-        "Error creating manual booking:",
-        rpcError
-      );
-
-      const message =
-        rpcError.message
-          .toLowerCase();
-
-      if (
-        message.includes(
-          "online booking"
-        )
-      ) {
-        setError(
-          "Ya existe una reserva de Slottye en ese horario."
+      if (rpcError) {
+        console.error(
+          "Error creating manual booking:",
+          rpcError
         );
-      } else if (
-        message.includes(
-          "manual booking"
-        )
-      ) {
-        setError(
-          "Ya existe otra reserva manual que coincide con ese horario."
+      
+        const message =
+          rpcError.message
+            .toLowerCase();
+      
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "reserva slottye"
+          ) ||
+          message.includes(
+            "online booking"
+          )
+        ) {
+          setError(
+            "Ya existe una reserva de Slottye en ese horario."
+          );
+        } else if (
+          message.includes(
+            "reserva manual"
+          ) ||
+          message.includes(
+            "manual booking"
+          )
+        ) {
+          setError(
+            "Ya existe otra reserva manual que coincide con ese horario."
+          );
+        } else if (
+          message.includes(
+            "horario está bloqueado"
+          ) ||
+          message.includes(
+            "horario esta bloqueado"
+          ) ||
+          message.includes(
+            "block"
+          )
+        ) {
+          setError(
+            "No puedes crear la reserva porque ese horario está bloqueado."
+          );
+        } else if (
+          message.includes(
+            "nombre del cliente"
+          )
+        ) {
+          setError(
+            "Debes indicar el nombre del cliente."
+          );
+        } else if (
+          message.includes(
+            "servicio"
+          )
+        ) {
+          setError(
+            "El servicio seleccionado no es válido."
+          );
+        } else {
+          setError(
+            rpcError.message ||
+              "No se ha podido crear la reserva manual."
+          );
+        }
+      
+        setLoading(
+          false
         );
-      } else {
-        setError(
-          "No se ha podido crear la reserva manual."
-        );
+      
+        return;
       }
-
-      setLoading(
-        false
-      );
-
-      return;
-    }
-
     /*
      * La RPC ya se encarga de retirar
      * todos los slots AVAILABLE que
@@ -389,15 +587,31 @@ export default function AgendaSlotModal({
       return;
     }
 
+    if (
+      !Number.isInteger(
+        availabilityDurationMinutes
+      ) ||
+      availabilityDurationMinutes <=
+        0 ||
+      availabilityDurationMinutes >
+        1440
+    ) {
+      setError(
+        "La duración de la disponibilidad no es válida."
+      );
+
+      return;
+    }
+
     const startAt =
-      new Date(date);
+      normalizeToExactMinute(
+        selectedDate
+      );
 
     const endAt =
-      new Date(
-        startAt.getTime() +
-          service.duration_minutes *
-            60 *
-            1000
+      addMinutes(
+        startAt,
+        availabilityDurationMinutes
       );
 
     /*
@@ -453,11 +667,22 @@ export default function AgendaSlotModal({
         rpcError.message
           .toLowerCase();
 
-      if (
-        message.includes(
-          "online booking"
-        )
-      ) {
+          if (
+            message.includes(
+              "cuenta está bloqueada"
+            ) ||
+            message.includes(
+              "cuenta esta bloqueada"
+            )
+          ) {
+            setError(
+              "Tu cuenta está bloqueada."
+            );
+          } else if (
+            message.includes(
+              "online booking"
+            )
+          ) {
         setError(
           "No puedes crear disponibilidad porque ya existe una reserva de Slottye en ese horario."
         );
@@ -507,12 +732,24 @@ export default function AgendaSlotModal({
      * ==========================================================
      */
 
-    if (
-      createdSlot &&
-      typeof createdSlot ===
+    const createdSlotRecord =
+      Array.isArray(
+        createdSlot
+      )
+        ? createdSlot[0]
+        : createdSlot;
+
+    const createdSlotId =
+      createdSlotRecord &&
+      typeof createdSlotRecord ===
         "object" &&
-      "id" in createdSlot
-    ) {
+      "id" in createdSlotRecord &&
+      typeof createdSlotRecord.id ===
+        "string"
+        ? createdSlotRecord.id
+        : null;
+
+    if (createdSlotId) {
       fetch(
         "/api/notifications/new-slots",
         {
@@ -529,7 +766,7 @@ export default function AgendaSlotModal({
               businessId,
 
               slotIds: [
-                createdSlot.id,
+                createdSlotId,
               ],
             }),
         }
@@ -580,8 +817,13 @@ export default function AgendaSlotModal({
     setError("");
   
     if (
+      !Number.isInteger(
+        blockDurationMinutes
+      ) ||
       blockDurationMinutes <=
-      0
+        0 ||
+      blockDurationMinutes >
+        1440
     ) {
       setError(
         "La duración del bloqueo no es válida."
@@ -591,14 +833,14 @@ export default function AgendaSlotModal({
     }
   
     const startAt =
-      new Date(date);
+      normalizeToExactMinute(
+        selectedDate
+      );
   
     const endAt =
-      new Date(
-        startAt.getTime() +
-          blockDurationMinutes *
-            60 *
-            1000
+      addMinutes(
+        startAt,
+        blockDurationMinutes
       );
   
     if (
@@ -649,6 +891,17 @@ export default function AgendaSlotModal({
   
       if (
         message.includes(
+          "cuenta está bloqueada"
+        ) ||
+        message.includes(
+          "cuenta esta bloqueada"
+        )
+      ) {
+        setError(
+          "Tu cuenta está bloqueada."
+        );
+      } else if (
+        message.includes(
           "not authorized"
         )
       ) {
@@ -663,9 +916,32 @@ export default function AgendaSlotModal({
         setError(
           "El horario seleccionado no es válido."
         );
+      } else if (
+        message.includes(
+          "online booking"
+        ) ||
+        message.includes(
+          "reserva slottye"
+        )
+      ) {
+        setError(
+          "No puedes bloquear el horario porque ya contiene una reserva de Slottye."
+        );
+      } else if (
+        message.includes(
+          "manual booking"
+        ) ||
+        message.includes(
+          "reserva manual"
+        )
+      ) {
+        setError(
+          "No puedes bloquear el horario porque ya contiene una reserva manual."
+        );
       } else {
         setError(
-          "No se ha podido bloquear el horario."
+          rpcError.message ||
+            "No se ha podido bloquear el horario."
         );
       }
   
@@ -786,7 +1062,7 @@ export default function AgendaSlotModal({
               }}
             >
               {formatTime(
-                date
+                selectedDate
               )}
             </h2>
 
@@ -801,6 +1077,58 @@ export default function AgendaSlotModal({
                 date
               )}
             </div>
+            <label
+  style={{
+    display:
+      "block",
+
+    marginTop:
+      16,
+
+    maxWidth:
+      180,
+  }}
+>
+  <strong
+    style={{
+      display:
+        "block",
+
+      fontSize:
+        13,
+    }}
+  >
+    Hora de inicio
+  </strong>
+
+  <input
+    type="time"
+    step={60}
+    value={
+      selectedTime
+    }
+    disabled={
+      loading
+    }
+    onChange={(
+      event
+    ) => {
+      setSelectedTime(
+        event.target.value
+      );
+
+      setError(
+        ""
+      );
+    }}
+    style={{
+      ...inputStyle,
+
+      marginBottom:
+        0,
+    }}
+  />
+</label>
           </div>
 
           <button
@@ -1079,10 +1407,15 @@ export default function AgendaSlotModal({
               }}
             >
               <strong>
-                Duración
+                Duración exacta (minutos)
               </strong>
 
-              <select
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                step={1}
+                required
                 value={
                   manualDurationMinutes
                 }
@@ -1100,31 +1433,25 @@ export default function AgendaSlotModal({
                 style={
                   inputStyle
                 }
+              />
+
+              <div
+                className="muted"
+                style={{
+                  marginTop:
+                    -8,
+
+                  marginBottom:
+                    14,
+
+                  fontSize:
+                    12,
+                }}
               >
-                <option value={30}>
-                  30 minutos
-                </option>
-
-                <option value={60}>
-                  1 hora
-                </option>
-
-                <option value={90}>
-                  1 hora 30 minutos
-                </option>
-
-                <option value={120}>
-                  2 horas
-                </option>
-
-                <option value={150}>
-                  2 horas 30 minutos
-                </option>
-
-                <option value={180}>
-                  3 horas
-                </option>
-              </select>
+                {formatDuration(
+                  manualDurationMinutes
+                )}
+              </div>
             </label>
 
             {/* HORARIO */}
@@ -1162,7 +1489,7 @@ export default function AgendaSlotModal({
 
               <strong>
                 {formatTime(
-                  date
+                  selectedDate
                 )}
               </strong>
 
@@ -1170,11 +1497,11 @@ export default function AgendaSlotModal({
 
               <strong>
                 {formatTime(
-                  new Date(
-                    date.getTime() +
-                      manualDurationMinutes *
-                        60 *
-                        1000
+                  addMinutes(
+                    normalizeToExactMinute(
+                      selectedDate
+                    ),
+                    manualDurationMinutes
                   )
                 )}
               </strong>
@@ -1340,17 +1667,13 @@ export default function AgendaSlotModal({
                     }
                     onChange={(
                       event
-                    ) => {
-                      setAvailabilityServiceId(
+                    ) =>
+                      handleAvailabilityServiceChange(
                         event
                           .target
                           .value
-                      );
-
-                      setError(
-                        ""
-                      );
-                    }}
+                      )
+                    }
                     style={
                       inputStyle
                     }
@@ -1383,6 +1706,63 @@ export default function AgendaSlotModal({
                       )
                     )}
                   </select>
+                </label>
+
+                {/* DURACIÓN */}
+
+                <label
+                  style={{
+                    display:
+                      "block",
+                  }}
+                >
+                  <strong>
+                    Duración exacta (minutos)
+                  </strong>
+
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    step={1}
+                    required
+                    value={
+                      availabilityDurationMinutes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setAvailabilityDurationMinutes(
+                        Number(
+                          event
+                            .target
+                            .value
+                        )
+                      )
+                    }
+                    style={
+                      inputStyle
+                    }
+                  />
+
+                  <div
+                    className="muted"
+                    style={{
+                      marginTop:
+                        -8,
+
+                      marginBottom:
+                        14,
+
+                      fontSize:
+                        12,
+                    }}
+                  >
+                    Duración actual:{" "}
+                    {formatDuration(
+                      availabilityDurationMinutes
+                    )}
+                  </div>
                 </label>
 
                 {/* RESUMEN */}
@@ -1420,7 +1800,7 @@ export default function AgendaSlotModal({
 
                   <strong>
                     {formatTime(
-                      date
+                      selectedDate
                     )}
                   </strong>
 
@@ -1430,11 +1810,11 @@ export default function AgendaSlotModal({
 
                       <strong>
                         {formatTime(
-                          new Date(
-                            date.getTime() +
-                              availabilityService.duration_minutes *
-                                60 *
-                                1000
+                          addMinutes(
+                            normalizeToExactMinute(
+                              selectedDate
+                            ),
+                            availabilityDurationMinutes
                           )
                         )}
                       </strong>
@@ -1453,7 +1833,7 @@ export default function AgendaSlotModal({
                         }
                         {" · "}
                         {
-                          availabilityService.duration_minutes
+                          availabilityDurationMinutes
                         }{" "}
                         min
                       </div>
@@ -1596,10 +1976,15 @@ export default function AgendaSlotModal({
       }}
     >
       <strong>
-        Duración
+        Duración exacta (minutos)
       </strong>
 
-      <select
+      <input
+        type="number"
+        min={1}
+        max={1440}
+        step={1}
+        required
         value={
           blockDurationMinutes
         }
@@ -1617,35 +2002,25 @@ export default function AgendaSlotModal({
         style={
           inputStyle
         }
+      />
+
+      <div
+        className="muted"
+        style={{
+          marginTop:
+            -8,
+
+          marginBottom:
+            14,
+
+          fontSize:
+            12,
+        }}
       >
-        <option value={30}>
-          30 minutos
-        </option>
-
-        <option value={60}>
-          1 hora
-        </option>
-
-        <option value={90}>
-          1 hora 30 minutos
-        </option>
-
-        <option value={120}>
-          2 horas
-        </option>
-
-        <option value={150}>
-          2 horas 30 minutos
-        </option>
-
-        <option value={180}>
-          3 horas
-        </option>
-
-        <option value={240}>
-          4 horas
-        </option>
-      </select>
+        {formatDuration(
+          blockDurationMinutes
+        )}
+      </div>
     </label>
 
     {/* HORARIO */}
@@ -1683,7 +2058,7 @@ export default function AgendaSlotModal({
 
       <strong>
         {formatTime(
-          date
+          selectedDate
         )}
       </strong>
 
@@ -1691,11 +2066,11 @@ export default function AgendaSlotModal({
 
       <strong>
         {formatTime(
-          new Date(
-            date.getTime() +
-              blockDurationMinutes *
-                60 *
-                1000
+          addMinutes(
+            normalizeToExactMinute(
+              selectedDate
+            ),
+            blockDurationMinutes
           )
         )}
       </strong>

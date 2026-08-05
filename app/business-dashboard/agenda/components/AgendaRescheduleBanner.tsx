@@ -98,7 +98,7 @@ export default function AgendaRescheduleBanner({
               fontSize: 13,
             }}
           >
-            Selecciona una disponibilidad verde del mismo servicio. Puedes
+            Selecciona una disponibilidad verde del mismo servicio o vacia. Puedes
             cambiar de semana o usar “Ir a fecha”.
           </div>
         </div>

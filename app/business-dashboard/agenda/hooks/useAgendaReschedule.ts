@@ -18,6 +18,200 @@ type Props = {
   prepareInterface: () => void;
 };
 
+const FALLBACK_DURATION_MINUTES =
+  30;
+
+function bookingDurationMilliseconds(
+  booking: AgendaBooking
+) {
+  if (
+    !booking.slots
+  ) {
+    return (
+      FALLBACK_DURATION_MINUTES *
+      60 *
+      1000
+    );
+  }
+
+  const start =
+    new Date(
+      booking.slots.start_at
+    ).getTime();
+
+  const end =
+    new Date(
+      booking.slots.end_at
+    ).getTime();
+
+  const duration =
+    end -
+    start;
+
+  if (
+    !Number.isFinite(
+      duration
+    ) ||
+    duration <=
+      0
+  ) {
+    return (
+      FALLBACK_DURATION_MINUTES *
+      60 *
+      1000
+    );
+  }
+
+  return duration;
+}
+
+function createTargetStart(
+  day: Date,
+  minute: number
+) {
+  const normalizedMinute =
+    Math.max(
+      0,
+      Math.min(
+        24 * 60 -
+          1,
+        Math.floor(
+          minute
+        )
+      )
+    );
+
+  const result =
+    new Date(
+      day
+    );
+
+  result.setHours(
+    Math.floor(
+      normalizedMinute /
+        60
+    ),
+    normalizedMinute %
+      60,
+    0,
+    0
+  );
+
+  return result;
+}
+
+function rescheduleErrorMessage(
+  message: string
+) {
+  const normalized =
+    message.toLowerCase();
+
+  if (
+    normalized.includes(
+      "cuenta está bloqueada"
+    ) ||
+    normalized.includes(
+      "cuenta esta bloqueada"
+    )
+  ) {
+    return "Tu cuenta está bloqueada.";
+  }
+
+  if (
+    normalized.includes(
+      "otra reserva slottye"
+    ) ||
+    normalized.includes(
+      "online booking"
+    ) ||
+    normalized.includes(
+      "otra reserva"
+    )
+  ) {
+    return "El nuevo horario coincide con otra reserva Slottye.";
+  }
+
+  if (
+    normalized.includes(
+      "reserva manual"
+    ) ||
+    normalized.includes(
+      "manual booking"
+    )
+  ) {
+    return "El nuevo horario coincide con una reserva manual.";
+  }
+
+  if (
+    normalized.includes(
+      "bloqueo"
+    ) ||
+    normalized.includes(
+      "block"
+    )
+  ) {
+    return "El nuevo horario coincide con un bloqueo.";
+  }
+
+  if (
+    normalized.includes(
+      "disponibilidad"
+    ) ||
+    normalized.includes(
+      "available slot"
+    ) ||
+    normalized.includes(
+      "already a slot"
+    )
+  ) {
+    return "El nuevo horario coincide con otra disponibilidad.";
+  }
+
+  if (
+    normalized.includes(
+      "ocupado"
+    ) ||
+    normalized.includes(
+      "historial"
+    ) ||
+    normalized.includes(
+      "unique"
+    )
+  ) {
+    return "Ese horario ya está ocupado o contiene historial.";
+  }
+
+  if (
+    normalized.includes(
+      "pasada"
+    ) ||
+    normalized.includes(
+      "past"
+    )
+  ) {
+    return "No puedes mover la reserva a una fecha pasada.";
+  }
+
+  if (
+    normalized.includes(
+      "permis"
+    ) ||
+    normalized.includes(
+      "authorized"
+    ) ||
+    normalized.includes(
+      "not authenticated"
+    )
+  ) {
+    return "No tienes permisos para reprogramar esta reserva.";
+  }
+
+  return (
+    message ||
+    "No se ha podido reprogramar la reserva."
+  );
+}
+
 export default function useAgendaReschedule({
   reloadAgenda,
   prepareInterface,
@@ -40,6 +234,13 @@ export default function useAgendaReschedule({
       null
     );
 
+  /*
+   * Se mantiene AgendaSlot como tipo para no modificar
+   * los modales existentes.
+   *
+   * Cuando se elige una casilla vacía, se crea un destino
+   * temporal que nunca se guarda directamente en slots.
+   */
   const [
     pendingRescheduleSlot,
     setPendingRescheduleSlot,
@@ -62,6 +263,12 @@ export default function useAgendaReschedule({
     setReschedulingError,
   ] =
     useState("");
+
+  /*
+   * ============================================================
+   * INICIAR REPROGRAMACIÓN
+   * ============================================================
+   */
 
   const startRescheduling =
     useCallback(
@@ -96,6 +303,12 @@ export default function useAgendaReschedule({
       ]
     );
 
+  /*
+   * ============================================================
+   * CANCELAR REPROGRAMACIÓN
+   * ============================================================
+   */
+
   const cancelRescheduling =
     useCallback(
       () => {
@@ -122,11 +335,29 @@ export default function useAgendaReschedule({
       ]
     );
 
-  const chooseRescheduleSlot =
+  /*
+   * ============================================================
+   * ELEGIR DESTINO
+   * ============================================================
+   *
+   * Permite escoger:
+   *
+   * - un minuto exacto dentro de una casilla vacía;
+   * - la hora exacta de inicio de una disponibilidad existente.
+   *
+   * La duración final siempre conserva la duración real de la
+   * reserva original.
+   * ============================================================
+   */
+
+  const chooseRescheduleTarget =
     useCallback(
       (
-        slot:
-          AgendaSlot
+        day: Date,
+        minute: number,
+        sourceSlot:
+          AgendaSlot |
+          null
       ) => {
         if (
           !reschedulingBooking ||
@@ -136,8 +367,9 @@ export default function useAgendaReschedule({
         }
 
         if (
-          slot.status !==
-          "AVAILABLE"
+          sourceSlot &&
+          sourceSlot.status !==
+            "AVAILABLE"
         ) {
           setReschedulingError(
             "El horario seleccionado ya no está disponible."
@@ -146,21 +378,43 @@ export default function useAgendaReschedule({
           return;
         }
 
+        const targetStart =
+          createTargetStart(
+            day,
+            minute
+          );
+
+        const duration =
+          bookingDurationMilliseconds(
+            reschedulingBooking
+          );
+
+        const targetEnd =
+          new Date(
+            targetStart.getTime() +
+              duration
+          );
+
         if (
-          slot.service_id !==
-          reschedulingBooking.service_id
+          !Number.isFinite(
+            targetStart.getTime()
+          ) ||
+          !Number.isFinite(
+            targetEnd.getTime()
+          ) ||
+          targetEnd <=
+            targetStart
         ) {
           setReschedulingError(
-            "Selecciona una disponibilidad del mismo servicio que la reserva."
+            "El nuevo horario no es válido."
           );
 
           return;
         }
 
         if (
-          new Date(
-            slot.start_at
-          ) <= new Date()
+          targetStart <=
+          new Date()
         ) {
           setReschedulingError(
             "No puedes mover la reserva a una fecha pasada."
@@ -170,8 +424,15 @@ export default function useAgendaReschedule({
         }
 
         if (
-          slot.id ===
-          reschedulingBooking.slot_id
+          reschedulingBooking.slots &&
+          targetStart.getTime() ===
+            new Date(
+              reschedulingBooking.slots.start_at
+            ).getTime() &&
+          targetEnd.getTime() ===
+            new Date(
+              reschedulingBooking.slots.end_at
+            ).getTime()
         ) {
           setReschedulingError(
             "Selecciona un horario diferente."
@@ -184,15 +445,35 @@ export default function useAgendaReschedule({
           ""
         );
 
-        setPendingRescheduleSlot(
-          slot
-        );
+        setPendingRescheduleSlot({
+          id:
+            sourceSlot?.id ??
+            `empty-${targetStart.toISOString()}`,
+
+          service_id:
+            reschedulingBooking.service_id,
+
+          start_at:
+            targetStart.toISOString(),
+
+          end_at:
+            targetEnd.toISOString(),
+
+          status:
+            "AVAILABLE",
+        });
       },
       [
         reschedulingBooking,
         reschedulingLoading,
       ]
     );
+
+  /*
+   * ============================================================
+   * CERRAR CONFIRMACIÓN
+   * ============================================================
+   */
 
   const closeRescheduleConfirmation =
     useCallback(
@@ -206,11 +487,21 @@ export default function useAgendaReschedule({
         setPendingRescheduleSlot(
           null
         );
+
+        setReschedulingError(
+          ""
+        );
       },
       [
         reschedulingLoading,
       ]
     );
+
+  /*
+   * ============================================================
+   * CONFIRMAR REPROGRAMACIÓN
+   * ============================================================
+   */
 
   const confirmRescheduling =
     useCallback(
@@ -230,18 +521,29 @@ export default function useAgendaReschedule({
           ""
         );
 
+        /*
+         * La RPC:
+         * - acepta una casilla vacía;
+         * - acepta una disponibilidad existente;
+         * - usa las horas exactas recibidas;
+         * - retira completamente la disponibilidad de destino;
+         * - no crea disponibilidad en el hueco anterior.
+         */
         const {
           error:
             rpcError,
         } =
           await supabase.rpc(
-            "business_reschedule_booking",
+            "business_move_booking_to_time",
             {
               p_booking_id:
                 reschedulingBooking.id,
 
-              p_new_slot_id:
-                pendingRescheduleSlot.id,
+              p_start_at:
+                pendingRescheduleSlot.start_at,
+
+              p_end_at:
+                pendingRescheduleSlot.end_at,
             }
           );
 
@@ -253,59 +555,11 @@ export default function useAgendaReschedule({
             rpcError
           );
 
-          const message =
-            rpcError.message
-              .toLowerCase();
-
-          if (
-            message.includes(
-              "ya no está disponible"
-            ) ||
-            message.includes(
-              "slot unavailable"
+          setReschedulingError(
+            rescheduleErrorMessage(
+              rpcError.message
             )
-          ) {
-            setReschedulingError(
-              "Ese horario ya no está disponible. Selecciona otro."
-            );
-          } else if (
-            message.includes(
-              "otro servicio"
-            )
-          ) {
-            setReschedulingError(
-              "La nueva disponibilidad debe pertenecer al mismo servicio."
-            );
-          } else if (
-            message.includes(
-              "horario bloqueado"
-            )
-          ) {
-            setReschedulingError(
-              "El nuevo horario coincide con un bloqueo."
-            );
-          } else if (
-            message.includes(
-              "reserva manual"
-            )
-          ) {
-            setReschedulingError(
-              "El nuevo horario coincide con una reserva manual."
-            );
-          } else if (
-            message.includes(
-              "pasada"
-            )
-          ) {
-            setReschedulingError(
-              "No puedes mover la reserva a una fecha pasada."
-            );
-          } else {
-            setReschedulingError(
-              rpcError.message ||
-                "No se ha podido reprogramar la reserva."
-            );
-          }
+          );
 
           setPendingRescheduleSlot(
             null
@@ -349,7 +603,7 @@ export default function useAgendaReschedule({
     reschedulingError,
     startRescheduling,
     cancelRescheduling,
-    chooseRescheduleSlot,
+    chooseRescheduleTarget,
     closeRescheduleConfirmation,
     confirmRescheduling,
   };
