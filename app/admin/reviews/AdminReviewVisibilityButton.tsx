@@ -1,8 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useRouter,
+} from "next/navigation";
 
 type Props = {
   reviewId: string;
@@ -16,18 +21,35 @@ export default function AdminReviewVisibilityButton({
   const router =
     useRouter();
 
-  const supabase =
-    createClient();
-
   const [
     loading,
     setLoading,
   ] =
     useState(false);
 
+  const [
+    currentVisible,
+    setCurrentVisible,
+  ] =
+    useState(
+      visible
+    );
+
+  useEffect(() => {
+    setCurrentVisible(
+      visible
+    );
+  }, [
+    visible,
+  ]);
+
   async function changeVisibility() {
+    if (loading) {
+      return;
+    }
+
     const nextVisible =
-      !visible;
+      !currentVisible;
 
     const confirmed =
       window.confirm(
@@ -42,48 +64,70 @@ export default function AdminReviewVisibilityButton({
 
     setLoading(true);
 
-    const {
-      error,
-    } =
-      await supabase.rpc(
-        "admin_set_review_visible",
-        {
-          p_review_id:
-            reviewId,
+    try {
+      const response =
+        await fetch(
+          `/api/admin/reviews/${reviewId}/visibility`,
+          {
+            method:
+              "PATCH",
 
-          p_visible:
-            nextVisible,
-        }
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                visible:
+                  nextVisible,
+              }),
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (!response.ok) {
+        window.alert(
+          result.error ??
+            "No se pudo cambiar la visibilidad de la reseña."
+        );
+
+        return;
+      }
+
+      setCurrentVisible(
+        result.visible
       );
 
-    if (error) {
+      router.refresh();
+    } catch (error) {
       console.error(
         "Error changing review visibility:",
         error
       );
 
-      alert(
+      window.alert(
         "No se pudo cambiar la visibilidad de la reseña."
       );
-
+    } finally {
       setLoading(false);
-
-      return;
     }
-
-    router.refresh();
   }
 
   return (
     <button
       type="button"
       className="btn"
-      disabled={loading}
+      disabled={
+        loading
+      }
       onClick={
         changeVisibility
       }
       style={
-        visible
+        currentVisible
           ? {
               color:
                 "#b91c1c",
@@ -102,7 +146,7 @@ export default function AdminReviewVisibilityButton({
     >
       {loading
         ? "Procesando..."
-        : visible
+        : currentVisible
           ? "Ocultar reseña"
           : "Mostrar reseña"}
     </button>

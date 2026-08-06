@@ -16,23 +16,15 @@ type Service = {
   duration_minutes: number;
 };
 
-type Slot = {
-  id: string;
-  service_id: string | null;
-  start_at: string;
-  end_at: string;
-  status: string;
-};
-
 type Props = {
+  businessId: string;
   services: Service[];
-  slots: Slot[];
   loggedIn: boolean;
 };
 
 export function BusinessBookingSection({
+  businessId,
   services,
-  slots,
   loggedIn,
 }: Props) {
   const [
@@ -73,6 +65,10 @@ export function BusinessBookingSection({
 
   return (
     <>
+      {/* ========================================================
+          SERVICIOS
+          ======================================================== */}
+
       <section className="section">
         <div className="section-head">
           <div>
@@ -160,6 +156,10 @@ export function BusinessBookingSection({
         )}
       </section>
 
+      {/* ========================================================
+          CITAS DISPONIBLES
+          ======================================================== */}
+
       <section
         className="section"
         ref={
@@ -183,8 +183,8 @@ export function BusinessBookingSection({
         </div>
 
         <AvailableSlots
-          slots={
-            slots
+          businessId={
+            businessId
           }
           services={
             services

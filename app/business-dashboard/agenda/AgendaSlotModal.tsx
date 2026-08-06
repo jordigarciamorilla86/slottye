@@ -975,7 +975,7 @@ export default function AgendaSlotModal({
           0,
 
         zIndex:
-          1000,
+          10000,
 
         background:
           "rgba(15, 23, 42, 0.45)",

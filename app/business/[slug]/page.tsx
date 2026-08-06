@@ -638,47 +638,7 @@ export default async function BusinessPage({
         "day_of_week"
       );
 
-  /*
-   * ============================================================
-   * CITAS DISPONIBLES
-   * ============================================================
-   */
-
-  const {
-    data: slots,
-  } =
-    await supabase
-      .from(
-        "slots"
-      )
-      .select(`
-        id,
-        service_id,
-        start_at,
-        end_at,
-        status
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .eq(
-        "status",
-        "AVAILABLE"
-      )
-      .gte(
-        "start_at",
-        new Date()
-          .toISOString()
-      )
-      .order(
-        "start_at",
-        {
-          ascending:
-            true,
-        }
-      );
-
+  
   /*
    * ============================================================
    * RESEÑAS SLOTTYE
@@ -1903,19 +1863,18 @@ export default async function BusinessPage({
             SERVICIOS Y RESERVAS
             ====================================================== */}
 
-        <BusinessBookingSection
-          services={
-            services ??
-            []
-          }
-          slots={
-            slots ??
-            []
-          }
-          loggedIn={
-            !!user
-          }
-        />
+<BusinessBookingSection
+  businessId={
+    business.id
+  }
+  services={
+    services ??
+    []
+  }
+  loggedIn={
+    !!user
+  }
+/>
 
         {/* ======================================================
             OPINIONES SLOTTYE

@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -27,14 +29,34 @@ type Slot = {
   status: string;
 };
 
-type Props = {
+type PaginationData = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  from: number;
+  to: number;
+};
+
+type AvailableSlotsResponse = {
   slots: Slot[];
+
+  pagination: PaginationData;
+
+  filters: {
+    serviceId: string;
+    date: string | null;
+  };
+};
+
+type Props = {
+  businessId: string;
   services: Service[];
   loggedIn: boolean;
   selectedServiceId: string;
+
   onServiceChange: (
-    serviceId:
-      string
+    serviceId: string
   ) => void;
 };
 
@@ -43,13 +65,19 @@ type SelectedSlot = {
   serviceName: string;
 };
 
+const PAGE_SIZE =
+  10;
+
 export function AvailableSlots({
-  slots,
+  businessId,
   services,
   loggedIn,
   selectedServiceId,
   onServiceChange,
 }: Props) {
+  const router =
+    useRouter();
+
   const supabase =
     useMemo(
       () =>
@@ -57,8 +85,55 @@ export function AvailableSlots({
       []
     );
 
-  const router =
-    useRouter();
+  const [
+    slots,
+    setSlots,
+  ] =
+    useState<Slot[]>(
+      []
+    );
+
+  const [
+    pagination,
+    setPagination,
+  ] =
+    useState<PaginationData>({
+      page:
+        1,
+
+      pageSize:
+        PAGE_SIZE,
+
+      total:
+        0,
+
+      totalPages:
+        1,
+
+      from:
+        0,
+
+      to:
+        0,
+    });
+
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] =
+    useState("");
+
+  const [
+    loadingSlots,
+    setLoadingSlots,
+  ] =
+    useState(true);
+
+  const [
+    slotsError,
+    setSlotsError,
+  ] =
+    useState("");
 
   const [
     loadingId,
@@ -67,9 +142,7 @@ export function AvailableSlots({
     useState<
       string |
       null
-    >(
-      null
-    );
+    >(null);
 
   const [
     selectedSlot,
@@ -78,9 +151,7 @@ export function AvailableSlots({
     useState<
       SelectedSlot |
       null
-    >(
-      null
-    );
+    >(null);
 
   const [
     confirmedSlot,
@@ -89,9 +160,7 @@ export function AvailableSlots({
     useState<
       SelectedSlot |
       null
-    >(
-      null
-    );
+    >(null);
 
   const [
     message,
@@ -107,9 +176,137 @@ export function AvailableSlots({
       "success" |
       "error" |
       null
-    >(
-      null
+    >(null);
+
+  /*
+   * ============================================================
+   * CARGAR CITAS PAGINADAS
+   * ============================================================
+   */
+
+  const loadSlots =
+    useCallback(
+      async (
+        requestedPage:
+          number
+      ) => {
+        setLoadingSlots(
+          true
+        );
+
+        setSlotsError("");
+
+        try {
+          const params =
+            new URLSearchParams({
+              page:
+                String(
+                  requestedPage
+                ),
+
+              pageSize:
+                String(
+                  PAGE_SIZE
+                ),
+
+              serviceId:
+                selectedServiceId,
+            });
+
+          if (
+            selectedDate
+          ) {
+            params.set(
+              "date",
+              selectedDate
+            );
+          }
+
+          const response =
+            await fetch(
+              `/api/businesses/${businessId}/available-slots?${params.toString()}`,
+              {
+                method:
+                  "GET",
+
+                cache:
+                  "no-store",
+              }
+            );
+
+          const result:
+            AvailableSlotsResponse & {
+              error?:
+                string;
+            } =
+            await response.json();
+
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              result.error ??
+                "No se han podido cargar las citas disponibles."
+            );
+          }
+
+          setSlots(
+            result.slots ??
+              []
+          );
+
+          setPagination(
+            result.pagination
+          );
+        } catch (
+          error
+        ) {
+          console.error(
+            "Error loading available slots:",
+            error
+          );
+
+          setSlots(
+            []
+          );
+
+          setSlotsError(
+            error instanceof
+              Error
+              ? error.message
+              : "No se han podido cargar las citas disponibles."
+          );
+        } finally {
+          setLoadingSlots(
+            false
+          );
+        }
+      },
+      [
+        businessId,
+        selectedDate,
+        selectedServiceId,
+      ]
     );
+
+  /*
+   * Al cambiar el servicio o la fecha,
+   * cargamos siempre la primera página.
+   */
+
+  useEffect(() => {
+    void loadSlots(
+      1
+    );
+  }, [
+    loadSlots,
+  ]);
+
+  /*
+   * ============================================================
+   * SERVICIOS Y FORMATO
+   * ============================================================
+   */
 
   function getServiceName(
     serviceId:
@@ -180,6 +377,84 @@ export function AvailableSlots({
     );
   }
 
+  /*
+   * ============================================================
+   * FILTROS
+   * ============================================================
+   */
+
+  function changeService(
+    serviceId:
+      string
+  ) {
+    onServiceChange(
+      serviceId
+    );
+
+    setMessage("");
+    setMessageType(
+      null
+    );
+  }
+
+  function changeDate(
+    value:
+      string
+  ) {
+    setSelectedDate(
+      value
+    );
+
+    setMessage("");
+    setMessageType(
+      null
+    );
+  }
+
+  function clearDate() {
+    setSelectedDate(
+      ""
+    );
+
+    setMessage("");
+    setMessageType(
+      null
+    );
+  }
+
+  /*
+   * ============================================================
+   * CAMBIAR PÁGINA
+   * ============================================================
+   */
+
+  function changePage(
+    page:
+      number
+  ) {
+    if (
+      loadingSlots ||
+      page <
+        1 ||
+      page >
+        pagination.totalPages ||
+      page ===
+        pagination.page
+    ) {
+      return;
+    }
+
+    void loadSlots(
+      page
+    );
+  }
+
+  /*
+   * ============================================================
+   * RESERVAR
+   * ============================================================
+   */
+
   function openConfirmation(
     slot:
       Slot
@@ -196,10 +471,7 @@ export function AvailableSlots({
       return;
     }
 
-    setMessage(
-      ""
-    );
-
+    setMessage("");
     setMessageType(
       null
     );
@@ -240,10 +512,7 @@ export function AvailableSlots({
       slotId
     );
 
-    setMessage(
-      ""
-    );
-
+    setMessage("");
     setMessageType(
       null
     );
@@ -338,6 +607,16 @@ export function AvailableSlots({
       null
     );
 
+    /*
+     * Recargamos la misma página.
+     * Si era el último registro, la API devolverá
+     * automáticamente la última página válida.
+     */
+
+    await loadSlots(
+      pagination.page
+    );
+
     router.refresh();
   }
 
@@ -353,37 +632,115 @@ export function AvailableSlots({
     );
   }
 
-  const filteredSlots =
-    selectedServiceId ===
-    "all"
-      ? slots
-      : slots.filter(
-          (
-            slot
-          ) =>
-            slot.service_id ===
-            selectedServiceId
+  /*
+   * ============================================================
+   * PÁGINAS VISIBLES
+   * ============================================================
+   */
+
+  const visiblePages =
+    useMemo(
+      () => {
+        const pages:
+          Array<
+            number |
+            "left" |
+            "right"
+          > =
+          [];
+
+        const {
+          page,
+          totalPages,
+        } =
+          pagination;
+
+        if (
+          totalPages <=
+          7
+        ) {
+          for (
+            let current =
+              1;
+            current <=
+            totalPages;
+            current++
+          ) {
+            pages.push(
+              current
+            );
+          }
+
+          return pages;
+        }
+
+        pages.push(
+          1
         );
 
-  if (
-    slots.length ===
-    0
-  ) {
-    return (
-      <div className="panel">
-        <h3>
-          No hay citas disponibles
-        </h3>
+        if (
+          page >
+          4
+        ) {
+          pages.push(
+            "left"
+          );
+        }
 
-        <p className="muted">
-          Este negocio no tiene citas libres en este momento.
-        </p>
-      </div>
+        const start =
+          Math.max(
+            2,
+            page -
+              1
+          );
+
+        const end =
+          Math.min(
+            totalPages -
+              1,
+            page +
+              1
+          );
+
+        for (
+          let current =
+            start;
+          current <=
+          end;
+          current++
+        ) {
+          pages.push(
+            current
+          );
+        }
+
+        if (
+          page <
+          totalPages -
+            3
+        ) {
+          pages.push(
+            "right"
+          );
+        }
+
+        pages.push(
+          totalPages
+        );
+
+        return pages;
+      },
+      [
+        pagination,
+      ]
     );
-  }
 
   return (
     <>
+      {/* ========================================================
+          FILTRO POR SERVICIO
+          ======================================================== */}
+
       {services.length >
         0 && (
         <div
@@ -398,7 +755,7 @@ export function AvailableSlots({
               10,
 
             marginBottom:
-              20,
+              18,
           }}
         >
           <button
@@ -409,8 +766,11 @@ export function AvailableSlots({
                 ? "btn primary"
                 : "btn"
             }
+            disabled={
+              loadingSlots
+            }
             onClick={() =>
-              onServiceChange(
+              changeService(
                 "all"
               )
             }
@@ -433,8 +793,11 @@ export function AvailableSlots({
                     ? "btn primary"
                     : "btn"
                 }
+                disabled={
+                  loadingSlots
+                }
                 onClick={() =>
-                  onServiceChange(
+                  changeService(
                     service.id
                   )
                 }
@@ -446,16 +809,282 @@ export function AvailableSlots({
         </div>
       )}
 
-      {filteredSlots.length ===
-      0 ? (
+      {/* ========================================================
+          BUSCADOR DE FECHA
+          ======================================================== */}
+
+      <div
+        className="panel"
+        style={{
+          marginBottom:
+            18,
+
+          padding:
+            18,
+        }}
+      >
+        <div
+          style={{
+            display:
+              "flex",
+
+            justifyContent:
+              "space-between",
+
+            alignItems:
+              "flex-end",
+
+            gap:
+              14,
+
+            flexWrap:
+              "wrap",
+          }}
+        >
+          <label
+            style={{
+              flex:
+                "1 1 260px",
+            }}
+          >
+            <strong>
+              Buscar por fecha
+            </strong>
+
+            <input
+              type="date"
+              value={
+                selectedDate
+              }
+              min={
+                new Date()
+                  .toLocaleDateString(
+                    "en-CA",
+                    {
+                      timeZone:
+                        "Europe/Madrid",
+                    }
+                  )
+              }
+              disabled={
+                loadingSlots
+              }
+              onChange={(
+                event
+              ) =>
+                changeDate(
+                  event.target.value
+                )
+              }
+              style={
+                inputStyle
+              }
+            />
+          </label>
+
+          {selectedDate && (
+            <button
+              type="button"
+              className="btn"
+              disabled={
+                loadingSlots
+              }
+              onClick={
+                clearDate
+              }
+            >
+              Limpiar fecha
+            </button>
+          )}
+        </div>
+
+        <p
+          className="muted"
+          style={{
+            margin:
+              "10px 0 0",
+
+            fontSize:
+              13,
+          }}
+        >
+          {selectedDate
+            ? "Mostrando únicamente las citas del día seleccionado."
+            : "Selecciona un día para consultar su disponibilidad."}
+        </p>
+      </div>
+
+      {/* ========================================================
+          CONTADOR
+          ======================================================== */}
+
+      {!slotsError && (
+        <div
+          style={{
+            display:
+              "flex",
+
+            justifyContent:
+              "space-between",
+
+            gap:
+              12,
+
+            flexWrap:
+              "wrap",
+
+            marginBottom:
+              14,
+          }}
+        >
+          <div
+            className="muted"
+            style={{
+              fontSize:
+                13,
+            }}
+          >
+            {pagination.total >
+            0 ? (
+              <>
+                Mostrando{" "}
+                <strong>
+                  {pagination.from}
+                </strong>
+                {" – "}
+                <strong>
+                  {pagination.to}
+                </strong>{" "}
+                de{" "}
+                <strong>
+                  {pagination.total}
+                </strong>{" "}
+                citas disponibles.
+              </>
+            ) : (
+              "No hay citas disponibles."
+            )}
+          </div>
+
+          {pagination.total >
+            0 && (
+            <div
+              className="muted"
+              style={{
+                fontSize:
+                  13,
+              }}
+            >
+              Página{" "}
+              <strong>
+                {pagination.page}
+              </strong>{" "}
+              de{" "}
+              <strong>
+                {pagination.totalPages}
+              </strong>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================
+          ESTADO DE CARGA
+          ======================================================== */}
+
+      {loadingSlots ? (
+        <div
+          className="panel"
+          aria-live="polite"
+        >
+          <h3>
+            Cargando citas…
+          </h3>
+
+          <p className="muted">
+            Estamos consultando la disponibilidad del negocio.
+          </p>
+        </div>
+      ) : slotsError ? (
+        <div
+          role="alert"
+          style={{
+            padding:
+              "16px 18px",
+
+            border:
+              "1px solid #fecaca",
+
+            borderRadius:
+              14,
+
+            background:
+              "#fef2f2",
+
+            color:
+              "#b91c1c",
+          }}
+        >
+          <strong>
+            No se han podido cargar las citas.
+          </strong>
+
+          <div
+            style={{
+              marginTop:
+                6,
+            }}
+          >
+            {slotsError}
+          </div>
+
+          <button
+            type="button"
+            className="btn"
+            style={{
+              marginTop:
+                14,
+            }}
+            onClick={() =>
+              void loadSlots(
+                1
+              )
+            }
+          >
+            Volver a intentarlo
+          </button>
+        </div>
+      ) : slots.length ===
+        0 ? (
         <div className="panel">
           <h3>
             No hay citas disponibles
           </h3>
 
           <p className="muted">
-            Ahora mismo no hay citas disponibles para este servicio.
+            {selectedDate
+              ? "No hay citas libres para la fecha y el servicio seleccionados."
+              : selectedServiceId !==
+                  "all"
+                ? "Ahora mismo no hay citas disponibles para este servicio."
+                : "Este negocio no tiene citas libres en este momento."}
           </p>
+
+          {selectedDate && (
+            <button
+              type="button"
+              className="btn"
+              style={{
+                marginTop:
+                  12,
+              }}
+              onClick={
+                clearDate
+              }
+            >
+              Ver todas las fechas
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -467,7 +1096,7 @@ export function AvailableSlots({
               12,
           }}
         >
-          {filteredSlots.map(
+          {slots.map(
             (
               slot
             ) => (
@@ -497,13 +1126,24 @@ export function AvailableSlots({
                     }}
                   >
                     <div>
-                      <h3>
+                      <h3
+                        style={{
+                          margin:
+                            0,
+                        }}
+                      >
                         {getServiceName(
                           slot.service_id
                         )}
                       </h3>
 
-                      <div className="meta">
+                      <div
+                        className="meta"
+                        style={{
+                          marginTop:
+                            8,
+                        }}
+                      >
                         📅{" "}
                         {formatDate(
                           slot.start_at
@@ -551,37 +1191,175 @@ export function AvailableSlots({
         </div>
       )}
 
+      {/* ========================================================
+          PAGINACIÓN
+          ======================================================== */}
+
+      {!loadingSlots &&
+        !slotsError &&
+        pagination.totalPages >
+          1 && (
+          <nav
+            aria-label="Paginación de citas disponibles"
+            style={{
+              display:
+                "flex",
+
+              justifyContent:
+                "center",
+
+              alignItems:
+                "center",
+
+              gap:
+                8,
+
+              flexWrap:
+                "wrap",
+
+              marginTop:
+                24,
+
+              paddingTop:
+                20,
+
+              borderTop:
+                "1px solid var(--border)",
+            }}
+          >
+            <button
+              type="button"
+              className="btn"
+              disabled={
+                pagination.page ===
+                1
+              }
+              onClick={() =>
+                changePage(
+                  pagination.page -
+                    1
+                )
+              }
+            >
+              ← Anterior
+            </button>
+
+            {visiblePages.map(
+              (
+                page
+              ) => {
+                if (
+                  typeof page !==
+                  "number"
+                ) {
+                  return (
+                    <span
+                      key={
+                        page
+                      }
+                      className="muted"
+                      aria-hidden="true"
+                    >
+                      …
+                    </span>
+                  );
+                }
+
+                const active =
+                  page ===
+                  pagination.page;
+
+                return (
+                  <button
+                    type="button"
+                    key={
+                      page
+                    }
+                    className={
+                      active
+                        ? "btn primary"
+                        : "btn"
+                    }
+                    aria-current={
+                      active
+                        ? "page"
+                        : undefined
+                    }
+                    onClick={() =>
+                      changePage(
+                        page
+                      )
+                    }
+                    style={{
+                      minWidth:
+                        42,
+                    }}
+                  >
+                    {page}
+                  </button>
+                );
+              }
+            )}
+
+            <button
+              type="button"
+              className="btn"
+              disabled={
+                pagination.page ===
+                pagination.totalPages
+              }
+              onClick={() =>
+                changePage(
+                  pagination.page +
+                    1
+                )
+              }
+            >
+              Siguiente →
+            </button>
+          </nav>
+        )}
+
+      {/* ========================================================
+          ERROR DE RESERVA
+          ======================================================== */}
+
       {message &&
         messageType ===
-          "error" && (
-        <div
-          role="alert"
-          style={{
-            marginTop:
-              18,
+          "error" &&
+        !selectedSlot && (
+          <div
+            role="alert"
+            style={{
+              marginTop:
+                18,
 
-            padding:
-              "14px 16px",
+              padding:
+                "14px 16px",
 
-            borderRadius:
-              14,
+              borderRadius:
+                14,
 
-            border:
-              "1px solid #ef4444",
+              border:
+                "1px solid #ef4444",
 
-            background:
-              "#fef2f2",
+              background:
+                "#fef2f2",
 
-            color:
-              "#b91c1c",
+              color:
+                "#b91c1c",
 
-            fontWeight:
-              600,
-          }}
-        >
-          ⚠️ {message}
-        </div>
-      )}
+              fontWeight:
+                600,
+            }}
+          >
+            ⚠️ {message}
+          </div>
+        )}
+
+      {/* ========================================================
+          MODAL DE CONFIRMACIÓN
+          ======================================================== */}
 
       {selectedSlot && (
         <div
@@ -596,7 +1374,7 @@ export function AvailableSlots({
               0,
 
             zIndex:
-              1500,
+              10000,
 
             display:
               "flex",
@@ -618,7 +1396,7 @@ export function AvailableSlots({
           ) => {
             if (
               event.target ===
-                event.currentTarget
+              event.currentTarget
             ) {
               closeConfirmation();
             }
@@ -689,33 +1467,9 @@ export function AvailableSlots({
                 onClick={
                   closeConfirmation
                 }
-                style={{
-                  width:
-                    38,
-
-                  height:
-                    38,
-
-                  border:
-                    "1px solid var(--border)",
-
-                  borderRadius:
-                    10,
-
-                  background:
-                    "#ffffff",
-
-                  cursor:
-                    loadingId
-                      ? "not-allowed"
-                      : "pointer",
-
-                  fontSize:
-                    22,
-
-                  lineHeight:
-                    1,
-                }}
+                style={
+                  closeButtonStyle
+                }
               >
                 ×
               </button>
@@ -748,9 +1502,7 @@ export function AvailableSlots({
                     17,
                 }}
               >
-                {
-                  selectedSlot.serviceName
-                }
+                {selectedSlot.serviceName}
               </strong>
 
               <div
@@ -767,16 +1519,14 @@ export function AvailableSlots({
               >
                 📅{" "}
                 {formatDate(
-                  selectedSlot.slot
-                    .start_at
+                  selectedSlot.slot.start_at
                 )}
 
                 <br />
 
                 🕐{" "}
                 {formatTime(
-                  selectedSlot.slot
-                    .start_at
+                  selectedSlot.slot.start_at
                 )}
               </div>
             </div>
@@ -814,43 +1564,43 @@ export function AvailableSlots({
 
               <br />
 
-              Si no lo recibes en unos minutos, revisa también las carpetas de Spam, Correo no deseado o Promociones.
+              Si no lo recibes en unos minutos, revisa también Spam, Correo no deseado o Promociones.
             </div>
 
             {message &&
               messageType ===
                 "error" && (
-              <div
-                role="alert"
-                style={{
-                  marginTop:
-                    16,
+                <div
+                  role="alert"
+                  style={{
+                    marginTop:
+                      16,
 
-                  padding:
-                    "12px 14px",
+                    padding:
+                      "12px 14px",
 
-                  border:
-                    "1px solid #fecaca",
+                    border:
+                      "1px solid #fecaca",
 
-                  borderRadius:
-                    12,
+                    borderRadius:
+                      12,
 
-                  background:
-                    "#fef2f2",
+                    background:
+                      "#fef2f2",
 
-                  color:
-                    "#b91c1c",
+                    color:
+                      "#b91c1c",
 
-                  fontSize:
-                    13,
+                    fontSize:
+                      13,
 
-                  fontWeight:
-                    600,
-                }}
-              >
-                ⚠️ {message}
-              </div>
-            )}
+                    fontWeight:
+                      600,
+                  }}
+                >
+                  ⚠️ {message}
+                </div>
+              )}
 
             <div
               style={{
@@ -904,6 +1654,10 @@ export function AvailableSlots({
         </div>
       )}
 
+      {/* ========================================================
+          MODAL DE ÉXITO
+          ======================================================== */}
+
       {confirmedSlot && (
         <div
           role="dialog"
@@ -917,7 +1671,7 @@ export function AvailableSlots({
               0,
 
             zIndex:
-              1500,
+              10000,
 
             display:
               "flex",
@@ -1011,9 +1765,6 @@ export function AvailableSlots({
               style={{
                 margin:
                   0,
-
-                lineHeight:
-                  1.6,
               }}
             >
               La reserva se ha realizado correctamente.
@@ -1049,9 +1800,7 @@ export function AvailableSlots({
                     17,
                 }}
               >
-                {
-                  confirmedSlot.serviceName
-                }
+                {confirmedSlot.serviceName}
               </strong>
 
               <div
@@ -1068,16 +1817,14 @@ export function AvailableSlots({
               >
                 📅{" "}
                 {formatDate(
-                  confirmedSlot.slot
-                    .start_at
+                  confirmedSlot.slot.start_at
                 )}
 
                 <br />
 
                 🕐{" "}
                 {formatTime(
-                  confirmedSlot.slot
-                    .start_at
+                  confirmedSlot.slot.start_at
                 )}
               </div>
             </div>
@@ -1118,7 +1865,7 @@ export function AvailableSlots({
 
               <br />
 
-              Si no lo ves, revisa Spam, Correo no deseado y Promociones. También puedes añadir reservas@slottye.com a tus contactos.
+              Si no lo ves, revisa Spam, Correo no deseado y Promociones.
             </div>
 
             <div
@@ -1164,4 +1911,56 @@ export function AvailableSlots({
       )}
     </>
   );
-              }
+}
+
+const inputStyle = {
+  width:
+    "100%",
+
+  padding:
+    13,
+
+  border:
+    "1px solid var(--border)",
+
+  borderRadius:
+    12,
+
+  marginTop:
+    8,
+
+  background:
+    "var(--card)",
+
+  color:
+    "var(--text)",
+
+  font:
+    "inherit",
+};
+
+const closeButtonStyle = {
+  width:
+    38,
+
+  height:
+    38,
+
+  border:
+    "1px solid var(--border)",
+
+  borderRadius:
+    10,
+
+  background:
+    "#ffffff",
+
+  cursor:
+    "pointer",
+
+  fontSize:
+    22,
+
+  lineHeight:
+    1,
+};

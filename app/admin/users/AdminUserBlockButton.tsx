@@ -2,15 +2,12 @@
 
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
 import {
   useRouter,
 } from "next/navigation";
-
-import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   userId: string;
@@ -28,13 +25,6 @@ export default function AdminUserBlockButton({
   const router =
     useRouter();
 
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     loading,
     setLoading,
@@ -49,10 +39,6 @@ export default function AdminUserBlockButton({
       blocked
     );
 
-  /*
-   * Sincroniza el estado local cuando el servidor
-   * devuelve nuevos datos después de router.refresh().
-   */
   useEffect(() => {
     setCurrentBlocked(
       blocked
@@ -79,67 +65,65 @@ export default function AdminUserBlockButton({
           : `¿Desbloquear a "${userName}"? Podrá volver a utilizar su cuenta normalmente.`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
-    setLoading(
-      true
-    );
+    setLoading(true);
 
     try {
-      const {
-        error,
-      } =
-        await supabase.rpc(
-          "admin_set_user_blocked",
+      const response =
+        await fetch(
+          `/api/admin/users/${userId}/blocked`,
           {
-            p_user_id:
-              userId,
+            method:
+              "PATCH",
 
-            p_blocked:
-              nextBlocked,
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                blocked:
+                  nextBlocked,
+              }),
           }
         );
 
-      if (
-        error
-      ) {
-        console.error(
-          "Error changing user blocked status:",
-          error
-        );
+      const result =
+        await response.json();
 
+      if (!response.ok) {
         window.alert(
-          error.message ||
+          result.error ??
             "No se pudo cambiar el estado del usuario."
         );
 
         return;
       }
 
-      /*
-       * Actualización optimista:
-       * el botón cambia inmediatamente al nuevo estado
-       * sin esperar a que termine router.refresh().
-       */
       setCurrentBlocked(
-        nextBlocked
+        result.blocked
       );
 
       router.refresh();
-    } finally {
-      setLoading(
-        false
+    } catch (error) {
+      console.error(
+        "Error changing user blocked status:",
+        error
       );
+
+      window.alert(
+        "No se pudo cambiar el estado del usuario."
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
-  if (
-    isAdmin
-  ) {
+  if (isAdmin) {
     return (
       <button
         type="button"

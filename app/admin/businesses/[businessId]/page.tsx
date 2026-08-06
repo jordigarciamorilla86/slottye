@@ -524,25 +524,69 @@ export default async function AdminBusinessDetailPage({
             }}
           >
             <Link
-              href={`/admin/businesses/${business.id}/agenda`}
-              className="btn primary"
-            >
-              📅 Gestionar agenda
-            </Link>
+  href={`/admin/businesses/${business.id}/agenda`}
+  className="btn primary"
+>
+  📅 Gestionar agenda
+</Link>
 
-            <Link
-              href={`/business/${business.slug}`}
-              className="btn"
-            >
-              🌐 Ver ficha pública
-            </Link>
+<Link
+  href={`/admin/businesses/${business.id}/bookings`}
+  className="btn"
+>
+  📋 Reservas e historial
+</Link>
 
-            <Link
-              href={`/admin/users?user=${business.owner_id}`}
-              className="btn"
-            >
-              👤 Ver propietario
-            </Link>
+<Link
+  href={`/admin/businesses/${business.id}/services`}
+  className="btn"
+>
+  🧰 Gestionar servicios
+</Link>
+
+<Link
+  href={`/admin/businesses/${business.id}/hours`}
+  className="btn"
+>
+  🕒 Gestionar horarios
+</Link>
+
+<Link
+  href={`/admin/businesses/${business.id}/images`}
+  className="btn"
+>
+  🖼 Gestionar imágenes
+</Link>
+
+<Link
+  href={`/admin/businesses/${business.id}/edit`}
+  className="btn"
+>
+  ✏️ Datos y políticas
+</Link>
+
+<Link
+  href={`/admin/businesses/${business.id}/subscribers`}
+  className="btn"
+>
+  🔔 Gestionar suscriptores
+</Link>
+
+<Link
+  href={`/business/${business.slug}`}
+  className="btn"
+>
+  🌐 Ver ficha pública
+</Link>
+
+<Link
+  href={`/admin/users?user=${business.owner_id}`}
+  className="btn"
+>
+  👤 Ver propietario
+</Link>
+
+            
           </div>
         </section>
 

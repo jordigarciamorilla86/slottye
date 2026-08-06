@@ -1,4 +1,5 @@
 import {
+    NextRequest,
     NextResponse,
   } from "next/server";
   
@@ -11,12 +12,6 @@ import {
   } from "@/lib/supabase/admin";
   
   import {
-    prepareSingleBusinessDeletion,
-    requireAdmin,
-    sendBusinessDeletedEmail,
-  } from "@/lib/admin/adminDeletion";
-
-  import {
     writeAdminAuditLog,
   } from "@/lib/admin/audit";
   
@@ -26,13 +21,11 @@ import {
     }>;
   };
   
-  export async function DELETE(
-    _request:
-      Request,
+  export async function PATCH(
+    request: NextRequest,
     {
       params,
-    }:
-      Props
+    }: Props
   ) {
     try {
       const {
@@ -54,9 +47,7 @@ import {
       } =
         await supabase.auth.getUser();
   
-      if (
-        !currentUser
-      ) {
+      if (!currentUser) {
         return NextResponse.json(
           {
             error:
@@ -69,24 +60,55 @@ import {
         );
       }
   
-      const adminCheck =
-        await requireAdmin({
-          admin,
-          userId:
-            currentUser.id,
-        });
+      const {
+        data:
+          currentProfile,
+      } =
+        await admin
+          .from("profiles")
+          .select(`
+            id,
+            is_admin
+          `)
+          .eq(
+            "id",
+            currentUser.id
+          )
+          .maybeSingle();
   
       if (
-        !adminCheck.success
+        !currentProfile?.is_admin
       ) {
         return NextResponse.json(
           {
             error:
-              adminCheck.error,
+              "No autorizado.",
           },
           {
             status:
-              adminCheck.status,
+              403,
+          }
+        );
+      }
+  
+      const body =
+        await request.json();
+  
+      const active =
+        body.active;
+  
+      if (
+        typeof active !==
+        "boolean"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El estado enviado no es válido.",
+          },
+          {
+            status:
+              400,
           }
         );
       }
@@ -98,18 +120,13 @@ import {
           businessError,
       } =
         await admin
-          .from(
-            "businesses"
-          )
+          .from("businesses")
           .select(`
             id,
-            name,
             owner_id,
-  
-            profiles (
-              name,
-              email
-            )
+            name,
+            slug,
+            active
           `)
           .eq(
             "id",
@@ -117,14 +134,7 @@ import {
           )
           .maybeSingle();
   
-      if (
-        businessError
-      ) {
-        console.error(
-          "Error loading business to delete:",
-          businessError
-        );
-  
+      if (businessError) {
         return NextResponse.json(
           {
             error:
@@ -137,9 +147,7 @@ import {
         );
       }
   
-      if (
-        !business
-      ) {
+      if (!business) {
         return NextResponse.json(
           {
             error:
@@ -152,62 +160,54 @@ import {
         );
       }
   
-      const owner =
-        Array.isArray(
-          business.profiles
-        )
-          ? business
-              .profiles[0] ??
-            null
-          : business.profiles;
-  
-      const preparation =
-        await prepareSingleBusinessDeletion({
-          admin,
-          businessId,
-        });
-  
       if (
-        !preparation.success
+        business.active ===
+        active
       ) {
-        return NextResponse.json(
-          {
-            error:
-              preparation.error,
-          },
-          {
-            status:
-              500,
-          }
-        );
+        return NextResponse.json({
+          success:
+            true,
+  
+          active,
+        });
       }
   
       const {
+        data:
+          updatedBusiness,
         error:
-          deleteError,
+          updateError,
       } =
         await admin
           .from(
             "businesses"
           )
-          .delete()
+          .update({
+            active,
+          })
           .eq(
             "id",
             businessId
-          );
-  
+          )
+          .select(`
+            id,
+            active
+          `)
+          .maybeSingle();
+      
       if (
-        deleteError
+        updateError
       ) {
         console.error(
-          "Error deleting business:",
-          deleteError
+          "Error changing business status:",
+          updateError
         );
-  
+      
         return NextResponse.json(
           {
             error:
-              "No se ha podido eliminar el negocio y sus datos.",
+              updateError.message ||
+              "No se ha podido cambiar el estado del negocio.",
           },
           {
             status:
@@ -215,80 +215,66 @@ import {
           }
         );
       }
-  
-      let emailSent =
-        false;
-  
+      
       if (
-        owner?.email
+        !updatedBusiness
       ) {
-        emailSent =
-          await sendBusinessDeletedEmail({
-            email:
-              owner.email,
-  
-            ownerName:
-              owner.name,
-  
-            businessName:
-              business.name,
-          });
+        return NextResponse.json(
+          {
+            error:
+              "No se ha podido modificar el negocio.",
+          },
+          {
+            status:
+              404,
+          }
+        );
       }
-
+  
       await writeAdminAuditLog({
         adminUserId:
           currentUser.id,
-      
+  
         action:
-          "BUSINESS_DELETED",
-      
+          active
+            ? "BUSINESS_ACTIVATED"
+            : "BUSINESS_DEACTIVATED",
+  
         entityType:
           "BUSINESS",
-      
+  
         entityId:
           business.id,
-      
-        /*
-         * El negocio ya no existe, por lo que business_id
-         * debe quedar en null. Conservamos su UUID en entityId.
-         */
-      
+  
         businessId:
-          null,
-      
+          business.id,
+  
         targetUserId:
           business.owner_id,
-      
+  
         description:
-          `Se eliminó definitivamente el negocio ${business.name}.`,
-      
+          active
+            ? `Se activó el negocio ${business.name}.`
+            : `Se desactivó el negocio ${business.name}.`,
+  
         oldValues: {
+          active:
+            business.active,
+        },
+  
+        newValues: {
+          active,
+        },
+  
+        metadata: {
           name:
             business.name,
-      
+  
+          slug:
+            business.slug,
+  
           owner_id:
             business.owner_id,
-        },
-      
-        newValues: {
-          deleted:
-            true,
-        },
-      
-        metadata: {
-          deleted_business_id:
-            business.id,
-      
-          owner_name:
-            owner?.name ??
-            null,
-      
-          owner_email:
-            owner?.email ??
-            null,
-      
-          email_sent:
-            emailSent,
         },
       });
   
@@ -296,20 +282,19 @@ import {
         success:
           true,
   
-        emailSent,
+          active:
+          updatedBusiness.active,
       });
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
-        "Unexpected admin business deletion error:",
+        "Unexpected admin business status error:",
         error
       );
   
       return NextResponse.json(
         {
           error:
-            "Ha ocurrido un error inesperado al eliminar el negocio.",
+            "Ha ocurrido un error inesperado.",
         },
         {
           status:

@@ -17,6 +17,10 @@ import {
     sendAccountDeletedEmail,
   } from "@/lib/admin/adminDeletion";
   
+  import {
+    writeAdminAuditLog,
+  } from "@/lib/admin/audit";
+
   type Props = {
     params: Promise<{
       userId: string;
@@ -332,6 +336,62 @@ if (
           });
       }
   
+      await writeAdminAuditLog({
+        adminUserId:
+          currentUser.id,
+      
+        action:
+          "USER_DELETED",
+      
+        entityType:
+          "USER",
+      
+        entityId:
+          targetUserId,
+      
+        /*
+         * El perfil ya se ha eliminado.
+         * No usamos targetUserId porque la clave foránea
+         * ya no puede apuntar a ese perfil.
+         */
+      
+        targetUserId:
+          null,
+      
+        description:
+          `Se eliminó definitivamente la cuenta de ${targetProfile.name?.trim() || targetProfile.email || targetUserId}.`,
+      
+        oldValues: {
+          name:
+            targetProfile.name,
+      
+          email:
+            targetProfile.email,
+      
+          role:
+            targetProfile.role,
+      
+          is_admin:
+            targetProfile.is_admin,
+        },
+      
+        newValues: {
+          deleted:
+            true,
+        },
+      
+        metadata: {
+          deleted_user_id:
+            targetUserId,
+      
+          email_sent:
+            emailSent,
+      
+          customer_slots_released:
+            customerPreparation.success,
+        },
+      });
+      
       return NextResponse.json({
         success:
           true,

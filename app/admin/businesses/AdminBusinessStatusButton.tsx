@@ -2,15 +2,12 @@
 
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
 import {
   useRouter,
 } from "next/navigation";
-
-import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   businessId: string;
@@ -26,13 +23,6 @@ export default function AdminBusinessStatusButton({
   const router =
     useRouter();
 
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     loading,
     setLoading,
@@ -47,10 +37,6 @@ export default function AdminBusinessStatusButton({
       active
     );
 
-  /*
-   * Sincroniza el estado local cuando el servidor
-   * devuelve nuevos datos después de router.refresh().
-   */
   useEffect(() => {
     setCurrentActive(
       active
@@ -60,9 +46,7 @@ export default function AdminBusinessStatusButton({
   ]);
 
   async function changeStatus() {
-    if (
-      loading
-    ) {
+    if (loading) {
       return;
     }
 
@@ -76,61 +60,61 @@ export default function AdminBusinessStatusButton({
           : `¿Desactivar "${businessName}"? Dejará de aparecer públicamente en Slottye.`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
-    setLoading(
-      true
-    );
+    setLoading(true);
 
     try {
-      const {
-        error,
-      } =
-        await supabase.rpc(
-          "admin_set_business_active",
+      const response =
+        await fetch(
+          `/api/admin/businesses/${businessId}/status`,
           {
-            p_business_id:
-              businessId,
+            method:
+              "PATCH",
 
-            p_active:
-              nextActive,
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                active:
+                  nextActive,
+              }),
           }
         );
 
-      if (
-        error
-      ) {
-        console.error(
-          "Error changing business status:",
-          error
-        );
+      const result =
+        await response.json();
 
+      if (!response.ok) {
         window.alert(
-          error.message ||
+          result.error ??
             "No se pudo cambiar el estado del negocio."
         );
 
         return;
       }
 
-      /*
-       * Actualización optimista:
-       * el botón cambia inmediatamente al nuevo estado
-       * sin esperar a que termine router.refresh().
-       */
       setCurrentActive(
-        nextActive
+        result.active
       );
 
       router.refresh();
-    } finally {
-      setLoading(
-        false
+    } catch (error) {
+      console.error(
+        "Error changing business status:",
+        error
       );
+
+      window.alert(
+        "No se pudo cambiar el estado del negocio."
+      );
+    } finally {
+      setLoading(false);
     }
   }
 

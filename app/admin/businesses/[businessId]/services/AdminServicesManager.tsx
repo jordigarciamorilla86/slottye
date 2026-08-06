@@ -2,13 +2,8 @@
 
 import {
   FormEvent,
-  useMemo,
   useState,
 } from "react";
-
-import {
-  createClient,
-} from "@/lib/supabase/client";
 
 type Service = {
   id: string;
@@ -23,17 +18,10 @@ type Props = {
   initialServices: Service[];
 };
 
-export default function ServicesManager({
+export default function AdminServicesManager({
   businessId,
   initialServices,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     services,
     setServices,
@@ -81,114 +69,47 @@ export default function ServicesManager({
   ] =
     useState("");
 
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] =
-    useState("");
-
-  /*
-   * ============================================================
-   * CREAR SERVICIO
-   * ============================================================
-   */
-
   async function createService(
     event:
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (
-      loading
-    ) {
-      return;
-    }
-
-    const normalizedName =
-      name.trim();
-
-    const normalizedDescription =
-      description.trim();
-
-    if (
-      !normalizedName
-    ) {
-      setErrorMessage(
-        "Introduce el nombre del servicio."
-      );
-
-      return;
-    }
-
-    if (
-      !Number.isInteger(
-        duration
-      ) ||
-      duration <
-        1 ||
-      duration >
-        1440
-    ) {
-      setErrorMessage(
-        "Introduce una duración válida entre 1 y 1440 minutos."
-      );
-
-      return;
-    }
-
-    setLoading(
-      true
-    );
-
+    setLoading(true);
     setMessage("");
-    setErrorMessage("");
 
     try {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from(
-            "services"
-          )
-          .insert({
-            business_id:
-              businessId,
+      const response =
+        await fetch(
+          `/api/admin/businesses/${businessId}/services`,
+          {
+            method:
+              "POST",
 
-            name:
-              normalizedName,
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
 
-            description:
-              normalizedDescription ||
-              null,
+            body:
+              JSON.stringify({
+                name,
+                description,
 
-            duration_minutes:
-              duration,
-
-            active:
-              true,
-          })
-          .select(`
-            id,
-            name,
-            description,
-            duration_minutes,
-            active
-          `)
-          .single();
-
-      if (
-        error
-      ) {
-        console.error(
-          "Error creating service:",
-          error
+                durationMinutes:
+                  duration,
+              }),
+          }
         );
 
-        setErrorMessage(
-          error.message ||
+      const result =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        setMessage(
+          result.error ??
             "No se ha podido crear el servicio."
         );
 
@@ -199,16 +120,14 @@ export default function ServicesManager({
         (
           current
         ) => [
-          data,
+          result.service,
           ...current,
         ]
       );
 
       setName("");
       setDescription("");
-      setDuration(
-        30
-      );
+      setDuration(30);
 
       setMessage(
         "Servicio creado correctamente."
@@ -217,25 +136,17 @@ export default function ServicesManager({
       error
     ) {
       console.error(
-        "Unexpected service creation error:",
+        "Error creating service as admin:",
         error
       );
 
-      setErrorMessage(
+      setMessage(
         "No se ha podido crear el servicio."
       );
     } finally {
-      setLoading(
-        false
-      );
+      setLoading(false);
     }
   }
-
-  /*
-   * ============================================================
-   * ACTIVAR O DESACTIVAR SERVICIO
-   * ============================================================
-   */
 
   async function toggleService(
     service:
@@ -253,13 +164,11 @@ export default function ServicesManager({
     const confirmed =
       window.confirm(
         nextActive
-          ? `¿Activar el servicio "${service.name}"? Volverá a estar disponible para crear nuevas citas.`
-          : `¿Desactivar el servicio "${service.name}"? Dejará de estar disponible para crear nuevas citas.`
+          ? `¿Activar el servicio "${service.name}"?`
+          : `¿Desactivar el servicio "${service.name}"?`
       );
 
-    if (
-      !confirmed
-    ) {
+    if (!confirmed) {
       return;
     }
 
@@ -268,59 +177,40 @@ export default function ServicesManager({
     );
 
     setMessage("");
-    setErrorMessage("");
 
     try {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from(
-            "services"
-          )
-          .update({
-            active:
-              nextActive,
-          })
-          .eq(
-            "id",
-            service.id
-          )
-          .eq(
-            "business_id",
-            businessId
-          )
-          .select(`
-            id,
-            name,
-            description,
-            duration_minutes,
-            active
-          `)
-          .maybeSingle();
+      const response =
+        await fetch(
+          `/api/admin/businesses/${businessId}/services`,
+          {
+            method:
+              "PATCH",
 
-      if (
-        error
-      ) {
-        console.error(
-          "Error updating service status:",
-          error
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                serviceId:
+                  service.id,
+
+                active:
+                  nextActive,
+              }),
+          }
         );
 
-        setErrorMessage(
-          error.message ||
+      const result =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        setMessage(
+          result.error ??
             "No se ha podido cambiar el estado del servicio."
-        );
-
-        return;
-      }
-
-      if (
-        !data
-      ) {
-        setErrorMessage(
-          "El servicio no existe o no pertenece a este negocio."
         );
 
         return;
@@ -336,7 +226,7 @@ export default function ServicesManager({
             ) =>
               item.id ===
               service.id
-                ? data
+                ? result.service
                 : item
           )
       );
@@ -350,11 +240,11 @@ export default function ServicesManager({
       error
     ) {
       console.error(
-        "Unexpected service update error:",
+        "Error updating service as admin:",
         error
       );
 
-      setErrorMessage(
+      setMessage(
         "No se ha podido cambiar el estado del servicio."
       );
     } finally {
@@ -371,10 +261,6 @@ export default function ServicesManager({
           28,
       }}
     >
-      {/* ========================================================
-          NUEVO SERVICIO
-          ======================================================== */}
-
       <form
         onSubmit={
           createService
@@ -391,13 +277,7 @@ export default function ServicesManager({
           Nuevo servicio
         </h2>
 
-        <p
-          className="muted"
-          style={{
-            marginTop:
-              -4,
-          }}
-        >
+        <p className="muted">
           El servicio se añadirá directamente a la ficha y agenda del negocio.
         </p>
 
@@ -413,13 +293,11 @@ export default function ServicesManager({
             }
             onChange={(
               event
-            ) => {
+            ) =>
               setName(
                 event.target.value
-              );
-
-              setErrorMessage("");
-            }}
+              )
+            }
             placeholder="Primera visita"
             style={
               inputStyle
@@ -438,13 +316,11 @@ export default function ServicesManager({
             }
             onChange={(
               event
-            ) => {
+            ) =>
               setDescription(
                 event.target.value
-              );
-
-              setErrorMessage("");
-            }}
+              )
+            }
             placeholder="Describe el servicio..."
             rows={4}
             style={{
@@ -472,15 +348,13 @@ export default function ServicesManager({
             }
             onChange={(
               event
-            ) => {
+            ) =>
               setDuration(
                 Number(
                   event.target.value
                 )
-              );
-
-              setErrorMessage("");
-            }}
+              )
+            }
             style={
               inputStyle
             }
@@ -513,75 +387,17 @@ export default function ServicesManager({
         </button>
       </form>
 
-      {/* ========================================================
-          MENSAJES
-          ======================================================== */}
-
       {message && (
-        <div
+        <p
+          className="muted"
           style={{
             marginTop:
-              16,
-
-            padding:
-              "12px 14px",
-
-            border:
-              "1px solid #bbf7d0",
-
-            borderRadius:
-              12,
-
-            background:
-              "#f0fdf4",
-
-            color:
-              "#166534",
-
-            fontSize:
               14,
           }}
         >
           {message}
-        </div>
+        </p>
       )}
-
-      {errorMessage && (
-        <div
-          role="alert"
-          style={{
-            marginTop:
-              16,
-
-            padding:
-              "12px 14px",
-
-            border:
-              "1px solid #fecaca",
-
-            borderRadius:
-              12,
-
-            background:
-              "#fef2f2",
-
-            color:
-              "#b91c1c",
-
-            fontSize:
-              14,
-
-            fontWeight:
-              600,
-          }}
-        >
-          ⚠️ {errorMessage}
-        </div>
-      )}
-
-      {/* ========================================================
-          SERVICIOS DEL NEGOCIO
-          ======================================================== */}
 
       <div
         style={{
@@ -630,56 +446,28 @@ export default function ServicesManager({
                         justifyContent:
                           "space-between",
 
-                        alignItems:
-                          "center",
-
                         gap:
                           20,
+
+                        alignItems:
+                          "center",
 
                         flexWrap:
                           "wrap",
                       }}
                     >
-                      <div
-                        style={{
-                          minWidth:
-                            0,
-
-                          flex:
-                            "1 1 260px",
-                        }}
-                      >
-                        <h3
-                          style={{
-                            margin:
-                              0,
-                          }}
-                        >
+                      <div>
+                        <h3>
                           {service.name}
                         </h3>
 
                         {service.description && (
-                          <p
-                            className="muted"
-                            style={{
-                              margin:
-                                "8px 0 0",
-
-                              lineHeight:
-                                1.6,
-                            }}
-                          >
+                          <p className="muted">
                             {service.description}
                           </p>
                         )}
 
-                        <div
-                          className="meta"
-                          style={{
-                            marginTop:
-                              8,
-                          }}
-                        >
+                        <div className="meta">
                           ⏱{" "}
                           {service.duration_minutes}{" "}
                           minutos
