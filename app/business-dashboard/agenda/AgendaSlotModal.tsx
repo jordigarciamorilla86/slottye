@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
+
 
 type Service = {
   id: string;
@@ -156,12 +156,7 @@ export default function AgendaSlotModal({
   services,
   onClose,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
+  
 
     const [
       selectedTime,
@@ -381,19 +376,19 @@ export default function AgendaSlotModal({
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     setError("");
-
+  
     if (
       !customerName.trim()
     ) {
       setError(
         "Introduce el nombre del cliente."
       );
-
+  
       return;
     }
-
+  
     if (
       !Number.isInteger(
         manualDurationMinutes
@@ -406,69 +401,82 @@ export default function AgendaSlotModal({
       setError(
         "La duración no es válida."
       );
-
+  
       return;
     }
-
+  
     setLoading(
       true
     );
-
+  
     const startAt =
       normalizeToExactMinute(
         selectedDate
       );
-
+  
     const endAt =
       addMinutes(
         startAt,
         manualDurationMinutes
       );
-
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "create_manual_booking",
-        {
-          p_business_id:
-            businessId,
-
-          p_service_id:
-            manualServiceId ||
-            null,
-
-          p_customer_name:
-            customerName.trim(),
-
-          p_customer_phone:
-            customerPhone.trim(),
-
-          p_customer_email:
-            customerEmail.trim(),
-
-          p_start_at:
-            startAt.toISOString(),
-
-          p_end_at:
-            endAt.toISOString(),
-
-          p_notes:
-            notes.trim(),
-        }
-      );
-
-      if (rpcError) {
-        console.error(
-          "Error creating manual booking:",
-          rpcError
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/create",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "manual",
+  
+                businessId,
+  
+                serviceId:
+                  manualServiceId ||
+                  null,
+  
+                customerName:
+                  customerName.trim(),
+  
+                customerPhone:
+                  customerPhone.trim(),
+  
+                customerEmail:
+                  customerEmail.trim(),
+  
+                startAt:
+                  startAt.toISOString(),
+  
+                endAt:
+                  endAt.toISOString(),
+  
+                notes:
+                  notes.trim(),
+              }),
+          }
         );
-      
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
         const message =
-          rpcError.message
-            .toLowerCase();
-      
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
         if (
           message.includes(
             "cuenta está bloqueada"
@@ -534,28 +542,31 @@ export default function AgendaSlotModal({
           );
         } else {
           setError(
-            rpcError.message ||
+            result.error ??
               "No se ha podido crear la reserva manual."
           );
         }
-      
-        setLoading(
-          false
-        );
-      
+  
         return;
       }
-    /*
-     * La RPC ya se encarga de retirar
-     * todos los slots AVAILABLE que
-     * coincidan con la reserva manual.
-     */
-
-    setLoading(
-      false
-    );
-
-    onClose();
+  
+      onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating manual booking:",
+        error
+      );
+  
+      setError(
+        "No se ha podido crear la reserva manual."
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
 
   /*
@@ -563,30 +574,33 @@ export default function AgendaSlotModal({
    * CREAR DISPONIBILIDAD
    * ============================================================
    */
-
   async function createAvailability(
     event:
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     setError("");
-
+  
     const service =
       activeServices.find(
-        (item) =>
+        (
+          item
+        ) =>
           item.id ===
           availabilityServiceId
       );
-
-    if (!service) {
+  
+    if (
+      !service
+    ) {
       setError(
         "Selecciona un servicio."
       );
-
+  
       return;
     }
-
+  
     if (
       !Number.isInteger(
         availabilityDurationMinutes
@@ -599,26 +613,21 @@ export default function AgendaSlotModal({
       setError(
         "La duración de la disponibilidad no es válida."
       );
-
+  
       return;
     }
-
+  
     const startAt =
       normalizeToExactMinute(
         selectedDate
       );
-
+  
     const endAt =
       addMinutes(
         startAt,
         availabilityDurationMinutes
       );
-
-    /*
-     * No permitimos crear disponibilidad
-     * completamente en el pasado.
-     */
-
+  
     if (
       endAt <=
       new Date()
@@ -626,172 +635,187 @@ export default function AgendaSlotModal({
       setError(
         "No puedes crear disponibilidad en un horario que ya ha pasado."
       );
-
+  
       return;
     }
-
+  
     setLoading(
       true
     );
-
-    const {
-      data:
-        createdSlot,
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "create_agenda_slot",
-        {
-          p_business_id:
-            businessId,
-
-          p_service_id:
-            service.id,
-
-          p_start_at:
-            startAt.toISOString(),
-
-          p_end_at:
-            endAt.toISOString(),
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/create",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "slot",
+  
+                businessId,
+  
+                serviceId:
+                  service.id,
+  
+                startAt:
+                  startAt.toISOString(),
+  
+                endAt:
+                  endAt.toISOString(),
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        const message =
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "online booking"
+          ) ||
+          message.includes(
+            "reserva slottye"
+          )
+        ) {
+          setError(
+            "No puedes crear disponibilidad porque ya existe una reserva de Slottye en ese horario."
+          );
+        } else if (
+          message.includes(
+            "manual booking"
+          ) ||
+          message.includes(
+            "reserva manual"
+          )
+        ) {
+          setError(
+            "No puedes crear disponibilidad porque ya existe una reserva manual en ese horario."
+          );
+        } else if (
+          message.includes(
+            "already a slot"
+          ) ||
+          message.includes(
+            "disponibilidad"
+          )
+        ) {
+          setError(
+            "Ya existe un hueco disponible o reservado que coincide con ese horario."
+          );
+        } else if (
+          message.includes(
+            "invalid service"
+          ) ||
+          message.includes(
+            "servicio"
+          )
+        ) {
+          setError(
+            "El servicio seleccionado no es válido."
+          );
+        } else {
+          setError(
+            result.error ??
+              "No se ha podido crear la disponibilidad."
+          );
         }
-      );
-
-    if (rpcError) {
-      console.error(
-        "Error creating agenda slot:",
-        rpcError
-      );
-
-      const message =
-        rpcError.message
-          .toLowerCase();
-
-          if (
-            message.includes(
-              "cuenta está bloqueada"
-            ) ||
-            message.includes(
-              "cuenta esta bloqueada"
-            )
-          ) {
-            setError(
-              "Tu cuenta está bloqueada."
+  
+        return;
+      }
+  
+      /*
+       * ==========================================================
+       * AVISAR A SUSCRIPTORES
+       * ==========================================================
+       */
+  
+      const createdSlotId =
+        typeof result.slotId ===
+          "string"
+          ? result.slotId
+          : null;
+  
+      if (
+        createdSlotId
+      ) {
+        fetch(
+          "/api/notifications/new-slots",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                slotIds: [
+                  createdSlotId,
+                ],
+              }),
+          }
+        ).catch(
+          (
+            notificationError
+          ) => {
+            console.error(
+              "Error notificando nueva disponibilidad:",
+              notificationError
             );
-          } else if (
-            message.includes(
-              "online booking"
-            )
-          ) {
-        setError(
-          "No puedes crear disponibilidad porque ya existe una reserva de Slottye en ese horario."
-        );
-      } else if (
-        message.includes(
-          "manual booking"
-        )
-      ) {
-        setError(
-          "No puedes crear disponibilidad porque ya existe una reserva manual en ese horario."
-        );
-      } else if (
-        message.includes(
-          "already a slot"
-        )
-      ) {
-        setError(
-          "Ya existe un hueco disponible o reservado que coincide con ese horario."
-        );
-      } else if (
-        message.includes(
-          "invalid service"
-        )
-      ) {
-        setError(
-          "El servicio seleccionado no es válido."
-        );
-      } else {
-        setError(
-          "No se ha podido crear la disponibilidad."
+          }
         );
       }
-
+  
+      onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating availability:",
+        error
+      );
+  
+      setError(
+        "No se ha podido crear la disponibilidad."
+      );
+    } finally {
       setLoading(
         false
       );
-
-      return;
     }
-
-    /*
-     * ==========================================================
-     * NOTIFICAR A SUSCRIPTORES
-     * ==========================================================
-     *
-     * Mismo comportamiento que el calendario tradicional.
-     * ==========================================================
-     */
-
-    const createdSlotRecord =
-      Array.isArray(
-        createdSlot
-      )
-        ? createdSlot[0]
-        : createdSlot;
-
-    const createdSlotId =
-      createdSlotRecord &&
-      typeof createdSlotRecord ===
-        "object" &&
-      "id" in createdSlotRecord &&
-      typeof createdSlotRecord.id ===
-        "string"
-        ? createdSlotRecord.id
-        : null;
-
-    if (createdSlotId) {
-      fetch(
-        "/api/notifications/new-slots",
-        {
-          method:
-            "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body:
-            JSON.stringify({
-              businessId,
-
-              slotIds: [
-                createdSlotId,
-              ],
-            }),
-        }
-      ).catch(
-        (
-          notificationError
-        ) => {
-          console.error(
-            "Error notificando nueva disponibilidad:",
-            notificationError
-          );
-        }
-      );
-    }
-
-    setLoading(
-      false
-    );
-
-    /*
-     * El padre vuelve a cargar los datos
-     * de la semana al cerrar el modal.
-     */
-
-    onClose();
   }
 
   /*
@@ -807,7 +831,6 @@ export default function AgendaSlotModal({
       "menu"
     );
   }
-
   async function createBlock(
     event:
       FormEvent<HTMLFormElement>
@@ -858,107 +881,133 @@ export default function AgendaSlotModal({
       true
     );
   
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "create_agenda_block",
-        {
-          p_business_id:
-            businessId,
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/create",
+          {
+            method:
+              "POST",
   
-          p_start_at:
-            startAt.toISOString(),
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
   
-          p_end_at:
-            endAt.toISOString(),
+            body:
+              JSON.stringify({
+                type:
+                  "block",
   
-          p_reason:
-            blockReason.trim(),
-        }
-      );
+                businessId,
   
-    if (rpcError) {
-      console.error(
-        "Error creating agenda block:",
-        rpcError
-      );
+                startAt:
+                  startAt.toISOString(),
   
-      const message =
-        rpcError.message
-          .toLowerCase();
+                endAt:
+                  endAt.toISOString(),
+  
+                reason:
+                  blockReason.trim(),
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
   
       if (
-        message.includes(
-          "cuenta está bloqueada"
-        ) ||
-        message.includes(
-          "cuenta esta bloqueada"
-        )
+        !response.ok
       ) {
-        setError(
-          "Tu cuenta está bloqueada."
-        );
-      } else if (
-        message.includes(
-          "not authorized"
-        )
-      ) {
-        setError(
-          "No tienes permisos para bloquear este horario."
-        );
-      } else if (
-        message.includes(
-          "invalid block dates"
-        )
-      ) {
-        setError(
-          "El horario seleccionado no es válido."
-        );
-      } else if (
-        message.includes(
-          "online booking"
-        ) ||
-        message.includes(
-          "reserva slottye"
-        )
-      ) {
-        setError(
-          "No puedes bloquear el horario porque ya contiene una reserva de Slottye."
-        );
-      } else if (
-        message.includes(
-          "manual booking"
-        ) ||
-        message.includes(
-          "reserva manual"
-        )
-      ) {
-        setError(
-          "No puedes bloquear el horario porque ya contiene una reserva manual."
-        );
-      } else {
-        setError(
-          rpcError.message ||
-            "No se ha podido bloquear el horario."
-        );
+        const message =
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
+        if (
+          message.includes(
+            "cuenta está bloqueada"
+          ) ||
+          message.includes(
+            "cuenta esta bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else if (
+          message.includes(
+            "not authorized"
+          ) ||
+          message.includes(
+            "permis"
+          )
+        ) {
+          setError(
+            "No tienes permisos para bloquear este horario."
+          );
+        } else if (
+          message.includes(
+            "invalid block dates"
+          ) ||
+          message.includes(
+            "horario seleccionado"
+          )
+        ) {
+          setError(
+            "El horario seleccionado no es válido."
+          );
+        } else if (
+          message.includes(
+            "online booking"
+          ) ||
+          message.includes(
+            "reserva slottye"
+          )
+        ) {
+          setError(
+            "No puedes bloquear el horario porque ya contiene una reserva de Slottye."
+          );
+        } else if (
+          message.includes(
+            "manual booking"
+          ) ||
+          message.includes(
+            "reserva manual"
+          )
+        ) {
+          setError(
+            "No puedes bloquear el horario porque ya contiene una reserva manual."
+          );
+        } else {
+          setError(
+            result.error ??
+              "No se ha podido bloquear el horario."
+          );
+        }
+  
+        return;
       }
   
+      onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating agenda block:",
+        error
+      );
+  
+      setError(
+        "No se ha podido bloquear el horario."
+      );
+    } finally {
       setLoading(
         false
       );
-  
-      return;
     }
-  
-    setLoading(
-      false
-    );
-  
-    onClose();
   }
-
   /*
    * ============================================================
    * UI

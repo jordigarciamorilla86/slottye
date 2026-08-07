@@ -2,12 +2,10 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { ReviewForm } from "@/components/ReviewForm";
 
 type Slot = {
@@ -79,12 +77,7 @@ export default function BookingsManager({
   userId,
   highlightedBookingId,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
+  
 
   const highlightedRef =
     useRef<HTMLDivElement | null>(
@@ -392,12 +385,12 @@ export default function BookingsManager({
     booking: Booking
   ) {
     clearMessage();
-
+  
     const cancellation =
       getCancellationInfo(
         booking
       );
-
+  
     if (
       !cancellation.canCancel
     ) {
@@ -405,104 +398,142 @@ export default function BookingsManager({
         cancellation.reason ??
           "Esta cita no se puede cancelar."
       );
-
+  
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Seguro que quieres cancelar esta cita?"
       );
-
+  
     if (!confirmed) {
       return;
     }
-
+  
     setLoadingId(
       booking.id
     );
-
-    const { error } =
-      await supabase.rpc(
-        "cancel_booking",
+  
+    try {
+      const response =
+        await fetch(
+          "/api/account/bookings/manage",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                action:
+                  "cancel",
+  
+                bookingId:
+                  booking.id,
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido cancelar la cita."
+        );
+  
+        return;
+      }
+  
+      /*
+       * Avisamos a los suscriptores
+       * de que el hueco vuelve
+       * a estar disponible.
+       */
+  
+      fetch(
+        "/api/notifications/slot-available",
         {
-          p_booking_id:
-            booking.id,
+          method:
+            "POST",
+  
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+  
+          body:
+            JSON.stringify({
+              bookingId:
+                booking.id,
+            }),
+        }
+      ).catch(
+        (
+          error
+        ) => {
+          console.error(
+            "Error enviando aviso de cita liberada:",
+            error
+          );
         }
       );
-
-    if (error) {
-      showError(
-        error.message
+  
+      /*
+       * Actualización visual local.
+       */
+  
+      setBookings(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              item
+            ) =>
+              item.id ===
+              booking.id
+                ? {
+                    ...item,
+  
+                    status:
+                      "CANCELLED_BY_USER",
+  
+                    cancelled_at:
+                      new Date()
+                        .toISOString(),
+                  }
+                : item
+          )
       );
-
+  
+      showSuccess(
+        "Cita cancelada correctamente."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error cancelling booking:",
+        error
+      );
+  
+      showError(
+        "No se ha podido cancelar la cita."
+      );
+    } finally {
       setLoadingId(
         null
       );
-
-      return;
     }
-
-    /*
-     * Avisamos a los suscriptores
-     * de que el hueco ha vuelto
-     * a estar disponible.
-     */
-    fetch(
-      "/api/notifications/slot-available",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body:
-          JSON.stringify({
-            bookingId:
-              booking.id,
-          }),
-      }
-    ).catch(
-      (error) => {
-        console.error(
-          "Error enviando aviso de cita liberada:",
-          error
-        );
-      }
-    );
-
-    /*
-     * Actualizamos estado local.
-     */
-    setBookings(
-      (current) =>
-        current.map(
-          (item) =>
-            item.id ===
-            booking.id
-              ? {
-                  ...item,
-
-                  status:
-                    "CANCELLED_BY_USER",
-
-                  cancelled_at:
-                    new Date()
-                      .toISOString(),
-                }
-              : item
-        )
-    );
-
-    showSuccess(
-      "Cita cancelada correctamente."
-    );
-
-    setLoadingId(
-      null
-    );
   }
 
   /*
@@ -515,7 +546,7 @@ export default function BookingsManager({
     booking: Booking
   ) {
     clearMessage();
-
+  
     if (
       !booking.businesses ||
       !booking.services ||
@@ -524,10 +555,10 @@ export default function BookingsManager({
       showError(
         "No se ha podido cargar la información necesaria para cambiar esta cita."
       );
-
+  
       return;
     }
-
+  
     if (
       reschedulingBookingId ===
       booking.id
@@ -535,320 +566,345 @@ export default function BookingsManager({
       setReschedulingBookingId(
         null
       );
-
+  
       setSelectedSlotId(
         null
       );
-
+  
       return;
     }
-
+  
     setRescheduleLoadingId(
       booking.id
     );
-
-    /*
-     * Consultamos disponibilidad
-     * del mismo negocio/servicio.
-     */
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from("slots")
-        .select(`
-          id,
-          start_at,
-          end_at
-        `)
-        .eq(
-          "business_id",
-          booking.businesses
-            .id
-        )
-        .eq(
-          "service_id",
-          booking.services
-            .id
-        )
-        .eq(
-          "status",
-          "AVAILABLE"
-        )
-        .gte(
-          "start_at",
-          new Date()
-            .toISOString()
-        )
-        .neq(
-          "id",
-          booking.slots
-            .id
-        )
-        .order(
-          "start_at",
+  
+    try {
+      const response =
+        await fetch(
+          `/api/account/bookings/manage?bookingId=${encodeURIComponent(
+            booking.id
+          )}`,
           {
-            ascending:
-              true,
+            method:
+              "GET",
+  
+            cache:
+              "no-store",
           }
         );
-
-    if (error) {
-      showError(
-        error.message
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se han podido cargar las citas disponibles."
+        );
+  
+        return;
+      }
+  
+      setAvailableSlots(
+        (
+          current
+        ) => ({
+          ...current,
+  
+          [booking.id]:
+            result.slots ??
+            [],
+        })
       );
-
+  
+      setSelectedSlotId(
+        null
+      );
+  
+      setReschedulingBookingId(
+        booking.id
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error loading reschedule slots:",
+        error
+      );
+  
+      showError(
+        "No se han podido cargar las citas disponibles."
+      );
+    } finally {
       setRescheduleLoadingId(
         null
       );
-
-      return;
     }
-
-    setAvailableSlots(
-      (current) => ({
-        ...current,
-
-        [booking.id]:
-          data ?? [],
-      })
-    );
-
-    setSelectedSlotId(
-      null
-    );
-
-    setReschedulingBookingId(
-      booking.id
-    );
-
-    setRescheduleLoadingId(
-      null
-    );
   }
-
   async function confirmReschedule(
     booking: Booking
   ) {
     clearMessage();
-
+  
     if (
       !selectedSlotId
     ) {
       showError(
         "Selecciona una nueva cita."
       );
-
+  
       return;
     }
-
+  
     const slotsForBooking =
       availableSlots[
         booking.id
       ] ?? [];
-
+  
     const selectedSlot =
       slotsForBooking.find(
-        (slot) =>
+        (
+          slot
+        ) =>
           slot.id ===
           selectedSlotId
       );
-
+  
     if (
       !selectedSlot
     ) {
       showError(
         "La cita seleccionada ya no está disponible."
       );
-
+  
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         `¿Cambiar tu cita al ${formatDate(
-          selectedSlot
-            .start_at
+          selectedSlot.start_at
         )} a las ${formatTime(
-          selectedSlot
-            .start_at
+          selectedSlot.start_at
         )}?`
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     setRescheduleLoadingId(
       booking.id
     );
-
-    setRescheduleLoadingId(
-      booking.id
-    );
-    
-    /*
-     * Guardamos el hueco anterior antes
-     * de ejecutar la reprogramación.
-     */
-    const oldSlotId =
-      booking.slots?.id;
-    
-    if (!oldSlotId) {
-      showError(
-        "No se ha podido identificar la cita anterior."
-      );
-    
-      setRescheduleLoadingId(
-        null
-      );
-    
-      return;
-    }
-    
-    const { error } =
-      await supabase.rpc(
-        "reschedule_booking",
-        {
-          p_booking_id:
-            booking.id,
-    
-          p_new_slot_id:
-            selectedSlot.id,
-        }
-      );
-
-    if (error) {
-      console.error(
-        "Error reprogramando cita:",
-        error
-      );
-
-      showError(
-        error.message
-      );
-
-      setRescheduleLoadingId(
-        null
-      );
-
-      return;
-    }
-    /*
- * El hueco antiguo ha quedado libre.
- * Avisamos a los suscriptores.
- */
-fetch(
-  "/api/notifications/rescheduled-slot-available",
-  {
-    method: "POST",
-
-    headers: {
-      "Content-Type":
-        "application/json",
-    },
-
-    body: JSON.stringify({
-      bookingId:
-        booking.id,
-
-      oldSlotId,
-    }),
-  }
-).catch((error) => {
-  console.error(
-    "Error avisando del hueco liberado tras reprogramación:",
-    error
-  );
-});
-    /*
-     * Notificación de
-     * reprogramación.
-     */
-    fetch(
-      "/api/notifications/booking-rescheduled",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body:
-          JSON.stringify({
-            bookingId:
-              booking.id,
-          }),
-      }
-    ).catch(
-      (error) => {
+  
+    try {
+      const response =
+        await fetch(
+          "/api/account/bookings/manage",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                action:
+                  "reschedule",
+  
+                bookingId:
+                  booking.id,
+  
+                newSlotId:
+                  selectedSlot.id,
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
         console.error(
-          "Error enviando notificación de reprogramación:",
-          error
+          "Error reprogramando cita:",
+          result
+        );
+  
+        showError(
+          result.error ??
+            "No se ha podido cambiar la cita."
+        );
+  
+        return;
+      }
+  
+      const oldSlotId =
+        typeof result.oldSlotId ===
+          "string"
+          ? result.oldSlotId
+          : booking.slots?.id;
+  
+      const newSlot =
+        result.newSlot &&
+        typeof result.newSlot ===
+          "object"
+          ? result.newSlot
+          : selectedSlot;
+  
+      /*
+       * El hueco anterior ha quedado libre.
+       * Avisamos a los suscriptores.
+       */
+  
+      if (
+        oldSlotId
+      ) {
+        fetch(
+          "/api/notifications/rescheduled-slot-available",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                bookingId:
+                  booking.id,
+  
+                oldSlotId,
+              }),
+          }
+        ).catch(
+          (
+            error
+          ) => {
+            console.error(
+              "Error avisando del hueco liberado tras reprogramación:",
+              error
+            );
+          }
         );
       }
-    );
-
-    /*
-     * Actualizamos reserva local.
-     */
-    setBookings(
-      (current) =>
-        current.map(
-          (item) =>
-            item.id ===
-            booking.id
-              ? {
-                  ...item,
-
-                  slots: {
-                    id:
-                      selectedSlot
-                        .id,
-
-                    start_at:
-                      selectedSlot
-                        .start_at,
-
-                    end_at:
-                      selectedSlot
-                        .end_at,
-                  },
-                }
-              : item
-        )
-    );
-
-    setReschedulingBookingId(
-      null
-    );
-
-    setSelectedSlotId(
-      null
-    );
-
-    setAvailableSlots(
-      (current) => ({
-        ...current,
-
-        [booking.id]:
-          [],
-      })
-    );
-
-    setRescheduleLoadingId(
-      null
-    );
-
-    showSuccess(
-      `Cita modificada correctamente. Tu nueva cita es el ${formatDate(
-        selectedSlot.start_at
-      )} a las ${formatTime(
-        selectedSlot.start_at
-      )}.`
-    );
+  
+      /*
+       * Notificación de reprogramación.
+       */
+  
+      fetch(
+        "/api/notifications/booking-rescheduled",
+        {
+          method:
+            "POST",
+  
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+  
+          body:
+            JSON.stringify({
+              bookingId:
+                booking.id,
+            }),
+        }
+      ).catch(
+        (
+          error
+        ) => {
+          console.error(
+            "Error enviando notificación de reprogramación:",
+            error
+          );
+        }
+      );
+  
+      /*
+       * Actualización visual local.
+       */
+  
+      setBookings(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              item
+            ) =>
+              item.id ===
+              booking.id
+                ? {
+                    ...item,
+  
+                    slots: {
+                      id:
+                        newSlot.id,
+  
+                      start_at:
+                        newSlot.start_at,
+  
+                      end_at:
+                        newSlot.end_at,
+                    },
+                  }
+                : item
+          )
+      );
+  
+      setReschedulingBookingId(
+        null
+      );
+  
+      setSelectedSlotId(
+        null
+      );
+  
+      setAvailableSlots(
+        (
+          current
+        ) => ({
+          ...current,
+  
+          [booking.id]:
+            [],
+        })
+      );
+  
+      showSuccess(
+        `Cita modificada correctamente. Tu nueva cita es el ${formatDate(
+          newSlot.start_at
+        )} a las ${formatTime(
+          newSlot.start_at
+        )}.`
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error rescheduling booking:",
+        error
+      );
+  
+      showError(
+        "No se ha podido cambiar la cita."
+      );
+    } finally {
+      setRescheduleLoadingId(
+        null
+      );
+    }
   }
 
   /*

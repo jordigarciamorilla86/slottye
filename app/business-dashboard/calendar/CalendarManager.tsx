@@ -509,24 +509,24 @@ export default function CalendarManager({
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     clearMessage();
-
+  
     const service =
       services.find(
         (item) =>
           item.id ===
           serviceId
       );
-
+  
     if (!service) {
       showError(
         "Selecciona un servicio."
       );
-
+  
       return;
     }
-
+  
     if (
       !date ||
       !time
@@ -534,31 +534,15 @@ export default function CalendarManager({
       showError(
         "Selecciona fecha y hora."
       );
-
+  
       return;
     }
-
-    if (
-      !Number.isInteger(
-        slotDurationMinutes
-      ) ||
-      slotDurationMinutes <=
-        0 ||
-      slotDurationMinutes >
-        1440
-    ) {
-      showError(
-        "La duración no es válida."
-      );
-    
-      return;
-    }
-
+  
     const start =
       new Date(
         `${date}T${time}`
       );
-
+  
     if (
       start <=
       new Date()
@@ -566,18 +550,18 @@ export default function CalendarManager({
       showError(
         "La cita debe ser posterior a la fecha actual."
       );
-
+  
       return;
     }
-
+  
     const end =
-  new Date(
-    start.getTime() +
-      slotDurationMinutes *
-        60 *
-        1000
-  );
-
+      new Date(
+        start.getTime() +
+          service.duration_minutes *
+            60 *
+            1000
+      );
+  
     if (
       overlapsBlock(
         start,
@@ -587,119 +571,220 @@ export default function CalendarManager({
       showError(
         "No puedes crear esta cita porque coincide con un horario bloqueado."
       );
-
+  
       return;
     }
-
+  
     setLoading(
       true
     );
-
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from("slots")
-        .insert({
-          business_id:
-            businessId,
-
-          service_id:
-            service.id,
-
-          start_at:
-            start.toISOString(),
-
-          end_at:
-            end.toISOString(),
-
-          status:
-            "AVAILABLE",
-        })
-        .select(`
-          id,
-          service_id,
-          start_at,
-          end_at,
-          status
-        `)
-        .single();
-
-    if (error) {
-      showError(
-        getFriendlyError(
-          error,
-          "No se ha podido crear la disponibilidad."
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/create",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "slot",
+  
+                businessId,
+  
+                serviceId:
+                  service.id,
+  
+                startAt:
+                  start.toISOString(),
+  
+                endAt:
+                  end.toISOString(),
+              }),
+          }
+        );
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
+          );
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          getFriendlyError(
+            result,
+            result.error ??
+              "No se ha podido crear la disponibilidad."
+          )
+        );
+  
+        return;
+      }
+  
+      /*
+       * La API devuelve el slot creado.
+       */
+  
+      const rawSlot =
+        Array.isArray(
+          result.data
         )
+          ? result.data[0]
+          : result.data;
+  
+      const createdSlot =
+        rawSlot &&
+        typeof rawSlot ===
+          "object"
+          ? {
+              id:
+                rawSlot.id ??
+                result.slotId,
+  
+              service_id:
+                rawSlot.service_id ??
+                service.id,
+  
+              start_at:
+                rawSlot.start_at ??
+                start.toISOString(),
+  
+              end_at:
+                rawSlot.end_at ??
+                end.toISOString(),
+  
+              status:
+                rawSlot.status ??
+                "AVAILABLE",
+            }
+          : {
+              id:
+                result.slotId,
+  
+              service_id:
+                service.id,
+  
+              start_at:
+                start.toISOString(),
+  
+              end_at:
+                end.toISOString(),
+  
+              status:
+                "AVAILABLE",
+            };
+  
+      if (
+        !createdSlot.id
+      ) {
+        /*
+         * La creación se ha realizado, pero no tenemos
+         * UUID suficiente para actualizar el estado local.
+         * Evitamos inventarlo.
+         */
+  
+        showWarning(
+          "La disponibilidad se ha creado. Recarga la página para verla."
+        );
+  
+        setDate("");
+        setTime("");
+  
+        return;
+      }
+  
+      /*
+       * Avisar a suscriptores.
+       */
+  
+      fetch(
+        "/api/notifications/new-slots",
+        {
+          method:
+            "POST",
+  
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+  
+          body:
+            JSON.stringify({
+              businessId,
+  
+              slotIds: [
+                createdSlot.id,
+              ],
+            }),
+        }
+      ).catch(
+        (
+          error
+        ) => {
+          console.error(
+            "Error notificando nuevas citas:",
+            error
+          );
+        }
       );
-
+  
+      setSlots(
+        (
+          current
+        ) =>
+          [
+            ...current,
+            createdSlot,
+          ].sort(
+            (
+              a,
+              b
+            ) =>
+              new Date(
+                a.start_at
+              ).getTime() -
+              new Date(
+                b.start_at
+              ).getTime()
+          )
+      );
+  
+      setDate("");
+      setTime("");
+  
+      showSuccess(
+        "Cita disponible creada correctamente."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating calendar slot:",
+        error
+      );
+  
+      showError(
+        "No se ha podido crear la disponibilidad."
+      );
+    } finally {
       setLoading(
         false
       );
-
-      return;
     }
-
-    fetch(
-      "/api/notifications/new-slots",
-      {
-        method:
-          "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body:
-          JSON.stringify({
-            businessId,
-
-            slotIds: [
-              data.id,
-            ],
-          }),
-      }
-    ).catch(
-      (error) => {
-        console.error(
-          "Error notificando nuevas citas:",
-          error
-        );
-      }
-    );
-
-    setSlots(
-      (current) =>
-        [
-          ...current,
-          data,
-        ].sort(
-          (a, b) =>
-            new Date(
-              a.start_at
-            ).getTime() -
-            new Date(
-              b.start_at
-            ).getTime()
-        )
-    );
-
-    setDate("");
-setTime("");
-
-setSlotDurationMinutes(
-  service.duration_minutes
-);
-
-    showSuccess(
-      "Cita disponible creada correctamente."
-    );
-
-    setLoading(
-      false
-    );
   }
 
   /*
@@ -709,7 +794,8 @@ setSlotDurationMinutes(
    */
 
   async function deleteSlot(
-    slot: Slot
+    slot:
+      Slot
   ) {
     if (
       slot.status !==
@@ -718,155 +804,170 @@ setSlotDurationMinutes(
       showError(
         "Solo se pueden eliminar huecos disponibles."
       );
-
+  
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Eliminar definitivamente este hueco?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     clearMessage();
-
-    /*
-     * Comprobamos si alguna reserva histórica
-     * referencia este slot.
-     */
-
-    const {
-      data:
-        bookingHistory,
-      error:
-        historyError,
-    } =
-      await supabase
-        .from(
-          "bookings"
-        )
-        .select("id")
-        .eq(
-          "slot_id",
-          slot.id
-        )
-        .limit(1);
-
-    if (
-      historyError
-    ) {
-      showError(
-        getFriendlyError(
-          historyError,
-          "No se ha podido comprobar el historial del hueco."
-        )
-      );
-
-      return;
-    }
-
-    /*
-     * Si existe historial,
-     * no podemos eliminarlo.
-     */
-
-    if (
-      bookingHistory &&
-      bookingHistory.length >
-        0
-    ) {
-      const {
-        error:
-          blockError,
-      } =
-        await supabase
-          .from("slots")
-          .update({
-            status:
-              "BLOCKED",
-          })
-          .eq(
-            "id",
-            slot.id
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/calendar/slots",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                slotIds: [
+                  slot.id,
+                ],
+              }),
+          }
+        );
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
           );
-
+  
       if (
-        blockError
+        !response.ok
       ) {
         showError(
-          getFriendlyError(
-            blockError,
-            "No se ha podido bloquear el hueco."
-          )
+          result.error ??
+            "No se ha podido eliminar el hueco."
         );
-
+  
         return;
       }
-
-      setSlots(
-        (current) =>
-          current.map(
-            (item) =>
-              item.id ===
-              slot.id
-                ? {
-                    ...item,
-                    status:
-                      "BLOCKED",
-                  }
-                : item
+  
+      const deletedIds =
+        new Set<string>(
+          Array.isArray(
+            result.deletedIds
           )
-      );
-
-      showWarning(
-        "Este hueco tenía historial de reservas. Se ha bloqueado en lugar de eliminarse."
-      );
-
-      return;
-    }
-
-    /*
-     * Sin historial:
-     * DELETE real.
-     */
-
-    const {
-      error,
-    } =
-      await supabase
-        .from("slots")
-        .delete()
-        .eq(
-          "id",
-          slot.id
+            ? result.deletedIds
+            : []
         );
-
-    if (error) {
-      showError(
-        getFriendlyError(
-          error,
-          "No se ha podido crear la disponibilidad."
-        )
+  
+      const blockedIds =
+        new Set<string>(
+          Array.isArray(
+            result.blockedIds
+          )
+            ? result.blockedIds
+            : []
+        );
+  
+      /*
+       * ==========================================================
+       * ACTUALIZAR ESTADO LOCAL
+       * ==========================================================
+       */
+  
+      setSlots(
+        (
+          current
+        ) =>
+          current
+            .filter(
+              (
+                item
+              ) =>
+                !deletedIds.has(
+                  item.id
+                )
+            )
+            .map(
+              (
+                item
+              ) =>
+                blockedIds.has(
+                  item.id
+                )
+                  ? {
+                      ...item,
+  
+                      status:
+                        "BLOCKED",
+                    }
+                  : item
+            )
       );
-
-      return;
-    }
-
-    setSlots(
-      (current) =>
-        current.filter(
-          (item) =>
-            item.id !==
-            slot.id
+  
+      /*
+       * ==========================================================
+       * MENSAJE
+       * ==========================================================
+       */
+  
+      if (
+        blockedIds.has(
+          slot.id
         )
-    );
-
-    showSuccess(
-      "Hueco eliminado definitivamente."
-    );
+      ) {
+        showWarning(
+          "Este hueco tenía historial de reservas. Se ha bloqueado en lugar de eliminarse."
+        );
+  
+        return;
+      }
+  
+      if (
+        deletedIds.has(
+          slot.id
+        )
+      ) {
+        showSuccess(
+          "Hueco eliminado definitivamente."
+        );
+  
+        return;
+      }
+  
+      /*
+       * No debería ocurrir, pero evitamos mostrar
+       * un éxito falso si la API no devuelve acción.
+       */
+  
+      showWarning(
+        "La operación se ha realizado, pero no se ha podido determinar el estado final del hueco."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error deleting calendar slot:",
+        error
+      );
+  
+      showError(
+        "No se ha podido eliminar el hueco."
+      );
+    }
   }
 
   /*
@@ -881,11 +982,13 @@ setSlotDurationMinutes(
   ) {
     const availableSlots =
       daySlots.filter(
-        (slot) =>
+        (
+          slot
+        ) =>
           slot.status ===
           "AVAILABLE"
       );
-
+  
     if (
       availableSlots.length ===
       0
@@ -893,214 +996,190 @@ setSlotDurationMinutes(
       showError(
         "No hay huecos disponibles que eliminar en este día."
       );
-
+  
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         `¿Eliminar los ${availableSlots.length} huecos disponibles de este día?`
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     clearMessage();
-
+  
     const ids =
       availableSlots.map(
-        (slot) =>
+        (
+          slot
+        ) =>
           slot.id
       );
-
-    const {
-      data:
-        bookingsHistory,
-      error:
-        historyError,
-    } =
-      await supabase
-        .from(
-          "bookings"
-        )
-        .select(
-          "slot_id"
-        )
-        .in(
-          "slot_id",
-          ids
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/calendar/slots",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                slotIds:
+                  ids,
+              }),
+          }
         );
-
-    if (
-      historyError
-    ) {
-      showError(
-        getFriendlyError(
-          historyError,
-          "No se ha podido comprobar el historial del hueco."
-        )
-      );
-
-      return;
-    }
-
-    const slotsWithHistory =
-      new Set(
-        (
-          bookingsHistory ??
-          []
-        ).map(
-          (booking) =>
-            booking.slot_id
-        )
-      );
-
-    const idsToDelete =
-      ids.filter(
-        (id) =>
-          !slotsWithHistory.has(
-            id
-          )
-      );
-
-    const idsToBlock =
-      ids.filter(
-        (id) =>
-          slotsWithHistory.has(
-            id
-          )
-      );
-
-    /*
-     * DELETE real para
-     * slots sin historial.
-     */
-
-    if (
-      idsToDelete.length >
-      0
-    ) {
-      const {
-        error:
-          deleteError,
-      } =
-        await supabase
-          .from("slots")
-          .delete()
-          .in(
-            "id",
-            idsToDelete
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
           );
-
+  
       if (
-        deleteError
+        !response.ok
       ) {
         showError(
-          getFriendlyError(
-            deleteError,
+          result.error ??
             "No se han podido eliminar los huecos."
-          )
         );
-
+  
         return;
       }
-    }
-
-    /*
-     * Historial:
-     * se conservan como BLOCKED.
-     */
-
-    if (
-      idsToBlock.length >
-      0
-    ) {
-      const {
-        error:
-          blockError,
-      } =
-        await supabase
-          .from("slots")
-          .update({
-            status:
-              "BLOCKED",
-          })
-          .in(
-            "id",
-            idsToBlock
-          );
-
+  
+      const deletedIds =
+        new Set<string>(
+          Array.isArray(
+            result.deletedIds
+          )
+            ? result.deletedIds
+            : []
+        );
+  
+      const blockedIds =
+        new Set<string>(
+          Array.isArray(
+            result.blockedIds
+          )
+            ? result.blockedIds
+            : []
+        );
+  
+      /*
+       * ==========================================================
+       * ACTUALIZAR ESTADO LOCAL
+       * ==========================================================
+       */
+  
+      setSlots(
+        (
+          current
+        ) =>
+          current
+            .filter(
+              (
+                slot
+              ) =>
+                !deletedIds.has(
+                  slot.id
+                )
+            )
+            .map(
+              (
+                slot
+              ) =>
+                blockedIds.has(
+                  slot.id
+                )
+                  ? {
+                      ...slot,
+  
+                      status:
+                        "BLOCKED",
+                    }
+                  : slot
+            )
+      );
+  
+      /*
+       * ==========================================================
+       * RESULTADO
+       * ==========================================================
+       */
+  
+      const deletedCount =
+        deletedIds.size;
+  
+      const blockedCount =
+        blockedIds.size;
+  
       if (
-        blockError
+        deletedCount >
+          0 &&
+        blockedCount >
+          0
       ) {
-        showError(
-          getFriendlyError(
-            blockError,
-            "No se ha podido bloquear el hueco."
-          )
+        showWarning(
+          `${deletedCount} huecos eliminados · ${blockedCount} bloqueados porque tenían historial de reservas.`
         );
-
+  
         return;
       }
-    }
-
-    const deletedIds =
-      new Set(
-        idsToDelete
-      );
-
-    const blockedIds =
-      new Set(
-        idsToBlock
-      );
-
-    setSlots(
-      (current) =>
-        current
-          .filter(
-            (slot) =>
-              !deletedIds.has(
-                slot.id
-              )
-          )
-          .map(
-            (slot) =>
-              blockedIds.has(
-                slot.id
-              )
-                ? {
-                    ...slot,
-                    status:
-                      "BLOCKED",
-                  }
-                : slot
-          )
-    );
-
-    if (
-      idsToDelete.length >
-        0 &&
-      idsToBlock.length >
+  
+      if (
+        deletedCount >
         0
-    ) {
+      ) {
+        showSuccess(
+          `${deletedCount} huecos eliminados correctamente.`
+        );
+  
+        return;
+      }
+  
+      if (
+        blockedCount >
+        0
+      ) {
+        showWarning(
+          `${blockedCount} huecos tenían historial de reservas y se han bloqueado.`
+        );
+  
+        return;
+      }
+  
       showWarning(
-        `${idsToDelete.length} huecos eliminados · ${idsToBlock.length} bloqueados porque tenían historial de reservas.`
+        "No se ha modificado ningún hueco."
       );
-    } else if (
-      idsToDelete.length >
-      0
+    } catch (
+      error
     ) {
-      showSuccess(
-        `${idsToDelete.length} huecos eliminados correctamente.`
+      console.error(
+        "Error deleting calendar day slots:",
+        error
       );
-    } else {
-      showWarning(
-        `${idsToBlock.length} huecos tenían historial de reservas y se han bloqueado.`
+  
+      showError(
+        "No se han podido eliminar los huecos."
       );
     }
   }
-
   /*
    * ============================================================
    * GENERAR CITAS EN BLOQUE
@@ -1112,24 +1191,24 @@ setSlotDurationMinutes(
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     clearMessage();
-
+  
     const service =
       services.find(
         (item) =>
           item.id ===
           bulkServiceId
       );
-
+  
     if (!service) {
       showError(
         "Selecciona un servicio."
       );
-
+  
       return;
     }
-
+  
     if (
       !bulkDate ||
       !bulkStartTime ||
@@ -1138,35 +1217,20 @@ setSlotDurationMinutes(
       showError(
         "Selecciona fecha, hora inicial y hora final."
       );
-
+  
       return;
     }
-    if (
-      !Number.isInteger(
-        bulkDurationMinutes
-      ) ||
-      bulkDurationMinutes <=
-        0 ||
-      bulkDurationMinutes >
-        1440
-    ) {
-      showError(
-        "La duración de los huecos no es válida."
-      );
-    
-      return;
-    }
-
+  
     const start =
       new Date(
         `${bulkDate}T${bulkStartTime}`
       );
-
+  
     const limit =
       new Date(
         `${bulkDate}T${bulkEndTime}`
       );
-
+  
     if (
       start <=
       new Date()
@@ -1174,10 +1238,10 @@ setSlotDurationMinutes(
       showError(
         "Las citas deben ser posteriores a la fecha actual."
       );
-
+  
       return;
     }
-
+  
     if (
       limit <=
       start
@@ -1185,311 +1249,435 @@ setSlotDurationMinutes(
       showError(
         "La hora final debe ser posterior a la inicial."
       );
-
+  
       return;
     }
-
+  
+    /*
+     * ============================================================
+     * GENERAR HUECOS
+     * ============================================================
+     *
+     * Seguimos filtrando aquí los bloqueos que ya conocemos
+     * para dar una respuesta inmediata al usuario.
+     *
+     * La API / RPC volverá a comprobarlos en servidor,
+     * por lo que esta comprobación NO es nuestra frontera
+     * de seguridad.
+     */
+  
     const rows: {
-      business_id:
-        string;
-      service_id:
-        string;
-      start_at:
-        string;
-      end_at:
-        string;
-      status:
-        string;
+      start_at: string;
+      end_at: string;
     }[] = [];
-
+  
     let current =
       new Date(
         start
       );
-
-    let blockedCount =
+  
+    let locallyBlockedCount =
       0;
-
+  
     while (true) {
       const end =
-  new Date(
-    current.getTime() +
-      bulkDurationMinutes *
-        60 *
-        1000
-  );
-
+        new Date(
+          current.getTime() +
+            service.duration_minutes *
+              60 *
+              1000
+        );
+  
       if (
         end >
         limit
       ) {
         break;
       }
-
+  
       if (
         overlapsBlock(
           current,
           end
         )
       ) {
-        blockedCount++;
+        locallyBlockedCount++;
       } else {
         rows.push({
-          business_id:
-            businessId,
-
-          service_id:
-            service.id,
-
           start_at:
             current.toISOString(),
-
+  
           end_at:
             end.toISOString(),
-
-          status:
-            "AVAILABLE",
         });
       }
-
+  
       current =
         end;
     }
-
+  
     if (
       rows.length ===
       0
     ) {
       showError(
-        blockedCount >
+        locallyBlockedCount >
           0
           ? "Todos los huecos coinciden con horarios bloqueados."
           : "No cabe ninguna cita dentro de ese intervalo."
       );
-
+  
       return;
     }
-
+  
     /*
-     * Evitamos horas ya existentes.
+     * ============================================================
+     * CREAR MEDIANTE API SEGURA
+     * ============================================================
      */
-
-    const {
-      data:
-        existingSlots,
-      error:
-        existingError,
-    } =
-      await supabase
-        .from("slots")
-        .select(
-          "start_at"
-        )
-        .eq(
-          "business_id",
-          businessId
-        )
-        .gte(
-          "start_at",
-          start.toISOString()
-        )
-        .lt(
-          "start_at",
-          limit.toISOString()
-        );
-
-    if (
-      existingError
-    ) {
-      showError(
-        getFriendlyError(
-          existingError,
-          "No se han podido comprobar las disponibilidades existentes."
-        )
-      );
-
-      return;
-    }
-
-    const existingTimes =
-      new Set(
-        (
-          existingSlots ??
-          []
-        ).map(
-          (slot) =>
-            new Date(
-              slot.start_at
-            ).getTime()
-        )
-      );
-
-    const rowsToInsert =
-      rows.filter(
-        (row) =>
-          !existingTimes.has(
-            new Date(
-              row.start_at
-            ).getTime()
-          )
-      );
-
-    if (
-      rowsToInsert.length ===
-      0
-    ) {
-      showWarning(
-        "No se ha creado ninguna cita: todos los huecos ya existen o están bloqueados."
-      );
-
-      return;
-    }
-
+  
     setBulkLoading(
       true
     );
-
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from("slots")
-        .insert(
-          rowsToInsert
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/calendar/slots/bulk",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                serviceId:
+                  service.id,
+  
+                slots:
+                  rows,
+              }),
+          }
+        );
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
+          );
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido crear la disponibilidad."
+        );
+  
+        return;
+      }
+  
+      /*
+       * ============================================================
+       * NORMALIZAR HUECOS DEVUELTOS
+       * ============================================================
+       */
+  
+      const newSlots:
+        Slot[] =
+        Array.isArray(
+          result.slots
         )
-        .select(`
-          id,
-          service_id,
-          start_at,
-          end_at,
-          status
-        `);
-
-    if (error) {
-      showError(
-        getFriendlyError(
-          error,
-          "No se ha podido crear la disponibilidad."
-        )
+          ? result.slots
+              .filter(
+                (
+                  slot:
+                    unknown
+                ) =>
+                  typeof slot ===
+                    "object" &&
+                  slot !==
+                    null
+              )
+              .map(
+                (
+                  slot:
+                    {
+                      id?: unknown;
+                      service_id?: unknown;
+                      start_at?: unknown;
+                      end_at?: unknown;
+                      status?: unknown;
+                    }
+                ) => ({
+                  id:
+                    String(
+                      slot.id ??
+                        ""
+                    ),
+  
+                  service_id:
+                    typeof slot.service_id ===
+                      "string"
+                      ? slot.service_id
+                      : service.id,
+  
+                  start_at:
+                    String(
+                      slot.start_at ??
+                        ""
+                    ),
+  
+                  end_at:
+                    String(
+                      slot.end_at ??
+                        ""
+                    ),
+  
+                  status:
+                    typeof slot.status ===
+                      "string"
+                      ? slot.status
+                      : "AVAILABLE",
+                })
+              )
+              .filter(
+                (
+                  slot: Slot
+                ) =>
+                  !!slot.id &&
+                  !!slot.start_at &&
+                  !!slot.end_at
+              )
+          : [];
+  
+      /*
+       * ============================================================
+       * ACTUALIZAR ESTADO LOCAL
+       * ============================================================
+       */
+  
+      if (
+        newSlots.length >
+        0
+      ) {
+        setSlots(
+          (
+            currentSlots
+          ) =>
+            [
+              ...currentSlots,
+              ...newSlots,
+            ].sort(
+              (
+                a,
+                b
+              ) =>
+                new Date(
+                  a.start_at
+                ).getTime() -
+                new Date(
+                  b.start_at
+                ).getTime()
+            )
+        );
+  
+        /*
+         * ==========================================================
+         * NOTIFICAR A SUSCRIPTORES
+         * ==========================================================
+         */
+  
+        fetch(
+          "/api/notifications/new-slots",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                slotIds:
+                  newSlots.map(
+                    (
+                      slot
+                    ) =>
+                      slot.id
+                  ),
+              }),
+          }
+        ).catch(
+          (
+            error
+          ) => {
+            console.error(
+              "Error notificando nuevas citas:",
+              error
+            );
+          }
+        );
+      }
+  
+      /*
+       * ============================================================
+       * LIMPIAR FORMULARIO
+       * ============================================================
+       */
+  
+      setBulkDate("");
+      setBulkStartTime("");
+      setBulkEndTime("");
+  
+      /*
+       * ============================================================
+       * CONTADORES
+       * ============================================================
+       *
+       * locallyBlockedCount:
+       * bloqueos que ya conocía el navegador.
+       *
+       * serverBlockedCount:
+       * bloqueos detectados nuevamente por servidor
+       * entre la preparación y la escritura.
+       */
+  
+      const serverBlockedCount =
+        typeof result.blockedCount ===
+          "number"
+          ? result.blockedCount
+          : 0;
+  
+      const existingCount =
+        typeof result.existingCount ===
+          "number"
+          ? result.existingCount
+          : 0;
+  
+      const invalidCount =
+        typeof result.invalidCount ===
+          "number"
+          ? result.invalidCount
+          : 0;
+  
+      const blockedCount =
+        locallyBlockedCount +
+        serverBlockedCount;
+  
+      const createdCount =
+        typeof result.createdCount ===
+          "number"
+          ? result.createdCount
+          : newSlots.length;
+  
+      /*
+       * ============================================================
+       * MENSAJE
+       * ============================================================
+       */
+  
+      const details:
+        string[] =
+        [];
+  
+      if (
+        blockedCount >
+        0
+      ) {
+        details.push(
+          `${blockedCount} omitidas por bloqueos`
+        );
+      }
+  
+      if (
+        existingCount >
+        0
+      ) {
+        details.push(
+          `${existingCount} ya existentes`
+        );
+      }
+  
+      if (
+        invalidCount >
+        0
+      ) {
+        details.push(
+          `${invalidCount} no válidas`
+        );
+      }
+  
+      if (
+        createdCount ===
+          0 &&
+        details.length >
+          0
+      ) {
+        showWarning(
+          `No se ha creado ninguna cita · ${details.join(
+            " · "
+          )}.`
+        );
+  
+        return;
+      }
+  
+      if (
+        createdCount ===
+        0
+      ) {
+        showWarning(
+          "No se ha creado ninguna cita."
+        );
+  
+        return;
+      }
+  
+      if (
+        details.length >
+        0
+      ) {
+        showWarning(
+          `Se han creado ${createdCount} citas correctamente · ${details.join(
+            " · "
+          )}.`
+        );
+      } else {
+        showSuccess(
+          `Se han creado ${createdCount} citas correctamente.`
+        );
+      }
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating bulk calendar slots:",
+        error
       );
-
+  
+      showError(
+        "No se han podido crear las disponibilidades."
+      );
+    } finally {
       setBulkLoading(
         false
       );
-
-      return;
     }
-
-    const newSlots =
-      data ??
-      [];
-
-    setSlots(
-      (
-        currentSlots
-      ) =>
-        [
-          ...currentSlots,
-          ...newSlots,
-        ].sort(
-          (a, b) =>
-            new Date(
-              a.start_at
-            ).getTime() -
-            new Date(
-              b.start_at
-            ).getTime()
-        )
-    );
-
-    if (
-      newSlots.length >
-      0
-    ) {
-      fetch(
-        "/api/notifications/new-slots",
-        {
-          method:
-            "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body:
-            JSON.stringify({
-              businessId,
-
-              slotIds:
-                newSlots.map(
-                  (slot) =>
-                    slot.id
-                ),
-            }),
-        }
-      ).catch(
-        (error) => {
-          console.error(
-            "Error notificando nuevas citas:",
-            error
-          );
-        }
-      );
-    }
-
-    setBulkDate("");
-    setBulkStartTime("");
-    setBulkEndTime("");
-
-    setBulkDurationMinutes(
-      service.duration_minutes
-    );
-
-    const existingCount =
-      rows.length -
-      rowsToInsert.length;
-
-    const details:
-      string[] = [];
-
-    if (
-      blockedCount >
-      0
-    ) {
-      details.push(
-        `${blockedCount} omitidas por bloqueos`
-      );
-    }
-
-    if (
-      existingCount >
-      0
-    ) {
-      details.push(
-        `${existingCount} ya existentes`
-      );
-    }
-
-    if (
-      details.length >
-      0
-    ) {
-      showWarning(
-        `Se han creado ${newSlots.length} citas correctamente · ${details.join(
-          " · "
-        )}.`
-      );
-    } else {
-      showSuccess(
-        `Se han creado ${newSlots.length} citas correctamente.`
-      );
-    }
-
-    setBulkLoading(
-      false
-    );
   }
 
   /*
@@ -1497,58 +1685,45 @@ setSlotDurationMinutes(
    * GENERAR SEMANA COMPLETA
    * ============================================================
    */
-
   async function createWeekSlots(
     event:
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     clearMessage();
-
+  
     const service =
       services.find(
         (item) =>
           item.id ===
           weekServiceId
       );
-
+  
     if (!service) {
       showError(
         "Selecciona un servicio."
       );
-
+  
       return;
     }
-
+  
     const selectedServiceId =
-  service.id;
-
+      service.id;
+  
+    const selectedServiceDuration =
+      service.duration_minutes;
+  
     if (
       !weekStartDate
     ) {
       showError(
         "Selecciona el inicio de la semana."
       );
-
+  
       return;
     }
-    if (
-      !Number.isInteger(
-        weekDurationMinutes
-      ) ||
-      weekDurationMinutes <=
-        0 ||
-      weekDurationMinutes >
-        1440
-    ) {
-      showError(
-        "La duración de los huecos no es válida."
-      );
-    
-      return;
-    }
-
+  
     if (
       businessHours.length ===
       0
@@ -1556,39 +1731,40 @@ setSlotDurationMinutes(
       showError(
         "Primero configura el horario del negocio."
       );
-
+  
       return;
     }
-
+  
     const startDate =
       new Date(
         `${weekStartDate}T00:00:00`
       );
-
+  
+    /*
+     * ============================================================
+     * GENERAR HUECOS DE LA SEMANA
+     * ============================================================
+     */
+  
     const rows: {
-      business_id:
-        string;
-      service_id:
-        string;
       start_at:
         string;
+  
       end_at:
         string;
-      status:
-        string;
     }[] = [];
-
-    let weeklyBlockedCount =
+  
+    let locallyBlockedCount =
       0;
-
+  
     function createRange(
       date:
         Date,
-
+  
       openTime:
         | string
         | null,
-
+  
       closeTime:
         | string
         | null
@@ -1599,7 +1775,7 @@ setSlotDurationMinutes(
       ) {
         return;
       }
-
+  
       const [
         openHour,
         openMinute,
@@ -1613,7 +1789,7 @@ setSlotDurationMinutes(
           .map(
             Number
           );
-
+  
       const [
         closeHour,
         closeMinute,
@@ -1627,374 +1803,502 @@ setSlotDurationMinutes(
           .map(
             Number
           );
-
+  
       let current =
         new Date(
           date
         );
-
+  
       current.setHours(
         openHour,
         openMinute,
         0,
         0
       );
-
+  
       const limit =
         new Date(
           date
         );
-
+  
       limit.setHours(
         closeHour,
         closeMinute,
         0,
         0
       );
-
+  
       while (true) {
         const end =
-  new Date(
-    current.getTime() +
-      weekDurationMinutes *
-        60 *
-        1000
-  );
-
+          new Date(
+            current.getTime() +
+              selectedServiceDuration *
+                60 *
+                1000
+          );
+  
         if (
           end >
           limit
         ) {
           break;
         }
-
+  
+        /*
+         * No generamos huecos pasados.
+         */
+  
         if (
           current >
           new Date()
         ) {
+          /*
+           * Esta comprobación local sirve para UX.
+           * El servidor volverá a comprobar bloqueos.
+           */
+  
           if (
             overlapsBlock(
               current,
               end
             )
           ) {
-            weeklyBlockedCount++;
+            locallyBlockedCount++;
           } else {
             rows.push({
-              business_id:
-                businessId,
-
-              service_id:
-                selectedServiceId,
-
               start_at:
                 current.toISOString(),
-
+  
               end_at:
                 end.toISOString(),
-
-              status:
-                "AVAILABLE",
             });
           }
         }
-
+  
         current =
           end;
       }
     }
-
+  
+    /*
+     * ============================================================
+     * RECORRER LOS 7 DÍAS
+     * ============================================================
+     */
+  
     for (
-      let offset = 0;
-      offset < 7;
+      let offset =
+        0;
+      offset <
+        7;
       offset++
     ) {
-      const date =
+      const currentDate =
         new Date(
           startDate
         );
-
-      date.setDate(
+  
+      currentDate.setDate(
         startDate.getDate() +
           offset
       );
-
+  
+      /*
+       * JS:
+       * domingo = 0
+       *
+       * Slottye:
+       * lunes = 0
+       */
+  
       const slottyeDay =
         (
-          date.getDay() +
+          currentDate.getDay() +
           6
         ) %
         7;
-
+  
       const schedule =
         businessHours.find(
-          (hour) =>
+          (
+            hour
+          ) =>
             hour.day_of_week ===
             slottyeDay
         );
-
+  
       if (
         !schedule ||
         schedule.closed
       ) {
         continue;
       }
-
+  
       createRange(
-        date,
+        currentDate,
         schedule.open_time,
         schedule.close_time
       );
-
+  
       createRange(
-        date,
+        currentDate,
         schedule.open_time_2,
         schedule.close_time_2
       );
     }
-
+  
+    /*
+     * ============================================================
+     * SIN HUECOS
+     * ============================================================
+     */
+  
     if (
       rows.length ===
       0
     ) {
       showError(
-        weeklyBlockedCount >
+        locallyBlockedCount >
           0
           ? "No se pueden generar citas: todos los huecos disponibles coinciden con bloqueos."
           : "No se pueden generar citas para esa semana."
       );
-
+  
       return;
     }
-
+  
+    /*
+     * ============================================================
+     * CREAR MEDIANTE API
+     * ============================================================
+     */
+  
     setWeekLoading(
       true
     );
-
-    const firstStart =
-      rows[0]
-        .start_at;
-
-    const lastStart =
-      rows[
-        rows.length -
-        1
-      ].start_at;
-
-    const {
-      data:
-        existingSlots,
-      error:
-        existingError,
-    } =
-      await supabase
-        .from("slots")
-        .select(
-          "start_at"
-        )
-        .eq(
-          "business_id",
-          businessId
-        )
-        .gte(
-          "start_at",
-          firstStart
-        )
-        .lte(
-          "start_at",
-          lastStart
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/calendar/slots/bulk",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                serviceId:
+                  selectedServiceId,
+  
+                slots:
+                  rows,
+              }),
+          }
         );
-
-    if (
-      existingError
-    ) {
-      showError(
-        getFriendlyError(
-          existingError,
-          "No se han podido comprobar las disponibilidades existentes."
-        )
-      );
-
-      setWeekLoading(
-        false
-      );
-
-      return;
-    }
-
-    const existingTimes =
-      new Set(
-        (
-          existingSlots ??
-          []
-        ).map(
-          (slot) =>
-            new Date(
-              slot.start_at
-            ).getTime()
-        )
-      );
-
-    const rowsToInsert =
-      rows.filter(
-        (row) =>
-          !existingTimes.has(
-            new Date(
-              row.start_at
-            ).getTime()
-          )
-      );
-
-    if (
-      rowsToInsert.length ===
-      0
-    ) {
-      showWarning(
-        "No se ha creado ninguna cita: todos los huecos de esa semana ya existen."
-      );
-
-      setWeekLoading(
-        false
-      );
-
-      return;
-    }
-
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from("slots")
-        .insert(
-          rowsToInsert
-        )
-        .select(`
-          id,
-          service_id,
-          start_at,
-          end_at,
-          status
-        `);
-
-    if (error) {
-      showError(
-        getFriendlyError(
-          error,
-          "No se ha podido crear la disponibilidad."
-        )
-      );
-
-      setWeekLoading(
-        false
-      );
-
-      return;
-    }
-
-    const newSlots =
-      data ??
-      [];
-
-    setSlots(
-      (current) =>
-        [
-          ...current,
-          ...newSlots,
-        ].sort(
-          (a, b) =>
-            new Date(
-              a.start_at
-            ).getTime() -
-            new Date(
-              b.start_at
-            ).getTime()
-        )
-    );
-
-    if (
-      newSlots.length >
-      0
-    ) {
-      fetch(
-        "/api/notifications/new-slots",
-        {
-          method:
-            "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body:
-            JSON.stringify({
-              businessId,
-
-              slotIds:
-                newSlots.map(
-                  (slot) =>
-                    slot.id
-                ),
-            }),
-        }
-      ).catch(
-        (error) => {
-          console.error(
-            "Error notificando nuevas citas:",
-            error
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
           );
-        }
-      );
-    }
-
-    const existingCount =
-      rows.length -
-      rowsToInsert.length;
-
-    const details:
-      string[] = [];
-
-    if (
-      weeklyBlockedCount >
-      0
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido crear la disponibilidad."
+        );
+  
+        return;
+      }
+  
+      /*
+       * ============================================================
+       * NORMALIZAR HUECOS CREADOS
+       * ============================================================
+       */
+  
+      const newSlots:
+        Slot[] =
+        Array.isArray(
+          result.slots
+        )
+          ? result.slots
+              .filter(
+                (
+                  slot:
+                    unknown
+                ) =>
+                  typeof slot ===
+                    "object" &&
+                  slot !==
+                    null
+              )
+              .map(
+                (
+                  slot:
+                    {
+                      id?: unknown;
+                      service_id?: unknown;
+                      start_at?: unknown;
+                      end_at?: unknown;
+                      status?: unknown;
+                    }
+                ) => ({
+                  id:
+                    String(
+                      slot.id ??
+                        ""
+                    ),
+  
+                  service_id:
+                    typeof slot.service_id ===
+                      "string"
+                      ? slot.service_id
+                      : selectedServiceId,
+  
+                  start_at:
+                    String(
+                      slot.start_at ??
+                        ""
+                    ),
+  
+                  end_at:
+                    String(
+                      slot.end_at ??
+                        ""
+                    ),
+  
+                  status:
+                    typeof slot.status ===
+                      "string"
+                      ? slot.status
+                      : "AVAILABLE",
+                })
+              )
+              .filter(
+                (
+                  slot: Slot
+                ) =>
+                  !!slot.id &&
+                  !!slot.start_at &&
+                  !!slot.end_at
+              )
+          : [];
+  
+      /*
+       * ============================================================
+       * ACTUALIZAR CALENDARIO LOCAL
+       * ============================================================
+       */
+  
+      if (
+        newSlots.length >
+        0
+      ) {
+        setSlots(
+          (
+            current
+          ) =>
+            [
+              ...current,
+              ...newSlots,
+            ].sort(
+              (
+                a,
+                b
+              ) =>
+                new Date(
+                  a.start_at
+                ).getTime() -
+                new Date(
+                  b.start_at
+                ).getTime()
+            )
+        );
+  
+        /*
+         * ==========================================================
+         * AVISAR A SUSCRIPTORES
+         * ==========================================================
+         */
+  
+        fetch(
+          "/api/notifications/new-slots",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                slotIds:
+                  newSlots.map(
+                    (
+                      slot
+                    ) =>
+                      slot.id
+                  ),
+              }),
+          }
+        ).catch(
+          (
+            error
+          ) => {
+            console.error(
+              "Error notificando nuevas citas:",
+              error
+            );
+          }
+        );
+      }
+  
+      /*
+       * ============================================================
+       * CONTADORES
+       * ============================================================
+       */
+  
+      const serverBlockedCount =
+        typeof result.blockedCount ===
+          "number"
+          ? result.blockedCount
+          : 0;
+  
+      const existingCount =
+        typeof result.existingCount ===
+          "number"
+          ? result.existingCount
+          : 0;
+  
+      const invalidCount =
+        typeof result.invalidCount ===
+          "number"
+          ? result.invalidCount
+          : 0;
+  
+      const createdCount =
+        typeof result.createdCount ===
+          "number"
+          ? result.createdCount
+          : newSlots.length;
+  
+      const blockedCount =
+        locallyBlockedCount +
+        serverBlockedCount;
+  
+      const details:
+        string[] =
+        [];
+  
+      if (
+        blockedCount >
+        0
+      ) {
+        details.push(
+          `${blockedCount} omitidas por bloqueos`
+        );
+      }
+  
+      if (
+        existingCount >
+        0
+      ) {
+        details.push(
+          `${existingCount} ya existentes`
+        );
+      }
+  
+      if (
+        invalidCount >
+        0
+      ) {
+        details.push(
+          `${invalidCount} no válidas`
+        );
+      }
+  
+      /*
+       * ============================================================
+       * MENSAJE FINAL
+       * ============================================================
+       */
+  
+      if (
+        createdCount ===
+          0 &&
+        details.length >
+          0
+      ) {
+        showWarning(
+          `No se ha creado ninguna cita esta semana · ${details.join(
+            " · "
+          )}.`
+        );
+  
+        return;
+      }
+  
+      if (
+        createdCount ===
+        0
+      ) {
+        showWarning(
+          "No se ha creado ninguna cita esta semana."
+        );
+  
+        return;
+      }
+  
+      if (
+        details.length >
+        0
+      ) {
+        showWarning(
+          `Semana generada. Se han creado ${createdCount} citas correctamente · ${details.join(
+            " · "
+          )}.`
+        );
+      } else {
+        showSuccess(
+          `Semana generada correctamente. Se han creado ${createdCount} citas disponibles.`
+        );
+      }
+    } catch (
+      error
     ) {
-      details.push(
-        `${weeklyBlockedCount} omitidas por bloqueos`
+      console.error(
+        "Error creating weekly calendar slots:",
+        error
+      );
+  
+      showError(
+        "No se han podido crear las disponibilidades de la semana."
+      );
+    } finally {
+      setWeekLoading(
+        false
       );
     }
-
-    if (
-      existingCount >
-      0
-    ) {
-      details.push(
-        `${existingCount} ya existentes`
-      );
-    }
-
-    if (
-      details.length >
-      0
-    ) {
-      showWarning(
-        `Semana generada. Se han creado ${newSlots.length} citas correctamente · ${details.join(
-          " · "
-        )}.`
-      );
-    } else {
-      showSuccess(
-        `Semana generada correctamente. Se han creado ${newSlots.length} citas disponibles.`
-      );
-    }
-    setWeekDurationMinutes(
-      service.duration_minutes
-    );
-    setWeekLoading(
-      false
-    );
   }
-
   /*
    * ============================================================
    * CREAR BLOQUEO
@@ -2006,25 +2310,25 @@ setSlotDurationMinutes(
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     clearMessage();
-
+  
     if (
       !blockDate
     ) {
       showError(
         "Selecciona una fecha."
       );
-
+  
       return;
     }
-
+  
     let start:
       Date;
-
+  
     let end:
       Date;
-
+  
     if (
       blockAllDay
     ) {
@@ -2032,12 +2336,12 @@ setSlotDurationMinutes(
         new Date(
           `${blockDate}T00:00:00`
         );
-
+  
       end =
         new Date(
           `${blockDate}T00:00:00`
         );
-
+  
       end.setDate(
         end.getDate() +
           1
@@ -2050,20 +2354,20 @@ setSlotDurationMinutes(
         showError(
           "Selecciona hora inicial y final."
         );
-
+  
         return;
       }
-
+  
       start =
         new Date(
           `${blockDate}T${blockStartTime}`
         );
-
+  
       end =
         new Date(
           `${blockDate}T${blockEndTime}`
         );
-
+  
       if (
         end <=
         start
@@ -2071,11 +2375,11 @@ setSlotDurationMinutes(
         showError(
           "La hora final debe ser posterior a la inicial."
         );
-
+  
         return;
       }
     }
-
+  
     if (
       end <=
       new Date()
@@ -2083,13 +2387,24 @@ setSlotDurationMinutes(
       showError(
         "No puedes bloquear un periodo que ya ha pasado."
       );
-
+  
       return;
     }
-
+  
+    /*
+     * ============================================================
+     * COMPROBACIÓN LOCAL DE DUPLICADO
+     * ============================================================
+     *
+     * Solo sirve para UX.
+     * El servidor vuelve a comprobarlo.
+     */
+  
     const duplicateBlock =
       blocks.some(
-        (block) =>
+        (
+          block
+        ) =>
           new Date(
             block.start_at
           ).getTime() ===
@@ -2099,24 +2414,31 @@ setSlotDurationMinutes(
           ).getTime() ===
             end.getTime()
       );
-
+  
     if (
       duplicateBlock
     ) {
       showWarning(
         "Ese periodo ya está bloqueado."
       );
-
+  
       return;
     }
-
-    setBlockLoading(
-      true
-    );
-
+  
+    /*
+     * ============================================================
+     * COMPROBAR RESERVAS EXISTENTES
+     * ============================================================
+     *
+     * No se cancelarán.
+     * Conservamos el aviso que ya tenía CalendarManager.
+     */
+  
     const affectedBookedSlots =
       slots.filter(
-        (slot) =>
+        (
+          slot
+        ) =>
           slot.status ===
             "BOOKED" &&
           new Date(
@@ -2128,7 +2450,7 @@ setSlotDurationMinutes(
           ) >
             start
       );
-
+  
     if (
       affectedBookedSlots.length >
       0
@@ -2137,137 +2459,136 @@ setSlotDurationMinutes(
         window.confirm(
           `Hay ${affectedBookedSlots.length} reserva(s) dentro de este periodo. No se cancelarán. ¿Quieres bloquear igualmente el resto del horario?`
         );
-
+  
       if (
         !confirmed
       ) {
-        setBlockLoading(
-          false
-        );
-
         return;
       }
     }
-
-    const {
-      data:
-        block,
-      error:
-        blockError,
-    } =
-      await supabase
-        .from(
-          "business_blocks"
-        )
-        .insert({
-          business_id:
-            businessId,
-
-          start_at:
-            start.toISOString(),
-
-          end_at:
-            end.toISOString(),
-
-          reason:
-            blockReason.trim() ||
-            null,
-        })
-        .select(`
-          id,
-          start_at,
-          end_at,
-          reason
-        `)
-        .single();
-
-    if (
-      blockError ||
-      !block
-    ) {
-      showError(
-        getFriendlyError(
-          blockError,
-          "No se pudo crear el bloqueo."
-        )
-      );
-
-      setBlockLoading(
-        false
-      );
-
-      return;
-    }
-
-    const availableAffected =
-      slots.filter(
-        (slot) =>
-          slot.status ===
-            "AVAILABLE" &&
-          new Date(
-            slot.start_at
-          ) <
-            end &&
-          new Date(
-            slot.end_at
-          ) >
-            start
-      );
-
-    let updateWarning:
-      | string
-      | null =
-      null;
-
-    if (
-      availableAffected.length >
-      0
-    ) {
-      const ids =
-        availableAffected.map(
-          (slot) =>
-            slot.id
+  
+    setBlockLoading(
+      true
+    );
+  
+    try {
+      /*
+       * ==========================================================
+       * CREAR MEDIANTE API TRANSACCIONAL
+       * ==========================================================
+       */
+  
+      const response =
+        await fetch(
+          "/api/business/calendar/blocks",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId,
+  
+                startAt:
+                  start.toISOString(),
+  
+                endAt:
+                  end.toISOString(),
+  
+                reason:
+                  blockReason.trim(),
+              }),
+          }
         );
-
-      const {
-        error:
-          updateError,
-      } =
-        await supabase
-          .from("slots")
-          .update({
-            status:
-              "BLOCKED",
-          })
-          .in(
-            "id",
-            ids
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
           );
-
+  
       if (
-        updateError
+        !response.ok
       ) {
-        updateWarning =
-          getFriendlyError(
-            updateError,
-            "El bloqueo se ha creado, pero no se han podido retirar algunos huecos."
-          );
-      } else {
-        const blockedIds =
-          new Set(
-            ids
-          );
-
+        showError(
+          result.error ??
+            "No se ha podido crear el bloqueo."
+        );
+  
+        return;
+      }
+  
+      /*
+       * ==========================================================
+       * BLOQUE DEVUELTO
+       * ==========================================================
+       */
+  
+      const block =
+        result.block;
+  
+      if (
+        !block ||
+        typeof block.id !==
+          "string"
+      ) {
+        showWarning(
+          "El bloqueo se ha creado, pero no se ha podido actualizar la pantalla automáticamente."
+        );
+  
+        return;
+      }
+  
+      /*
+       * ==========================================================
+       * ACTUALIZAR SLOTS AFECTADOS
+       * ==========================================================
+       */
+  
+      const blockedSlotIds =
+        new Set<string>(
+          Array.isArray(
+            result.blockedSlotIds
+          )
+            ? result.blockedSlotIds.filter(
+                (
+                  id:
+                    unknown
+                ):
+                  id is string =>
+                  typeof id ===
+                  "string"
+              )
+            : []
+        );
+  
+      if (
+        blockedSlotIds.size >
+        0
+      ) {
         setSlots(
-          (current) =>
+          (
+            current
+          ) =>
             current.map(
-              (slot) =>
-                blockedIds.has(
+              (
+                slot
+              ) =>
+                blockedSlotIds.has(
                   slot.id
                 )
                   ? {
                       ...slot,
-
+  
                       status:
                         "BLOCKED",
                     }
@@ -2275,54 +2596,135 @@ setSlotDurationMinutes(
             )
         );
       }
-    }
-
-    setBlocks(
-      (current) =>
-        [
-          ...current,
-          block,
-        ].sort(
-          (a, b) =>
-            new Date(
-              a.start_at
-            ).getTime() -
-            new Date(
-              b.start_at
-            ).getTime()
-        )
-    );
-
-    setBlockDate("");
-    setBlockStartTime("");
-    setBlockEndTime("");
-    setBlockReason("");
-    setBlockAllDay(
-      false
-    );
-
-    if (
-      updateWarning
-    ) {
-      showWarning(
-        updateWarning
+  
+      /*
+       * ==========================================================
+       * AÑADIR BLOQUEO AL ESTADO LOCAL
+       * ==========================================================
+       */
+  
+      setBlocks(
+        (
+          current
+        ) =>
+          [
+            ...current,
+  
+            {
+              id:
+                block.id,
+  
+              start_at:
+                block.start_at,
+  
+              end_at:
+                block.end_at,
+  
+              reason:
+                block.reason ??
+                null,
+            },
+          ].sort(
+            (
+              a,
+              b
+            ) =>
+              new Date(
+                a.start_at
+              ).getTime() -
+              new Date(
+                b.start_at
+              ).getTime()
+          )
       );
-    } else if (
-      availableAffected.length >
-      0
-    ) {
-      showSuccess(
-        `Horario bloqueado correctamente. ${availableAffected.length} huecos retirados de la disponibilidad.`
+  
+      /*
+       * ==========================================================
+       * LIMPIAR FORMULARIO
+       * ==========================================================
+       */
+  
+      setBlockDate("");
+      setBlockStartTime("");
+      setBlockEndTime("");
+      setBlockReason("");
+  
+      setBlockAllDay(
+        false
       );
-    } else {
+  
+      /*
+       * ==========================================================
+       * MENSAJE
+       * ==========================================================
+       */
+  
+      const blockedCount =
+        typeof result.blockedCount ===
+          "number"
+          ? result.blockedCount
+          : blockedSlotIds.size;
+  
+      const bookedCount =
+        typeof result.bookedCount ===
+          "number"
+          ? result.bookedCount
+          : affectedBookedSlots.length;
+  
+      if (
+        blockedCount >
+          0 &&
+        bookedCount >
+          0
+      ) {
+        showWarning(
+          `Horario bloqueado correctamente. ${blockedCount} huecos retirados de la disponibilidad y ${bookedCount} reserva(s) existentes conservadas.`
+        );
+  
+        return;
+      }
+  
+      if (
+        blockedCount >
+        0
+      ) {
+        showSuccess(
+          `Horario bloqueado correctamente. ${blockedCount} huecos retirados de la disponibilidad.`
+        );
+  
+        return;
+      }
+  
+      if (
+        bookedCount >
+        0
+      ) {
+        showWarning(
+          `Horario bloqueado correctamente. Las ${bookedCount} reserva(s) existentes se han conservado.`
+        );
+  
+        return;
+      }
+  
       showSuccess(
         "Horario bloqueado correctamente."
       );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error creating calendar block:",
+        error
+      );
+  
+      showError(
+        "No se ha podido crear el bloqueo."
+      );
+    } finally {
+      setBlockLoading(
+        false
+      );
     }
-
-    setBlockLoading(
-      false
-    );
   }
 
   /*
@@ -2339,53 +2741,92 @@ setSlotDurationMinutes(
       window.confirm(
         "¿Eliminar este bloqueo?"
       );
-
+  
     if (
       !confirmed
     ) {
       return;
     }
-
+  
     clearMessage();
-
-    const {
-      error,
-    } =
-      await supabase
-        .from(
-          "business_blocks"
-        )
-        .delete()
-        .eq(
-          "id",
-          block.id
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/calendar/blocks",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                blockId:
+                  block.id,
+              }),
+          }
         );
-
-    if (
+  
+      const result =
+        await response
+          .json()
+          .catch(
+            () => ({
+              error:
+                "La respuesta del servidor no es válida.",
+            })
+          );
+  
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido eliminar el bloqueo."
+        );
+  
+        return;
+      }
+  
+      setBlocks(
+        (
+          current
+        ) =>
+          current.filter(
+            (
+              item
+            ) =>
+              item.id !==
+              block.id
+          )
+      );
+  
+      /*
+       * Seguimos respetando la regla existente:
+       *
+       * quitar el bloqueo NO reactiva automáticamente
+       * los slots que quedaron BLOCKED.
+       */
+  
+      showWarning(
+        "Bloqueo eliminado. Los huecos bloqueados no se reactivan automáticamente."
+      );
+    } catch (
       error
     ) {
-      showError(
-        getFriendlyError(
-          error,
-          "No se ha podido crear la disponibilidad."
-        )
+      console.error(
+        "Error deleting calendar block:",
+        error
       );
-
-      return;
+  
+      showError(
+        "No se ha podido eliminar el bloqueo."
+      );
     }
-
-    setBlocks(
-      (current) =>
-        current.filter(
-          (item) =>
-            item.id !==
-            block.id
-        )
-    );
-
-    showWarning(
-      "Bloqueo eliminado. Los huecos bloqueados no se reactivan automáticamente."
-    );
   }
 
   /*

@@ -1,7 +1,9 @@
 "use client";
 
-import { ChangeEvent, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  ChangeEvent,
+  useState,
+} from "react";
 
 type BusinessImage = {
   id: string;
@@ -23,18 +25,40 @@ export default function BusinessImagesManager({
   businessId,
   initialImages,
 }: Props) {
-  const supabase = createClient();
+  const [
+    images,
+    setImages,
+  ] =
+    useState<BusinessImage[]>(
+      [...initialImages].sort(
+        (
+          first,
+          second
+        ) =>
+          first.position -
+          second.position
+      )
+    );
 
-  const [images, setImages] = useState<BusinessImage[]>(
-    [...initialImages].sort(
-      (a, b) => a.position - b.position
-    )
-  );
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] =
-    useState<MessageType>(null);
+  const [
+    message,
+    setMessage,
+  ] =
+    useState("");
+
+  const [
+    messageType,
+    setMessageType,
+  ] =
+    useState<
+      MessageType
+    >(null);
 
   function clearMessage() {
     setMessage("");
@@ -42,304 +66,486 @@ export default function BusinessImagesManager({
   }
 
   function showSuccess(
-    text: string
+    text:
+      string
   ) {
     setMessage(text);
-    setMessageType("success");
+
+    setMessageType(
+      "success"
+    );
   }
 
   function showError(
-    text: string
+    text:
+      string
   ) {
     setMessage(text);
-    setMessageType("error");
-  }
 
-  async function saveOrder(
-    orderedImages: BusinessImage[]
-  ) {
-    for (
-      let index = 0;
-      index < orderedImages.length;
-      index++
-    ) {
-      const image = orderedImages[index];
-
-      const { error } = await supabase
-        .from("business_images")
-        .update({
-          position: index,
-        })
-        .eq("id", image.id)
-        .eq("business_id", businessId);
-
-      if (error) {
-        throw error;
-      }
-    }
-
-    return orderedImages.map(
-      (image, index) => ({
-        ...image,
-        position: index,
-      })
+    setMessageType(
+      "error"
     );
   }
 
-  async function handleUpload(
-    event: ChangeEvent<HTMLInputElement>
+  /*
+   * ============================================================
+   * GUARDAR ORDEN
+   * ============================================================
+   */
+
+  async function saveOrder(
+    orderedImages:
+      BusinessImage[]
   ) {
-    const file = event.target.files?.[0];
+    const response =
+      await fetch(
+        "/api/business/images",
+        {
+          method:
+            "PATCH",
 
-    if (!file) return;
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-    if (!file.type.startsWith("image/")) {
-      showError("Selecciona una imagen válida.");
+          body:
+            JSON.stringify({
+              businessId,
+
+              orderedImageIds:
+                orderedImages.map(
+                  (
+                    image
+                  ) =>
+                    image.id
+                ),
+            }),
+        }
+      );
+
+    const result =
+      await response.json();
+
+    if (
+      !response.ok
+    ) {
+      throw new Error(
+        result.error ??
+          "No se ha podido guardar el orden."
+      );
+    }
+
+    return (
+      result.images ??
+      []
+    ) as BusinessImage[];
+  }
+
+  /*
+   * ============================================================
+   * SUBIR IMAGEN
+   * ============================================================
+   */
+
+  async function handleUpload(
+    event:
+      ChangeEvent<HTMLInputElement>
+  ) {
+    const file =
+      event.target
+        .files?.[0];
+
+    if (
+      !file
+    ) {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(
+        file.type
+      )
+    ) {
+      showError(
+        "Selecciona una imagen JPG, PNG o WebP."
+      );
+
+      event.target.value =
+        "";
+
+      return;
+    }
+
+    if (
+      file.size >
+      5 *
+        1024 *
+        1024
+    ) {
       showError(
         "La imagen no puede superar 5 MB."
       );
+
+      event.target.value =
+        "";
+
       return;
     }
 
-    setLoading(true);
-    clearMessage();
-
-    const extension =
-      file.name.split(".").pop() ?? "jpg";
-
-    const fileName =
-      `${crypto.randomUUID()}.${extension}`;
-
-    const path =
-      `${businessId}/${fileName}`;
-
-    const { error: uploadError } =
-      await supabase.storage
-        .from("business-images")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-    if (uploadError) {
-      showError(uploadError.message);
-      setLoading(false);
-      return;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage
-      .from("business-images")
-      .getPublicUrl(path);
-
-    const nextPosition = images.length;
-
-    const { data, error } = await supabase
-      .from("business_images")
-      .insert({
-        business_id: businessId,
-        image_url: publicUrl,
-        position: nextPosition,
-      })
-      .select(`
-        id,
-        image_url,
-        position
-      `)
-      .single();
-
-    if (error) {
-      await supabase.storage
-        .from("business-images")
-        .remove([path]);
-
-      showError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    setImages((current) => [
-      ...current,
-      data,
-    ]);
-
-    showSuccess(
-      "Imagen subida correctamente."
+    setLoading(
+      true
     );
 
-    event.target.value = "";
-    setLoading(false);
+    clearMessage();
+
+    try {
+      const formData =
+        new FormData();
+
+      formData.append(
+        "businessId",
+        businessId
+      );
+
+      formData.append(
+        "file",
+        file
+      );
+
+      const response =
+        await fetch(
+          "/api/business/images",
+          {
+            method:
+              "POST",
+
+            body:
+              formData,
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido subir la imagen."
+        );
+
+        return;
+      }
+
+      setImages(
+        (
+          current
+        ) => [
+          ...current,
+          result.image,
+        ]
+      );
+
+      showSuccess(
+        "Imagen subida correctamente."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error uploading business image:",
+        error
+      );
+
+      showError(
+        "No se ha podido subir la imagen."
+      );
+    } finally {
+      event.target.value =
+        "";
+
+      setLoading(
+        false
+      );
+    }
   }
 
+  /*
+   * ============================================================
+   * HACER PORTADA
+   * ============================================================
+   */
+
   async function makeCover(
-    image: BusinessImage
+    image:
+      BusinessImage
   ) {
-    if (images[0]?.id === image.id) {
+    if (
+      images[0]?.id ===
+      image.id
+    ) {
       return;
     }
 
-    setLoading(true);
+    setLoading(
+      true
+    );
+
     clearMessage();
 
     try {
       const reordered = [
         image,
+
         ...images.filter(
-          (item) => item.id !== image.id
+          (
+            currentImage
+          ) =>
+            currentImage.id !==
+            image.id
         ),
       ];
 
-      const normalized =
-        await saveOrder(reordered);
+      const savedImages =
+        await saveOrder(
+          reordered
+        );
 
-      setImages(normalized);
+      setImages(
+        savedImages
+      );
 
       showSuccess(
         "Portada actualizada correctamente."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       showError(
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : "No se pudo cambiar la portada."
       );
+    } finally {
+      setLoading(
+        false
+      );
     }
-
-    setLoading(false);
   }
 
+  /*
+   * ============================================================
+   * MOVER IMAGEN
+   * ============================================================
+   */
+
   async function moveImage(
-    imageId: string,
-    direction: "left" | "right"
+    imageId:
+      string,
+    direction:
+      | "left"
+      | "right"
   ) {
     const currentIndex =
       images.findIndex(
-        (image) => image.id === imageId
+        (
+          image
+        ) =>
+          image.id ===
+          imageId
       );
 
-    if (currentIndex === -1) return;
-
-    const targetIndex =
-      direction === "left"
-        ? currentIndex - 1
-        : currentIndex + 1;
-
     if (
-      targetIndex < 0 ||
-      targetIndex >= images.length
+      currentIndex ===
+      -1
     ) {
       return;
     }
 
-    setLoading(true);
+    const targetIndex =
+      direction ===
+      "left"
+        ? currentIndex -
+          1
+        : currentIndex +
+          1;
+
+    if (
+      targetIndex <
+        0 ||
+      targetIndex >=
+        images.length
+    ) {
+      return;
+    }
+
+    setLoading(
+      true
+    );
+
     clearMessage();
 
     try {
-      const reordered = [...images];
-
-      [
-        reordered[currentIndex],
-        reordered[targetIndex],
-      ] = [
-        reordered[targetIndex],
-        reordered[currentIndex],
+      const reordered = [
+        ...images,
       ];
 
-      const normalized =
-        await saveOrder(reordered);
+      [
+        reordered[
+          currentIndex
+        ],
+        reordered[
+          targetIndex
+        ],
+      ] = [
+        reordered[
+          targetIndex
+        ],
+        reordered[
+          currentIndex
+        ],
+      ];
 
-      setImages(normalized);
+      const savedImages =
+        await saveOrder(
+          reordered
+        );
+
+      setImages(
+        savedImages
+      );
 
       showSuccess(
         "Orden actualizado correctamente."
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       showError(
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : "No se pudo cambiar el orden."
       );
+    } finally {
+      setLoading(
+        false
+      );
     }
-
-    setLoading(false);
   }
 
+  /*
+   * ============================================================
+   * ELIMINAR IMAGEN
+   * ============================================================
+   */
+
   async function deleteImage(
-    image: BusinessImage
+    image:
+      BusinessImage
   ) {
-    const confirmed = window.confirm(
-      "¿Eliminar esta imagen?"
+    const confirmed =
+      window.confirm(
+        "¿Eliminar esta imagen del negocio?"
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    setLoading(
+      true
     );
 
-    if (!confirmed) return;
-
-    setLoading(true);
     clearMessage();
 
-    const url = new URL(
-      image.image_url
-    );
-
-    const marker =
-      "/storage/v1/object/public/business-images/";
-
-    const path = decodeURIComponent(
-      url.pathname.split(marker)[1] ?? ""
-    );
-
-    const { error: storageError } =
-      await supabase.storage
-        .from("business-images")
-        .remove([path]);
-
-    if (storageError) {
-      showError(
-        storageError.message
-      );
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("business_images")
-      .delete()
-      .eq("id", image.id)
-      .eq("business_id", businessId);
-
-    if (error) {
-      showError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    const remaining = images.filter(
-      (item) => item.id !== image.id
-    );
-
     try {
-      const normalized =
-        await saveOrder(remaining);
+      const response =
+        await fetch(
+          "/api/business/images",
+          {
+            method:
+              "DELETE",
 
-      setImages(normalized);
-      showSuccess("Imagen eliminada.");
-    } catch {
-      setImages(remaining);
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                businessId,
+
+                imageId:
+                  image.id,
+              }),
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+        showError(
+          result.error ??
+            "No se ha podido eliminar la imagen."
+        );
+
+        return;
+      }
+
+      setImages(
+        result.images ??
+        []
+      );
+
+      if (
+        result.warning
+      ) {
+        showError(
+          result.warning
+        );
+      } else {
+        showSuccess(
+          "Imagen eliminada correctamente."
+        );
+      }
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error deleting business image:",
+        error
+      );
 
       showError(
-        "La imagen se ha eliminado, pero no se pudo normalizar el orden."
+        "No se ha podido eliminar la imagen."
+      );
+    } finally {
+      setLoading(
+        false
       );
     }
-
-    setLoading(false);
   }
 
   return (
-    <div style={{ marginTop: 28 }}>
+    <div
+      style={{
+        marginTop:
+          28,
+      }}
+    >
       <label className="btn primary">
         {loading
           ? "Procesando..."
@@ -347,21 +553,28 @@ export default function BusinessImagesManager({
 
         <input
           type="file"
-          accept="image/*"
-          onChange={handleUpload}
-          disabled={loading}
+          accept="image/jpeg,image/png,image/webp"
+          onChange={
+            handleUpload
+          }
+          disabled={
+            loading
+          }
           style={{
-            display: "none",
+            display:
+              "none",
           }}
         />
       </label>
 
       <p
         className="muted"
-        style={{ marginTop: 10 }}
+        style={{
+          marginTop:
+            10,
+        }}
       >
-        JPG, PNG o WebP · Máximo 5 MB.
-        La primera imagen será la portada.
+        JPG, PNG o WebP · Máximo 5 MB. La primera imagen será la portada.
       </p>
 
       {message && (
@@ -369,42 +582,70 @@ export default function BusinessImagesManager({
           role="alert"
           aria-live="polite"
           style={{
-            marginTop: 16,
-            padding: "16px 18px",
-            borderRadius: 14,
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 14,
+            marginTop:
+              16,
+
+            padding:
+              "16px 18px",
+
+            borderRadius:
+              14,
+
+            display:
+              "flex",
+
+            alignItems:
+              "flex-start",
+
+            justifyContent:
+              "space-between",
+
+            gap:
+              14,
+
             background:
-              messageType === "error"
+              messageType ===
+              "error"
                 ? "#fef2f2"
                 : "#f0fdf4",
+
             border:
-              messageType === "error"
+              messageType ===
+              "error"
                 ? "1px solid #f87171"
                 : "1px solid #4ade80",
+
             color:
-              messageType === "error"
+              messageType ===
+              "error"
                 ? "#b91c1c"
                 : "#166534",
           }}
         >
           <div
             style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 12,
+              display:
+                "flex",
+
+              alignItems:
+                "flex-start",
+
+              gap:
+                12,
             }}
           >
             <span
               aria-hidden="true"
               style={{
-                fontSize: 22,
-                lineHeight: 1,
+                fontSize:
+                  22,
+
+                lineHeight:
+                  1,
               }}
             >
-              {messageType === "error"
+              {messageType ===
+              "error"
                 ? "⚠️"
                 : "✅"}
             </span>
@@ -412,19 +653,26 @@ export default function BusinessImagesManager({
             <div>
               <div
                 style={{
-                  fontWeight: 800,
-                  fontSize: 16,
-                  marginBottom: 4,
+                  fontWeight:
+                    800,
+
+                  fontSize:
+                    16,
+
+                  marginBottom:
+                    4,
                 }}
               >
-                {messageType === "error"
+                {messageType ===
+                "error"
                   ? "No se ha podido completar la acción"
                   : "Acción completada"}
               </div>
 
               <div
                 style={{
-                  lineHeight: 1.5,
+                  lineHeight:
+                    1.5,
                 }}
               >
                 {message}
@@ -434,18 +682,37 @@ export default function BusinessImagesManager({
 
           <button
             type="button"
-            onClick={clearMessage}
+            onClick={
+              clearMessage
+            }
             aria-label="Cerrar mensaje"
             style={{
-              border: 0,
-              background: "transparent",
-              color: "inherit",
-              cursor: "pointer",
-              fontSize: 20,
-              lineHeight: 1,
-              padding: 0,
-              opacity: 0.75,
-              flexShrink: 0,
+              border:
+                0,
+
+              background:
+                "transparent",
+
+              color:
+                "inherit",
+
+              cursor:
+                "pointer",
+
+              fontSize:
+                20,
+
+              lineHeight:
+                1,
+
+              padding:
+                0,
+
+              opacity:
+                0.75,
+
+              flexShrink:
+                0,
             }}
           >
             ×
@@ -453,68 +720,106 @@ export default function BusinessImagesManager({
         </div>
       )}
 
-      {images.length === 0 ? (
+      {images.length ===
+      0 ? (
         <div
           className="panel"
-          style={{ marginTop: 24 }}
+          style={{
+            marginTop:
+              24,
+          }}
         >
           <h3>
             Todavía no has subido imágenes
           </h3>
 
           <p className="muted">
-            La primera imagen se utilizará
-            como portada del negocio.
+            La primera imagen se utilizará como portada del negocio.
           </p>
         </div>
       ) : (
         <div
           style={{
-            display: "grid",
+            display:
+              "grid",
+
             gridTemplateColumns:
               "repeat(auto-fit,minmax(240px,1fr))",
-            gap: 16,
-            marginTop: 24,
+
+            gap:
+              16,
+
+            marginTop:
+              24,
           }}
         >
           {images.map(
-            (image, index) => (
+            (
+              image,
+              index
+            ) => (
               <div
                 className="card"
-                key={image.id}
+                key={
+                  image.id
+                }
               >
                 <div
                   style={{
-                    position: "relative",
+                    position:
+                      "relative",
                   }}
                 >
                   <img
-                    src={image.image_url}
+                    src={
+                      image.image_url
+                    }
                     alt={`Imagen ${index + 1}`}
                     style={{
-                      width: "100%",
-                      height: 190,
-                      objectFit: "cover",
+                      width:
+                        "100%",
+
+                      height:
+                        190,
+
+                      objectFit:
+                        "cover",
+
                       borderRadius:
                         "14px 14px 0 0",
                     }}
                   />
 
-                  {index === 0 && (
+                  {index ===
+                    0 && (
                     <div
                       style={{
-                        position: "absolute",
-                        top: 10,
-                        left: 10,
+                        position:
+                          "absolute",
+
+                        top:
+                          10,
+
+                        left:
+                          10,
+
                         background:
                           "var(--card)",
+
                         border:
                           "1px solid var(--border)",
-                        borderRadius: 999,
+
+                        borderRadius:
+                          999,
+
                         padding:
                           "6px 10px",
-                        fontSize: 12,
-                        fontWeight: 800,
+
+                        fontSize:
+                          12,
+
+                        fontWeight:
+                          800,
                       }}
                     >
                       ⭐ Portada
@@ -525,18 +830,28 @@ export default function BusinessImagesManager({
                 <div className="card-body">
                   <div
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 8,
+                      display:
+                        "flex",
+
+                      flexWrap:
+                        "wrap",
+
+                      gap:
+                        8,
                     }}
                   >
-                    {index !== 0 && (
+                    {index !==
+                      0 && (
                       <button
                         type="button"
                         className="btn primary"
-                        disabled={loading}
+                        disabled={
+                          loading
+                        }
                         onClick={() =>
-                          makeCover(image)
+                          makeCover(
+                            image
+                          )
                         }
                       >
                         ⭐ Hacer portada
@@ -548,7 +863,8 @@ export default function BusinessImagesManager({
                       className="btn"
                       disabled={
                         loading ||
-                        index === 0
+                        index ===
+                          0
                       }
                       onClick={() =>
                         moveImage(
@@ -566,7 +882,8 @@ export default function BusinessImagesManager({
                       disabled={
                         loading ||
                         index ===
-                          images.length - 1
+                          images.length -
+                            1
                       }
                       onClick={() =>
                         moveImage(
@@ -581,10 +898,21 @@ export default function BusinessImagesManager({
                     <button
                       type="button"
                       className="btn"
-                      onClick={() =>
-                        deleteImage(image)
+                      disabled={
+                        loading
                       }
-                      disabled={loading}
+                      onClick={() =>
+                        deleteImage(
+                          image
+                        )
+                      }
+                      style={{
+                        color:
+                          "#b91c1c",
+
+                        borderColor:
+                          "#fecaca",
+                      }}
                     >
                       Eliminar
                     </button>

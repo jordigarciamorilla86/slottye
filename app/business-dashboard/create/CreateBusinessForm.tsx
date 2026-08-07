@@ -6,7 +6,7 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+
 
 type Category = {
   id: string;
@@ -57,25 +57,7 @@ type Props = {
  * ============================================================
  */
 
-function createSlug(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(
-      /[^a-z0-9]+/g,
-      "-"
-    )
-    .replace(
-      /^-+|-+$/g,
-      ""
-    );
-}
+
 
 /*
  * ============================================================
@@ -374,8 +356,7 @@ export default function CreateBusinessForm({
   const router =
     useRouter();
 
-  const supabase =
-    createClient();
+ 
 
   /*
    * ============================================================
@@ -830,144 +811,115 @@ export default function CreateBusinessForm({
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     clearMessage();
-
+  
     if (!name.trim()) {
       showError(
         "Introduce el nombre del negocio."
       );
-
+  
       return;
     }
-
+  
     if (!categoryId) {
       showError(
         "Selecciona una categoría."
       );
-
+  
       return;
     }
-
+  
     if (!address.trim()) {
       showError(
         "Introduce la dirección."
       );
-
+  
       return;
     }
-
+  
     if (!city.trim()) {
       showError(
         "Introduce la ciudad."
       );
-
+  
       return;
     }
-
+  
     setLoading(true);
-
-    const {
-      data: { user },
-    } =
-      await supabase.auth.getUser();
-
-    if (!user) {
-      setLoading(false);
-
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/create",
+          {
+            method: "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body: JSON.stringify({
+              name,
+  
+              categoryId,
+  
+              description,
+  
+              address,
+  
+              city,
+  
+              postalCode,
+  
+              phone,
+  
+              email,
+  
+              website,
+  
+              latitude,
+  
+              longitude,
+  
+              googlePlaceId,
+  
+              showGoogleReviews,
+            }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/login");
+  
+          return;
+        }
+  
+        showError(
+          result.error ??
+            "No se ha podido crear el negocio."
+        );
+  
+        return;
+      }
+  
       router.push(
-        "/login"
+        "/business-dashboard/setup"
       );
-
-      return;
-    }
-
-    const baseSlug =
-      createSlug(name);
-
-    const slug =
-      `${baseSlug}-${crypto.randomUUID().slice(
-        0,
-        6
-      )}`;
-
-    const { error } =
-      await supabase
-        .from(
-          "businesses"
-        )
-        .insert({
-          owner_id:
-            user.id,
-
-          category_id:
-            categoryId,
-
-          name:
-            name.trim(),
-
-          slug,
-
-          description:
-            description.trim() ||
-            null,
-
-          address:
-            address.trim(),
-
-          city:
-            city.trim(),
-
-          postal_code:
-            postalCode.trim() ||
-            null,
-
-          phone:
-            phone.trim() ||
-            null,
-
-          email:
-            email.trim() ||
-            null,
-
-          website:
-            website.trim() ||
-            null,
-
-          latitude,
-
-          longitude,
-
-          /*
-           * Google queda vinculado
-           * desde la creación.
-           */
-          google_place_id:
-            googlePlaceId,
-
-          show_google_reviews:
-            !!googlePlaceId &&
-            showGoogleReviews,
-
-          active: true,
-        });
-
-    if (error) {
+  
+      router.refresh();
+    } catch {
       showError(
-        error.message
+        "No se ha podido crear el negocio."
       );
-
+    } finally {
       setLoading(false);
-
-      return;
     }
-
-    router.push(
-      "/business-dashboard/setup"
-    );
-    
-    router.refresh();
-
   }
 
   return (

@@ -5,7 +5,7 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
+
 import BusinessLocationMap from "@/components/BusinessLocationMap";
 import GoogleBusinessLink from "@/components/GoogleBusinessLink";
 
@@ -34,7 +34,7 @@ export default function BusinessEditForm({
 }: {
   business: Business;
 }) {
-  const supabase = createClient();
+  
 
   const [name, setName] =
     useState(business.name);
@@ -155,71 +155,113 @@ export default function BusinessEditForm({
   }
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
+    event:
+      FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
-    setLoading(true);
-    setMessage("");
-
-    const { error } = await supabase
-      .from("businesses")
-      .update({
-        name:
-          name.trim(),
-
-        description:
-          description.trim() || null,
-
-        address:
-          address.trim() || null,
-
-        city:
-          city.trim() || null,
-
-        postal_code:
-          postalCode.trim() || null,
-
-        phone:
-          phone.trim() || null,
-
-        email:
-          email.trim() || null,
-
-        website:
-          website.trim() || null,
-
-        latitude,
-        longitude,
-        
-        min_booking_notice_hours:
-  minBookingNoticeHours,
-
-max_booking_advance_days:
-  maxBookingAdvanceDays,
-
-allow_cancellations:
-  allowCancellations,
-
-min_cancellation_notice_hours:
-  minCancellationNoticeHours,
-
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq("id", business.id);
-
-    if (error) {
-      setMessage(error.message);
-      setLoading(false);
+  
+    if (
+      loading
+    ) {
       return;
     }
-
-    setMessage(
-      "Datos actualizados correctamente."
+  
+    setLoading(
+      true
     );
-
-    setLoading(false);
+  
+    setMessage("");
+  
+    try {
+      const response =
+        await fetch(
+          "/api/business/edit",
+          {
+            method:
+              "PUT",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                businessId:
+                  business.id,
+  
+                name:
+                  name.trim(),
+  
+                description:
+                  description.trim(),
+  
+                address:
+                  address.trim(),
+  
+                city:
+                  city.trim(),
+  
+                postalCode:
+                  postalCode.trim(),
+  
+                phone:
+                  phone.trim(),
+  
+                email:
+                  email.trim(),
+  
+                website:
+                  website.trim(),
+  
+                latitude,
+  
+                longitude,
+  
+                minBookingNoticeHours,
+  
+                maxBookingAdvanceDays,
+  
+                allowCancellations,
+  
+                minCancellationNoticeHours,
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        setMessage(
+          result.error ??
+            "No se han podido guardar los cambios."
+        );
+  
+        return;
+      }
+  
+      setMessage(
+        "Datos actualizados correctamente."
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error updating business:",
+        error
+      );
+  
+      setMessage(
+        "No se han podido guardar los cambios."
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
 
   return (

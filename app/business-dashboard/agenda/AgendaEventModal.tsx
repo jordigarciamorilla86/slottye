@@ -2,11 +2,10 @@
 
 import {
   FormEvent,
-  useMemo,
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
+
 
 type Service = {
   id: string;
@@ -234,12 +233,7 @@ function timeInputValue(
 export default function AgendaEventModal(
   props: Props
 ) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
+  
 
   const [
     loading,
@@ -604,26 +598,26 @@ export default function AgendaEventModal(
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     if (
       props.type !==
       "manual"
     ) {
       return;
     }
-
+  
     setError("");
-
+  
     if (
       !customerName.trim()
     ) {
       setError(
         "Introduce el nombre del cliente."
       );
-
+  
       return;
     }
-
+  
     if (
       !bookingDate ||
       !bookingTime
@@ -631,24 +625,26 @@ export default function AgendaEventModal(
       setError(
         "Selecciona una fecha y una hora."
       );
-
+  
       return;
     }
-
+  
     if (
       !Number.isInteger(
         durationMinutes
       ) ||
-      durationMinutes <= 0 ||
-      durationMinutes > 1440
+      durationMinutes <=
+        0 ||
+      durationMinutes >
+        1440
     ) {
       setError(
         "Introduce una duración válida entre 1 y 1440 minutos."
       );
-
+  
       return;
     }
-
+  
     const [
       year,
       month,
@@ -657,7 +653,7 @@ export default function AgendaEventModal(
       bookingDate
         .split("-")
         .map(Number);
-
+  
     const [
       hour,
       minute,
@@ -665,7 +661,7 @@ export default function AgendaEventModal(
       bookingTime
         .split(":")
         .map(Number);
-
+  
     const startAt =
       new Date(
         year,
@@ -676,96 +672,133 @@ export default function AgendaEventModal(
         0,
         0
       );
-
+  
     const endAt =
       new Date(
         startAt.getTime() +
           durationMinutes *
             60000
       );
-
+  
     setLoading(
       true
     );
-
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "update_manual_booking",
-        {
-          p_booking_id:
-            props.event.id,
-
-          p_service_id:
-            serviceId ||
-            null,
-
-          p_customer_name:
-            customerName.trim(),
-
-          p_customer_phone:
-            customerPhone.trim(),
-
-          p_customer_email:
-            customerEmail.trim(),
-
-          p_start_at:
-            startAt.toISOString(),
-
-          p_end_at:
-            endAt.toISOString(),
-
-          p_notes:
-            notes.trim(),
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "PATCH",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "manual",
+  
+                eventId:
+                  props.event.id,
+  
+                serviceId:
+                  serviceId ||
+                  null,
+  
+                customerName:
+                  customerName.trim(),
+  
+                customerPhone:
+                  customerPhone.trim(),
+  
+                customerEmail:
+                  customerEmail.trim(),
+  
+                startAt:
+                  startAt.toISOString(),
+  
+                endAt:
+                  endAt.toISOString(),
+  
+                notes:
+                  notes.trim(),
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        const message =
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
+        if (
+          message.includes(
+            "online booking"
+          ) ||
+          message.includes(
+            "reserva slottye"
+          )
+        ) {
+          setError(
+            "Ya existe una reserva de Slottye en ese horario."
+          );
+        } else if (
+          message.includes(
+            "manual booking"
+          ) ||
+          message.includes(
+            "reserva manual"
+          )
+        ) {
+          setError(
+            "Ya existe otra reserva manual en ese horario."
+          );
+        } else if (
+          message.includes(
+            "bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else {
+          setError(
+            result.error ??
+              "No se ha podido modificar la reserva."
+          );
         }
-      );
-
-    if (rpcError) {
+  
+        return;
+      }
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
       console.error(
         "Error updating manual booking:",
-        rpcError
+        error
       );
-
-      const message =
-        rpcError.message
-          .toLowerCase();
-
-      if (
-        message.includes(
-          "online booking"
-        )
-      ) {
-        setError(
-          "Ya existe una reserva de Slottye en ese horario."
-        );
-      } else if (
-        message.includes(
-          "manual booking"
-        )
-      ) {
-        setError(
-          "Ya existe otra reserva manual en ese horario."
-        );
-      } else {
-        setError(
-          "No se ha podido modificar la reserva."
-        );
-      }
-
+  
+      setError(
+        "No se ha podido modificar la reserva."
+      );
+    } finally {
       setLoading(
         false
       );
-
-      return;
     }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
   }
 
   /*
@@ -779,16 +812,16 @@ export default function AgendaEventModal(
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     if (
       props.type !==
       "block"
     ) {
       return;
     }
-
+  
     setError("");
-
+  
     if (
       !blockDate ||
       !blockTime
@@ -796,24 +829,26 @@ export default function AgendaEventModal(
       setError(
         "Selecciona una fecha y una hora."
       );
-
+  
       return;
     }
-
+  
     if (
       !Number.isInteger(
         blockDurationMinutes
       ) ||
-      blockDurationMinutes <= 0 ||
-      blockDurationMinutes > 1440
+      blockDurationMinutes <=
+        0 ||
+      blockDurationMinutes >
+        1440
     ) {
       setError(
         "Introduce una duración válida entre 1 y 1440 minutos."
       );
-
+  
       return;
     }
-
+  
     const [
       year,
       month,
@@ -822,7 +857,7 @@ export default function AgendaEventModal(
       blockDate
         .split("-")
         .map(Number);
-
+  
     const [
       hour,
       minute,
@@ -830,7 +865,7 @@ export default function AgendaEventModal(
       blockTime
         .split(":")
         .map(Number);
-
+  
     const startAt =
       new Date(
         year,
@@ -841,91 +876,131 @@ export default function AgendaEventModal(
         0,
         0
       );
-
+  
     const endAt =
       new Date(
         startAt.getTime() +
           blockDurationMinutes *
             60000
       );
-
+  
     setLoading(
       true
     );
-
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "update_agenda_block",
-        {
-          p_block_id:
-            props.event.id,
-
-          p_start_at:
-            startAt.toISOString(),
-
-          p_end_at:
-            endAt.toISOString(),
-
-          p_reason:
-            blockReason.trim(),
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "PATCH",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "block",
+  
+                eventId:
+                  props.event.id,
+  
+                startAt:
+                  startAt.toISOString(),
+  
+                endAt:
+                  endAt.toISOString(),
+  
+                reason:
+                  blockReason.trim(),
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        const message =
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
+        if (
+          message.includes(
+            "no autorizado"
+          ) ||
+          message.includes(
+            "permis"
+          )
+        ) {
+          setError(
+            "No tienes permisos para modificar este bloqueo."
+          );
+        } else if (
+          message.includes(
+            "no existe"
+          ) ||
+          message.includes(
+            "block not found"
+          )
+        ) {
+          setError(
+            "El bloqueo ya no existe."
+          );
+        } else if (
+          message.includes(
+            "invalid block dates"
+          ) ||
+          message.includes(
+            "horario seleccionado"
+          )
+        ) {
+          setError(
+            "La fecha o la duración del bloqueo no son válidas."
+          );
+        } else if (
+          message.includes(
+            "bloqueada"
+          )
+        ) {
+          setError(
+            "Tu cuenta está bloqueada."
+          );
+        } else {
+          setError(
+            result.error ??
+              "No se ha podido modificar el bloqueo."
+          );
         }
-      );
-
-    if (rpcError) {
+  
+        return;
+      }
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
       console.error(
         "Error updating agenda block:",
-        rpcError
+        error
       );
-
-      const message =
-        rpcError.message
-          .toLowerCase();
-
-      if (
-        message.includes(
-          "not authorized"
-        )
-      ) {
-        setError(
-          "No tienes permisos para modificar este bloqueo."
-        );
-      } else if (
-        message.includes(
-          "block not found"
-        )
-      ) {
-        setError(
-          "El bloqueo ya no existe."
-        );
-      } else if (
-        message.includes(
-          "invalid block dates"
-        )
-      ) {
-        setError(
-          "La fecha o la duración del bloqueo no son válidas."
-        );
-      } else {
-        setError(
-          "No se ha podido modificar el bloqueo."
-        );
-      }
-
+  
+      setError(
+        "No se ha podido modificar el bloqueo."
+      );
+    } finally {
       setLoading(
         false
       );
-
-      return;
     }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
   }
 
   /*
@@ -939,26 +1014,26 @@ export default function AgendaEventModal(
       FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
+  
     if (
       props.type !==
       "slot"
     ) {
       return;
     }
-
+  
     setError("");
-
+  
     if (
       !slotServiceId
     ) {
       setError(
         "Selecciona un servicio."
       );
-
+  
       return;
     }
-
+  
     if (
       !slotDate ||
       !slotTime
@@ -966,24 +1041,26 @@ export default function AgendaEventModal(
       setError(
         "Selecciona una fecha y una hora."
       );
-
+  
       return;
     }
-
+  
     if (
       !Number.isInteger(
         slotDurationMinutes
       ) ||
-      slotDurationMinutes <= 0 ||
-      slotDurationMinutes > 1440
+      slotDurationMinutes <=
+        0 ||
+      slotDurationMinutes >
+        1440
     ) {
       setError(
         "Introduce una duración válida entre 1 y 1440 minutos."
       );
-
+  
       return;
     }
-
+  
     const [
       year,
       month,
@@ -992,7 +1069,7 @@ export default function AgendaEventModal(
       slotDate
         .split("-")
         .map(Number);
-
+  
     const [
       hour,
       minute,
@@ -1000,7 +1077,7 @@ export default function AgendaEventModal(
       slotTime
         .split(":")
         .map(Number);
-
+  
     const startAt =
       new Date(
         year,
@@ -1011,123 +1088,167 @@ export default function AgendaEventModal(
         0,
         0
       );
-
+  
     const endAt =
       new Date(
         startAt.getTime() +
           slotDurationMinutes *
             60000
       );
-
+  
     setLoading(
       true
     );
-
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "update_agenda_slot",
-        {
-          p_slot_id:
-            props.event.id,
-
-          p_service_id:
-            slotServiceId,
-
-          p_start_at:
-            startAt.toISOString(),
-
-          p_end_at:
-            endAt.toISOString(),
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "PATCH",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "slot",
+  
+                eventId:
+                  props.event.id,
+  
+                serviceId:
+                  slotServiceId,
+  
+                startAt:
+                  startAt.toISOString(),
+  
+                endAt:
+                  endAt.toISOString(),
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        const message =
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
+        if (
+          message.includes(
+            "online booking"
+          ) ||
+          message.includes(
+            "reserva slottye"
+          )
+        ) {
+          setError(
+            "Ya existe una reserva de Slottye en ese horario."
+          );
+        } else if (
+          message.includes(
+            "manual booking"
+          ) ||
+          message.includes(
+            "reserva manual"
+          )
+        ) {
+          setError(
+            "Ya existe una reserva manual en ese horario."
+          );
+        } else if (
+          message.includes(
+            "block"
+          ) ||
+          message.includes(
+            "bloqueo"
+          )
+        ) {
+          setError(
+            "Ese horario está bloqueado."
+          );
+        } else if (
+          message.includes(
+            "available slot"
+          ) ||
+          message.includes(
+            "disponibilidad"
+          )
+        ) {
+          setError(
+            "Ya existe otra disponibilidad en ese horario."
+          );
+        } else if (
+          message.includes(
+            "invalid service"
+          ) ||
+          message.includes(
+            "servicio"
+          )
+        ) {
+          setError(
+            "El servicio seleccionado no es válido."
+          );
+        } else if (
+          message.includes(
+            "only available slots"
+          ) ||
+          message.includes(
+            "disponibilidades libres"
+          )
+        ) {
+          setError(
+            "Esta disponibilidad ya no puede modificarse."
+          );
+        } else if (
+          message.includes(
+            "not authorized"
+          ) ||
+          message.includes(
+            "permis"
+          )
+        ) {
+          setError(
+            "No tienes permisos para modificar esta disponibilidad."
+          );
+        } else {
+          setError(
+            result.error ??
+              "No se ha podido modificar la disponibilidad."
+          );
         }
-      );
-
-    if (rpcError) {
+  
+        return;
+      }
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
       console.error(
         "Error updating agenda slot:",
-        rpcError
+        error
       );
-
-      const message =
-        rpcError.message
-          .toLowerCase();
-
-      if (
-        message.includes(
-          "online booking"
-        )
-      ) {
-        setError(
-          "Ya existe una reserva de Slottye en ese horario."
-        );
-      } else if (
-        message.includes(
-          "manual booking"
-        )
-      ) {
-        setError(
-          "Ya existe una reserva manual en ese horario."
-        );
-      } else if (
-        message.includes(
-          "block"
-        )
-      ) {
-        setError(
-          "Ese horario está bloqueado."
-        );
-      } else if (
-        message.includes(
-          "available slot"
-        )
-      ) {
-        setError(
-          "Ya existe otra disponibilidad en ese horario."
-        );
-      } else if (
-        message.includes(
-          "invalid service"
-        )
-      ) {
-        setError(
-          "El servicio seleccionado no es válido."
-        );
-      } else if (
-        message.includes(
-          "only available slots"
-        )
-      ) {
-        setError(
-          "Esta disponibilidad ya no puede modificarse."
-        );
-      } else if (
-        message.includes(
-          "not authorized"
-        )
-      ) {
-        setError(
-          "No tienes permisos para modificar esta disponibilidad."
-        );
-      } else {
-        setError(
-          "No se ha podido modificar la disponibilidad."
-        );
-      }
-
+  
+      setError(
+        "No se ha podido modificar la disponibilidad."
+      );
+    } finally {
       setLoading(
         false
       );
-
-      return;
     }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
   }
 
   /*
@@ -1143,50 +1264,63 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Eliminar esta reserva manual?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     setLoading(
       true
     );
-
+  
     setError("");
-
-    const {
-      error:
-        deleteError,
-    } =
-      await supabase.rpc(
-        "delete_manual_booking",
-        {
-          p_booking_id:
-            props.event.id,
-        }
-      );
-
-      if (deleteError) {
-        console.error(
-          "Error deleting manual booking:",
-          deleteError
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "manual",
+  
+                eventId:
+                  props.event.id,
+              }),
+          }
         );
-      
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
         const message =
-          deleteError.message
-            .toLowerCase();
-      
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
         if (
           message.includes(
-            "cuenta está bloqueada"
-          ) ||
-          message.includes(
-            "cuenta esta bloqueada"
+            "bloqueada"
           )
         ) {
           setError(
@@ -1202,7 +1336,7 @@ export default function AgendaEventModal(
           );
         } else if (
           message.includes(
-            "permisos"
+            "permis"
           )
         ) {
           setError(
@@ -1210,23 +1344,31 @@ export default function AgendaEventModal(
           );
         } else {
           setError(
-            deleteError.message ||
+            result.error ??
               "No se ha podido eliminar la reserva manual."
           );
         }
-      
-        setLoading(
-          false
-        );
-      
+  
         return;
       }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error deleting manual booking:",
+        error
+      );
+  
+      setError(
+        "No se ha podido eliminar la reserva manual."
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
 
   /*
@@ -1242,50 +1384,63 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Eliminar este bloqueo?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     setLoading(
       true
     );
-
+  
     setError("");
-
-    const {
-      error:
-        deleteError,
-    } =
-      await supabase.rpc(
-        "delete_agenda_block",
-        {
-          p_block_id:
-            props.event.id,
-        }
-      );
-
-      if (deleteError) {
-        console.error(
-          "Error deleting block:",
-          deleteError
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "block",
+  
+                eventId:
+                  props.event.id,
+              }),
+          }
         );
-      
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
         const message =
-          deleteError.message
-            .toLowerCase();
-      
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
         if (
           message.includes(
-            "cuenta está bloqueada"
-          ) ||
-          message.includes(
-            "cuenta esta bloqueada"
+            "bloqueada"
           )
         ) {
           setError(
@@ -1301,7 +1456,7 @@ export default function AgendaEventModal(
           );
         } else if (
           message.includes(
-            "permisos"
+            "permis"
           )
         ) {
           setError(
@@ -1309,25 +1464,32 @@ export default function AgendaEventModal(
           );
         } else {
           setError(
-            deleteError.message ||
+            result.error ??
               "No se ha podido eliminar el bloqueo."
           );
         }
-      
-        setLoading(
-          false
-        );
-      
+  
         return;
       }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error deleting block:",
+        error
+      );
+  
+      setError(
+        "No se ha podido eliminar el bloqueo."
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
-
   /*
    * ============================================================
    * ELIMINAR DISPONIBILIDAD
@@ -1341,50 +1503,63 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Eliminar esta disponibilidad? Dejará de aparecer como reservable para los clientes."
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
+  
     setLoading(
       true
     );
-
+  
     setError("");
-
-    const {
-      error:
-        rpcError,
-    } =
-      await supabase.rpc(
-        "delete_agenda_slot",
-        {
-          p_slot_id:
-            props.event.id,
-        }
-      );
-
-      if (rpcError) {
-        console.error(
-          "Error deleting agenda slot:",
-          rpcError
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/event",
+          {
+            method:
+              "DELETE",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                type:
+                  "slot",
+  
+                eventId:
+                  props.event.id,
+              }),
+          }
         );
-      
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
         const message =
-          rpcError.message
-            .toLowerCase();
-      
+          String(
+            result.error ??
+              ""
+          ).toLowerCase();
+  
         if (
           message.includes(
-            "cuenta está bloqueada"
-          ) ||
-          message.includes(
-            "cuenta esta bloqueada"
+            "bloqueada"
           )
         ) {
           setError(
@@ -1393,6 +1568,9 @@ export default function AgendaEventModal(
         } else if (
           message.includes(
             "only available slots"
+          ) ||
+          message.includes(
+            "disponibilidades que estén libres"
           )
         ) {
           setError(
@@ -1401,6 +1579,9 @@ export default function AgendaEventModal(
         } else if (
           message.includes(
             "not authorized"
+          ) ||
+          message.includes(
+            "permis"
           )
         ) {
           setError(
@@ -1409,6 +1590,9 @@ export default function AgendaEventModal(
         } else if (
           message.includes(
             "slot not found"
+          ) ||
+          message.includes(
+            "no existe"
           )
         ) {
           setError(
@@ -1416,22 +1600,31 @@ export default function AgendaEventModal(
           );
         } else {
           setError(
-            "No se ha podido eliminar esta disponibilidad."
+            result.error ??
+              "No se ha podido eliminar esta disponibilidad."
           );
         }
-      
-        setLoading(
-          false
-        );
-      
+  
         return;
       }
-
-    setLoading(
-      false
-    );
-
-    props.onClose();
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
+      console.error(
+        "Error deleting agenda slot:",
+        error
+      );
+  
+      setError(
+        "No se ha podido eliminar esta disponibilidad."
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
 
   /*
@@ -1447,100 +1640,137 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Seguro que quieres cancelar esta reserva?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
-    setLoading(true);
+  
+    setLoading(
+      true
+    );
+  
     setError("");
-
-    const {
-      error:
-        cancelError,
-    } =
-      await supabase.rpc(
-        "cancel_booking_by_business",
-        {
-          p_booking_id:
-            props.event.id,
-        }
-      );
-
-    if (cancelError) {
-      console.error(
-        "Error cancelling booking:",
-        cancelError
-      );
-
-      setError(
-        cancelError.message ||
-          "No se ha podido cancelar la reserva."
-      );
-
-      setLoading(false);
-
-      return;
-    }
-
+  
     try {
       const response =
         await fetch(
-          "/api/notifications/booking-cancelled",
+          "/api/agenda/booking-status",
           {
             method:
               "POST",
-
+  
             headers: {
               "Content-Type":
                 "application/json",
             },
-
+  
             body:
               JSON.stringify({
                 bookingId:
                   props.event.id,
+  
+                action:
+                  "cancel",
               }),
           }
         );
-
-      if (!response.ok) {
-        const result =
-          await response
-            .json()
-            .catch(
-              () => null
-            );
-
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        setError(
+          result.error ??
+            "No se ha podido cancelar la reserva."
+        );
+  
+        return;
+      }
+  
+      /*
+       * La reserva ya está cancelada.
+       * Ahora enviamos el aviso al cliente.
+       */
+  
+      try {
+        const notificationResponse =
+          await fetch(
+            "/api/notifications/booking-cancelled",
+            {
+              method:
+                "POST",
+  
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+  
+              body:
+                JSON.stringify({
+                  bookingId:
+                    props.event.id,
+                }),
+            }
+          );
+  
+        if (
+          !notificationResponse.ok
+        ) {
+          const notificationResult =
+            await notificationResponse
+              .json()
+              .catch(
+                () =>
+                  null
+              );
+  
+          console.error(
+            "Error enviando cancelación:",
+            notificationResult
+          );
+        }
+      } catch (
+        notificationError
+      ) {
         console.error(
-          "Error enviando cancelación:",
-          result
+          "Error enviando notificación de cancelación:",
+          notificationError
         );
       }
+  
+      props.onClose();
     } catch (
-      notificationError
+      error
     ) {
       console.error(
-        "Error enviando notificación de cancelación:",
-        notificationError
+        "Error cancelling booking:",
+        error
+      );
+  
+      setError(
+        "No se ha podido cancelar la reserva."
+      );
+    } finally {
+      setLoading(
+        false
       );
     }
-
-    setLoading(false);
-
-    props.onClose();
   }
 
   /*
@@ -1556,57 +1786,86 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Marcar esta cita como completada?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
-    setLoading(true);
+  
+    setLoading(
+      true
+    );
+  
     setError("");
-
-    const {
-      error:
-        completeError,
-    } =
-      await supabase.rpc(
-        "complete_booking",
-        {
-          p_booking_id:
-            props.event.id,
-        }
-      );
-
-    if (completeError) {
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/booking-status",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                bookingId:
+                  props.event.id,
+  
+                action:
+                  "complete",
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        setError(
+          result.error ??
+            "No se ha podido marcar la reserva como completada."
+        );
+  
+        return;
+      }
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
       console.error(
         "Error completing booking:",
-        completeError
+        error
       );
-
+  
       setError(
-        completeError.message ||
-          "No se ha podido marcar la reserva como completada."
+        "No se ha podido marcar la reserva como completada."
       );
-
-      setLoading(false);
-
-      return;
+    } finally {
+      setLoading(
+        false
+      );
     }
-
-    setLoading(false);
-
-    props.onClose();
   }
 
   /*
@@ -1622,57 +1881,86 @@ export default function AgendaEventModal(
     ) {
       return;
     }
-
+  
     if (
       props.event.status !==
       "CONFIRMED"
     ) {
       return;
     }
-
+  
     const confirmed =
       window.confirm(
         "¿Marcar que el cliente no se presentó?"
       );
-
-    if (!confirmed) {
+  
+    if (
+      !confirmed
+    ) {
       return;
     }
-
-    setLoading(true);
+  
+    setLoading(
+      true
+    );
+  
     setError("");
-
-    const {
-      error:
-        noShowError,
-    } =
-      await supabase.rpc(
-        "no_show_booking",
-        {
-          p_booking_id:
-            props.event.id,
-        }
-      );
-
-    if (noShowError) {
+  
+    try {
+      const response =
+        await fetch(
+          "/api/agenda/booking-status",
+          {
+            method:
+              "POST",
+  
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+  
+            body:
+              JSON.stringify({
+                bookingId:
+                  props.event.id,
+  
+                action:
+                  "no_show",
+              }),
+          }
+        );
+  
+      const result =
+        await response.json();
+  
+      if (
+        !response.ok
+      ) {
+        setError(
+          result.error ??
+            "No se ha podido marcar la reserva como no presentada."
+        );
+  
+        return;
+      }
+  
+      props.onClose();
+    } catch (
+      error
+    ) {
       console.error(
         "Error marking booking as no-show:",
-        noShowError
+        error
       );
-
+  
       setError(
-        noShowError.message ||
-          "No se ha podido marcar la reserva como no presentada."
+        "No se ha podido marcar la reserva como no presentada."
       );
-
-      setLoading(false);
-
-      return;
+    } finally {
+      setLoading(
+        false
+      );
     }
-
-    setLoading(false);
-
-    props.onClose();
   }
 
   /*
@@ -1691,7 +1979,7 @@ export default function AgendaEventModal(
           0,
 
         zIndex:
-          1100,
+          10000,
 
         background:
           "rgba(15, 23, 42, 0.45)",

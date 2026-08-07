@@ -2,11 +2,8 @@
 
 import {
   useCallback,
-  useMemo,
   useState,
 } from "react";
-
-import { createClient } from "@/lib/supabase/client";
 
 import type {
   AgendaBooking,
@@ -66,8 +63,10 @@ function bookingDurationMilliseconds(
 }
 
 function createTargetStart(
-  day: Date,
-  minute: number
+  day:
+    Date,
+  minute:
+    number
 ) {
   const normalizedMinute =
     Math.max(
@@ -101,7 +100,8 @@ function createTargetStart(
 }
 
 function rescheduleErrorMessage(
-  message: string
+  message:
+    string
 ) {
   const normalized =
     message.toLowerCase();
@@ -216,13 +216,6 @@ export default function useAgendaReschedule({
   reloadAgenda,
   prepareInterface,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     reschedulingBooking,
     setReschedulingBooking,
@@ -241,6 +234,7 @@ export default function useAgendaReschedule({
    * Cuando se elige una casilla vacía, se crea un destino
    * temporal que nunca se guarda directamente en slots.
    */
+
   const [
     pendingRescheduleSlot,
     setPendingRescheduleSlot,
@@ -339,22 +333,15 @@ export default function useAgendaReschedule({
    * ============================================================
    * ELEGIR DESTINO
    * ============================================================
-   *
-   * Permite escoger:
-   *
-   * - un minuto exacto dentro de una casilla vacía;
-   * - la hora exacta de inicio de una disponibilidad existente.
-   *
-   * La duración final siempre conserva la duración real de la
-   * reserva original.
-   * ============================================================
    */
 
   const chooseRescheduleTarget =
     useCallback(
       (
-        day: Date,
-        minute: number,
+        day:
+          Date,
+        minute:
+          number,
         sourceSlot:
           AgendaSlot |
           null
@@ -521,151 +508,180 @@ export default function useAgendaReschedule({
           ""
         );
 
-        /*
-         * La RPC:
-         * - acepta una casilla vacía;
-         * - acepta una disponibilidad existente;
-         * - usa las horas exactas recibidas;
-         * - retira completamente la disponibilidad de destino;
-         * - no crea disponibilidad en el hueco anterior.
-         */
-        const {
-          error:
-            rpcError,
-        } =
-          await supabase.rpc(
-            "business_move_booking_to_time",
-            {
-              p_booking_id:
-                reschedulingBooking.id,
+        const previousStartAt =
+          reschedulingBooking
+            .slots
+            ?.start_at;
 
-              p_start_at:
-                pendingRescheduleSlot.start_at,
+        const previousEndAt =
+          reschedulingBooking
+            .slots
+            ?.end_at;
 
-              p_end_at:
-                pendingRescheduleSlot.end_at,
+        try {
+          /*
+           * ======================================================
+           * REPROGRAMAR MEDIANTE API SEGURA
+           * ======================================================
+           */
+
+          const response =
+            await fetch(
+              "/api/agenda/move",
+              {
+                method:
+                  "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify({
+                    type:
+                      "booking",
+
+                    eventId:
+                      reschedulingBooking.id,
+
+                    startAt:
+                      pendingRescheduleSlot.start_at,
+
+                    endAt:
+                      pendingRescheduleSlot.end_at,
+                  }),
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok
+          ) {
+            console.error(
+              "Error rescheduling booking:",
+              result
+            );
+
+            setReschedulingError(
+              rescheduleErrorMessage(
+                result.error ??
+                  "No se ha podido reprogramar la reserva."
+              )
+            );
+
+            setPendingRescheduleSlot(
+              null
+            );
+
+            await reloadAgenda();
+
+            return;
+          }
+
+          /*
+           * ======================================================
+           * ENVIAR AVISO DE REPROGRAMACIÓN
+           * ======================================================
+           */
+
+          try {
+            if (
+              previousStartAt &&
+              previousEndAt
+            ) {
+              const notificationResponse =
+                await fetch(
+                  "/api/business/bookings/rescheduled",
+                  {
+                    method:
+                      "POST",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+
+                    body:
+                      JSON.stringify({
+                        bookingId:
+                          reschedulingBooking.id,
+
+                        previousStartAt,
+
+                        previousEndAt,
+
+                        newStartAt:
+                          pendingRescheduleSlot.start_at,
+
+                        newEndAt:
+                          pendingRescheduleSlot.end_at,
+                      }),
+                  }
+                );
+
+              if (
+                !notificationResponse.ok
+              ) {
+                console.error(
+                  "La reserva se reprogramó, pero no se pudo enviar el email:",
+                  await notificationResponse.text()
+                );
+              }
+            } else {
+              console.error(
+                "La reserva se reprogramó, pero faltaba el horario anterior para enviar el email."
+              );
             }
-          );
+          } catch (
+            notificationError
+          ) {
+            console.error(
+              "Error enviando el email de reprogramación:",
+              notificationError
+            );
+          }
 
-        if (
-          rpcError
-        ) {
-          console.error(
-            "Error rescheduling booking:",
-            rpcError
-          );
-
-          setReschedulingError(
-            rescheduleErrorMessage(
-              rpcError.message
-            )
-          );
+          /*
+           * ======================================================
+           * FINALIZAR
+           * ======================================================
+           */
 
           setPendingRescheduleSlot(
             null
           );
 
-          setReschedulingLoading(
-            false
+          setReschedulingBooking(
+            null
           );
 
           await reloadAgenda();
-
-          return;
-        }
-
-        /*
- * ============================================================
- * ENVIAR CORREOS DE REPROGRAMACIÓN
- * ============================================================
- */
-
-        try {
-          const previousStartAt =
-            reschedulingBooking
-              .slots
-              ?.start_at;
-        
-          const previousEndAt =
-            reschedulingBooking
-              .slots
-              ?.end_at;
-        
-          if (
-            previousStartAt &&
-            previousEndAt
-          ) {
-            const response =
-              await fetch(
-                "/api/business/bookings/rescheduled",
-                {
-                  method:
-                    "POST",
-        
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
-        
-                  body:
-                    JSON.stringify({
-                      bookingId:
-                        reschedulingBooking.id,
-        
-                      previousStartAt,
-        
-                      previousEndAt,
-        
-                      newStartAt:
-                        pendingRescheduleSlot.start_at,
-        
-                      newEndAt:
-                        pendingRescheduleSlot.end_at,
-                    }),
-                }
-              );
-        
-            if (
-              !response.ok
-            ) {
-              console.error(
-                "La reserva se reprogramó, pero no se pudo enviar el email:",
-                await response.text()
-              );
-            }
-          } else {
-            console.error(
-              "La reserva se reprogramó, pero faltaba el horario anterior para enviar el email."
-            );
-          }
         } catch (
-          notificationError
+          error
         ) {
           console.error(
-            "Error enviando el email de reprogramación:",
-            notificationError
+            "Unexpected booking reschedule error:",
+            error
+          );
+
+          setReschedulingError(
+            "No se ha podido reprogramar la reserva."
+          );
+
+          await reloadAgenda();
+        } finally {
+          setReschedulingLoading(
+            false
           );
         }
-
-setPendingRescheduleSlot(
-  null
-);
-
-setReschedulingBooking(
-  null
-);
-
-setReschedulingLoading(
-  false
-);
-
-await reloadAgenda();
       },
       [
         pendingRescheduleSlot,
         reloadAgenda,
         reschedulingBooking,
-        supabase,
       ]
     );
 

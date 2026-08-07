@@ -3,13 +3,8 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
-
-import {
-  createClient,
-} from "@/lib/supabase/client";
 
 import type {
   AgendaBooking,
@@ -32,7 +27,7 @@ type Props = {
   initialManualBookings: AgendaManualBooking[];
 };
 
-type AdminWeekResponse = {
+type WeekResponse = {
   slots:
     AgendaSlot[];
 
@@ -58,13 +53,6 @@ export default function useAgendaData({
   initialBlocks,
   initialManualBookings,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     slots,
     setSlots,
@@ -111,6 +99,12 @@ export default function useAgendaData({
   ] =
     useState(false);
 
+  /*
+   * ============================================================
+   * CARGAR SEMANA
+   * ============================================================
+   */
+
   const loadWeekData =
     useCallback(
       async (
@@ -133,358 +127,80 @@ export default function useAgendaData({
           0
         );
 
-        const end =
-          new Date(
-            normalizedStart
-          );
-
-        end.setDate(
-          normalizedStart.getDate() +
-            7
-        );
-
         try {
           /*
-           * ====================================================
-           * MODO ADMIN
-           * ====================================================
+           * ======================================================
+           * ENDPOINT
+           * ======================================================
+           *
+           * Admin mantiene su API administrativa existente.
+           *
+           * Negocio utiliza ahora /api/agenda/week, que valida
+           * sesión, bloqueo y propiedad antes de devolver datos.
            */
 
-          if (
+          const endpoint =
             mode ===
             "admin"
-          ) {
-            const response =
-              await fetch(
-                `/api/admin/businesses/${businessId}/agenda/week?start=${encodeURIComponent(
+              ? `/api/admin/businesses/${businessId}/agenda/week?start=${encodeURIComponent(
                   normalizedStart.toISOString()
-                )}`,
-                {
-                  method:
-                    "GET",
+                )}`
+              : `/api/agenda/week?businessId=${encodeURIComponent(
+                  businessId
+                )}&start=${encodeURIComponent(
+                  normalizedStart.toISOString()
+                )}`;
 
-                  cache:
-                    "no-store",
-                }
-              );
+          const response =
+            await fetch(
+              endpoint,
+              {
+                method:
+                  "GET",
 
-            const result =
-              (
-                await response.json()
-              ) as AdminWeekResponse;
-
-            if (
-              !response.ok
-            ) {
-              throw new Error(
-                result.error ??
-                  "No se ha podido cargar la semana."
-              );
-            }
-
-            setSlots(
-              result.slots ??
-                []
+                cache:
+                  "no-store",
+              }
             );
 
-            setBookings(
-              result.bookings ??
-                []
-            );
+          const result =
+            (
+              await response.json()
+            ) as WeekResponse;
 
-            setBlocks(
-              result.blocks ??
-                []
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              result.error ??
+                "No se ha podido cargar la semana."
             );
-
-            setManualBookings(
-              result.manualBookings ??
-                []
-            );
-
-            return;
           }
 
           /*
-           * ====================================================
-           * MODO NEGOCIO
-           * ====================================================
+           * ======================================================
+           * ACTUALIZAR ESTADO
+           * ======================================================
            */
 
-          const {
-            data:
-              slotsData,
-            error:
-              slotsError,
-          } =
-            await supabase
-              .from(
-                "slots"
-              )
-              .select(`
-                id,
-                service_id,
-                start_at,
-                end_at,
-                status
-              `)
-              .eq(
-                "business_id",
-                businessId
-              )
-              .lt(
-                "start_at",
-                end.toISOString()
-              )
-              .gt(
-                "end_at",
-                normalizedStart.toISOString()
-              )
-              .order(
-                "start_at"
-              );
-
-          if (
-            slotsError
-          ) {
-            throw slotsError;
-          }
-
-          const weekSlotIds =
-            (
-              slotsData ??
-              []
-            ).map(
-              (
-                slot
-              ) =>
-                slot.id
-            );
-
-          let bookingsData:
-            AgendaBooking[] =
-            [];
-
-          if (
-            weekSlotIds.length >
-            0
-          ) {
-            const {
-              data,
-              error,
-            } =
-              await supabase
-                .from(
-                  "bookings"
-                )
-                .select(`
-                  id,
-                  slot_id,
-                  user_id,
-                  service_id,
-                  status,
-                  cancelled_at,
-
-                  profiles (
-                    id,
-                    name,
-                    email
-                  ),
-
-                  services (
-                    id,
-                    name,
-                    duration_minutes
-                  ),
-
-                  slots (
-                    id,
-                    start_at,
-                    end_at,
-                    status
-                  )
-                `)
-                .eq(
-                  "business_id",
-                  businessId
-                )
-                .in(
-                  "slot_id",
-                  weekSlotIds
-                );
-
-            if (
-              error
-            ) {
-              throw error;
-            }
-
-            bookingsData =
-              (
-                data ??
-                []
-              ).map(
-                (
-                  booking
-                ) => ({
-                  ...booking,
-
-                  profiles:
-                    Array.isArray(
-                      booking.profiles
-                    )
-                      ? booking
-                          .profiles[0] ??
-                        null
-                      : booking.profiles,
-
-                  services:
-                    Array.isArray(
-                      booking.services
-                    )
-                      ? booking
-                          .services[0] ??
-                        null
-                      : booking.services,
-
-                  slots:
-                    Array.isArray(
-                      booking.slots
-                    )
-                      ? booking
-                          .slots[0] ??
-                        null
-                      : booking.slots,
-                })
-              ) as AgendaBooking[];
-          }
-
-          const {
-            data:
-              blocksData,
-            error:
-              blocksError,
-          } =
-            await supabase
-              .from(
-                "business_blocks"
-              )
-              .select(`
-                id,
-                start_at,
-                end_at,
-                reason
-              `)
-              .eq(
-                "business_id",
-                businessId
-              )
-              .lt(
-                "start_at",
-                end.toISOString()
-              )
-              .gt(
-                "end_at",
-                normalizedStart.toISOString()
-              )
-              .order(
-                "start_at"
-              );
-
-          if (
-            blocksError
-          ) {
-            throw blocksError;
-          }
-
-          const {
-            data:
-              manualData,
-            error:
-              manualError,
-          } =
-            await supabase
-              .from(
-                "manual_bookings"
-              )
-              .select(`
-                id,
-                business_id,
-                service_id,
-                customer_name,
-                customer_phone,
-                customer_email,
-                start_at,
-                end_at,
-                notes,
-                created_at,
-                updated_at,
-
-                services (
-                  id,
-                  name,
-                  duration_minutes
-                )
-              `)
-              .eq(
-                "business_id",
-                businessId
-              )
-              .lt(
-                "start_at",
-                end.toISOString()
-              )
-              .gt(
-                "end_at",
-                normalizedStart.toISOString()
-              )
-              .order(
-                "start_at"
-              );
-
-          if (
-            manualError
-          ) {
-            throw manualError;
-          }
-
-          const normalizedManual =
-            (
-              manualData ??
-              []
-            ).map(
-              (
-                booking
-              ) => ({
-                ...booking,
-
-                services:
-                  Array.isArray(
-                    booking.services
-                  )
-                    ? booking
-                        .services[0] ??
-                      null
-                    : booking.services,
-              })
-            ) as AgendaManualBooking[];
-
           setSlots(
-            slotsData ??
+            result.slots ??
               []
           );
 
           setBookings(
-            bookingsData
+            result.bookings ??
+              []
           );
 
           setBlocks(
-            blocksData ??
+            result.blocks ??
               []
           );
 
           setManualBookings(
-            normalizedManual
+            result.manualBookings ??
+              []
           );
         } catch (
           error
@@ -502,9 +218,14 @@ export default function useAgendaData({
       [
         businessId,
         mode,
-        supabase,
       ]
     );
+
+  /*
+   * ============================================================
+   * RECARGAR AL CAMBIAR DE SEMANA
+   * ============================================================
+   */
 
   useEffect(() => {
     void loadWeekData(

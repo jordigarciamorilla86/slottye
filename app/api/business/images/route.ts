@@ -3,17 +3,13 @@ import {
     NextResponse,
   } from "next/server";
   
-  import { createClient } from "@/lib/supabase/server";
-  import { createAdminClient } from "@/lib/supabase/admin";
   import {
-    writeAdminAuditLog,
-  } from "@/lib/admin/audit";
+    createClient,
+  } from "@/lib/supabase/server";
   
-  type RouteContext = {
-    params: Promise<{
-      businessId: string;
-    }>;
-  };
+  import {
+    createAdminClient,
+  } from "@/lib/supabase/admin";
   
   const BUCKET_NAME =
     "business-images";
@@ -28,125 +24,131 @@ import {
       "image/webp",
     ]);
   
-    async function requireAdmin() {
-      const supabase =
-        await createClient();
-    
-      const admin =
-        createAdminClient();
-    
-      const {
-        data: {
-          user,
-        },
-      } =
-        await supabase.auth.getUser();
-    
-      if (!user) {
-        return {
-          admin: null,
-          user: null,
-    
-          response:
-            NextResponse.json(
-              {
-                error:
-                  "No autorizado.",
-              },
-              {
-                status:
-                  401,
-              }
-            ),
-        };
-      }
-    
-      const {
-        data:
-          profile,
-        error:
-          profileError,
-      } =
-        await admin
-          .from("profiles")
-          .select(`
-            id,
-            is_admin
-          `)
-          .eq(
-            "id",
-            user.id
-          )
-          .maybeSingle();
-    
-      if (
-        profileError ||
-        !profile?.is_admin
-      ) {
-        return {
-          admin: null,
-          user: null,
-    
-          response:
-            NextResponse.json(
-              {
-                error:
-                  "No autorizado.",
-              },
-              {
-                status:
-                  403,
-              }
-            ),
-        };
-      }
-    
-      return {
-        admin,
+  /*
+   * ============================================================
+   * COMPROBAR USUARIO Y NEGOCIO
+   * ============================================================
+   */
+  
+  async function requireOwnedBusiness(
+    businessId: string
+  ) {
+    const supabase =
+      await createClient();
+  
+    const admin =
+      createAdminClient();
+  
+    const {
+      data: {
         user,
-    
+      },
+    } =
+      await supabase.auth.getUser();
+  
+    if (!user) {
+      return {
+        admin: null,
+        business: null,
+  
         response:
-          null,
+          NextResponse.json(
+            {
+              error:
+                "No autorizado.",
+            },
+            {
+              status:
+                401,
+            }
+          ),
       };
     }
   
-  async function businessExists(
-    admin:
-      ReturnType<
-        typeof createAdminClient
-      >,
-    businessId:
-      string
-  ) {
     const {
-      data,
-      error,
+      data:
+        business,
+      error:
+        businessError,
     } =
       await admin
         .from("businesses")
-        .select("id")
+        .select(`
+          id,
+          owner_id
+        `)
         .eq(
           "id",
           businessId
         )
+        .eq(
+          "owner_id",
+          user.id
+        )
         .maybeSingle();
   
-    if (error) {
-      throw error;
+    if (businessError) {
+      console.error(
+        "Error checking owned business:",
+        businessError
+      );
+  
+      return {
+        admin: null,
+        business: null,
+  
+        response:
+          NextResponse.json(
+            {
+              error:
+                "No se ha podido comprobar el negocio.",
+            },
+            {
+              status:
+                500,
+            }
+          ),
+      };
     }
   
-    return Boolean(
-      data
-    );
+    if (!business) {
+      return {
+        admin: null,
+        business: null,
+  
+        response:
+          NextResponse.json(
+            {
+              error:
+                "No tienes permiso para modificar este negocio.",
+            },
+            {
+              status:
+                403,
+            }
+          ),
+      };
+    }
+  
+    return {
+      admin,
+      business,
+  
+      response:
+        null,
+    };
   }
   
+  /*
+   * ============================================================
+   * EXTENSIÓN SEGURA
+   * ============================================================
+   */
+  
   function extensionFromFile(
-    file:
-      File
+    file: File
   ) {
-    switch (
-      file.type
-    ) {
+    switch (file.type) {
       case "image/png":
         return "png";
   
@@ -158,9 +160,14 @@ import {
     }
   }
   
+  /*
+   * ============================================================
+   * OBTENER RUTA DE STORAGE DESDE URL
+   * ============================================================
+   */
+  
   function storagePathFromUrl(
-    imageUrl:
-      string
+    imageUrl: string
   ) {
     try {
       const url =
@@ -177,9 +184,7 @@ import {
             marker
           )[1];
   
-      if (
-        !encodedPath
-      ) {
+      if (!encodedPath) {
         return null;
       }
   
@@ -198,60 +203,54 @@ import {
    */
   
   export async function POST(
-    request:
-      NextRequest,
-    {
-      params,
-    }:
-      RouteContext
+    request: NextRequest
   ) {
     try {
-      const {
-        businessId,
-      } =
-        await params;
-  
-        const {
-          admin,
-          user,
-          response:
-            authorizationResponse,
-        } =
-          await requireAdmin();
-  
-          if (
-            authorizationResponse ||
-            !admin ||
-            !user
-          ) {
-            return authorizationResponse;
-          }
-  
-      if (
-        !await businessExists(
-          admin,
-          businessId
-        )
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "El negocio no existe.",
-          },
-          {
-            status:
-              404,
-          }
-        );
-      }
-  
       const formData =
         await request.formData();
+  
+      const businessIdValue =
+        formData.get(
+          "businessId"
+        );
   
       const fileValue =
         formData.get(
           "file"
         );
+  
+      if (
+        typeof businessIdValue !==
+          "string" ||
+        !businessIdValue
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Falta el identificador del negocio.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+  
+      const {
+        admin,
+        response:
+          authorizationResponse,
+      } =
+        await requireOwnedBusiness(
+          businessIdValue
+        );
+  
+      if (
+        authorizationResponse ||
+        !admin
+      ) {
+        return authorizationResponse;
+      }
   
       if (
         !(fileValue instanceof File)
@@ -301,6 +300,10 @@ import {
         );
       }
   
+      /*
+       * Buscar última posición
+       */
+  
       const {
         data:
           lastImage,
@@ -316,7 +319,7 @@ import {
           )
           .eq(
             "business_id",
-            businessId
+            businessIdValue
           )
           .order(
             "position",
@@ -328,9 +331,7 @@ import {
           .limit(1)
           .maybeSingle();
   
-      if (
-        positionError
-      ) {
+      if (positionError) {
         console.error(
           "Error loading last image position:",
           positionError
@@ -355,6 +356,10 @@ import {
           -1
         ) + 1;
   
+      /*
+       * Crear nombre seguro
+       */
+  
       const extension =
         extensionFromFile(
           fileValue
@@ -364,11 +369,15 @@ import {
         `${crypto.randomUUID()}.${extension}`;
   
       const storagePath =
-        `${businessId}/${fileName}`;
+        `${businessIdValue}/${fileName}`;
   
       const fileBuffer =
         await fileValue
           .arrayBuffer();
+  
+      /*
+       * Subir a Storage
+       */
   
       const {
         error:
@@ -393,11 +402,9 @@ import {
             }
           );
   
-      if (
-        uploadError
-      ) {
+      if (uploadError) {
         console.error(
-          "Error uploading admin business image:",
+          "Error uploading business image:",
           uploadError
         );
   
@@ -413,6 +420,10 @@ import {
         );
       }
   
+      /*
+       * Obtener URL pública
+       */
+  
       const {
         data: {
           publicUrl,
@@ -426,6 +437,10 @@ import {
             storagePath
           );
   
+      /*
+       * Guardar registro
+       */
+  
       const {
         data:
           image,
@@ -438,7 +453,7 @@ import {
           )
           .insert({
             business_id:
-              businessId,
+              businessIdValue,
   
             image_url:
               publicUrl,
@@ -457,6 +472,10 @@ import {
         insertError ||
         !image
       ) {
+        /*
+         * Si falla BD, limpiamos Storage
+         */
+  
         await admin.storage
           .from(
             BUCKET_NAME
@@ -466,7 +485,7 @@ import {
           ]);
   
         console.error(
-          "Error inserting admin business image:",
+          "Error inserting business image:",
           insertError
         );
   
@@ -483,67 +502,13 @@ import {
           }
         );
       }
-      const {
-        data:
-          business,
-      } =
-        await admin
-          .from(
-            "businesses"
-          )
-          .select(`
-            id,
-            name,
-            owner_id
-          `)
-          .eq(
-            "id",
-            businessId
-          )
-          .maybeSingle();
-      
-      if (
-        business
-      ) {
-        await writeAdminAuditLog({
-          adminUserId:
-            user.id,
-      
-          action:
-            "BUSINESS_IMAGE_UPLOADED",
-      
-          entityType:
-            "BUSINESS_IMAGE",
-      
-          entityId:
-            image.id,
-      
-          businessId:
-            business.id,
-      
-          targetUserId:
-            business.owner_id,
-      
-          description:
-            `Se añadió una imagen a ${business.name}.`,
-      
-          newValues: {
-            image_url:
-              image.image_url,
-      
-            position:
-              image.position,
-          },
-        });
-      }
+  
       return NextResponse.json({
         image,
       });
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
-        "Unexpected admin image upload error:",
+        "Unexpected business image upload error:",
         error
       );
   
@@ -562,44 +527,39 @@ import {
   
   /*
    * ============================================================
-   * GUARDAR ORDEN
+   * GUARDAR ORDEN / CAMBIAR PORTADA
    * ============================================================
    */
   
   export async function PATCH(
-    request:
-      NextRequest,
-    {
-      params,
-    }:
-      RouteContext
+    request: NextRequest
   ) {
     try {
-      const {
-        businessId,
-      } =
-        await params;
-  
-        const {
-          admin,
-          user,
-          response:
-            authorizationResponse,
-        } =
-          await requireAdmin();
-  
-      if (
-        authorizationResponse ||
-        !admin
-      ) {
-        return authorizationResponse;
-      }
-  
       const body =
         await request.json();
   
+      const businessId =
+        body.businessId;
+  
       const orderedImageIds =
         body.orderedImageIds;
+  
+      if (
+        typeof businessId !==
+          "string" ||
+        !businessId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Falta el identificador del negocio.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
   
       if (
         !Array.isArray(
@@ -610,7 +570,7 @@ import {
             value
           ) =>
             typeof value !==
-              "string"
+            "string"
         )
       ) {
         return NextResponse.json(
@@ -647,6 +607,26 @@ import {
       }
   
       const {
+        admin,
+        response:
+          authorizationResponse,
+      } =
+        await requireOwnedBusiness(
+          businessId
+        );
+  
+      if (
+        authorizationResponse ||
+        !admin
+      ) {
+        return authorizationResponse;
+      }
+  
+      /*
+       * Obtener imágenes reales del negocio
+       */
+  
+      const {
         data:
           currentImages,
         error:
@@ -667,9 +647,7 @@ import {
             businessId
           );
   
-      if (
-        imagesError
-      ) {
+      if (imagesError) {
         return NextResponse.json(
           {
             error:
@@ -729,9 +707,7 @@ import {
                 imageId
               );
   
-            if (
-              !image
-            ) {
+            if (!image) {
               throw new Error(
                 "Una de las imágenes no pertenece al negocio."
               );
@@ -752,6 +728,10 @@ import {
             };
           }
         );
+  
+      /*
+       * Guardar nuevas posiciones
+       */
   
       const {
         data:
@@ -779,11 +759,9 @@ import {
             "position"
           );
   
-      if (
-        saveError
-      ) {
+      if (saveError) {
         console.error(
-          "Error saving admin image order:",
+          "Error saving business image order:",
           saveError
         );
   
@@ -799,73 +777,14 @@ import {
         );
       }
   
-      const {
-        data:
-          business,
-      } =
-        await admin
-          .from(
-            "businesses"
-          )
-          .select(`
-            id,
-            name,
-            owner_id
-          `)
-          .eq(
-            "id",
-            businessId
-          )
-          .maybeSingle();
-      
-      if (
-        business
-      ) {
-        await writeAdminAuditLog({
-          adminUserId:
-            user.id,
-      
-          action:
-            "BUSINESS_IMAGES_REORDERED",
-      
-          entityType:
-            "BUSINESS_IMAGE",
-      
-          entityId:
-            business.id,
-      
-          businessId:
-            business.id,
-      
-          targetUserId:
-            business.owner_id,
-      
-          description:
-            `Se modificó el orden de las imágenes de ${business.name}.`,
-      
-          oldValues: {
-            images:
-              currentImages ??
-              [],
-          },
-      
-          newValues: {
-            images:
-              savedImages ??
-              [],
-          },
-        });
-      }
       return NextResponse.json({
         images:
           savedImages ??
           [],
       });
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
-        "Unexpected admin image order error:",
+        "Unexpected business image order error:",
         error
       );
   
@@ -891,42 +810,22 @@ import {
    */
   
   export async function DELETE(
-    request:
-      NextRequest,
-    {
-      params,
-    }:
-      RouteContext
+    request: NextRequest
   ) {
     try {
-      const {
-        businessId,
-      } =
-        await params;
-  
-      const {
-        admin,
-        user,
-        response:
-          authorizationResponse,
-      } =
-        await requireAdmin();
-  
-      if (
-        authorizationResponse ||
-        !admin ||
-        !user
-      ) {
-        return authorizationResponse;
-      }
-  
       const body =
         await request.json();
+  
+      const businessId =
+        body.businessId;
   
       const imageId =
         body.imageId;
   
       if (
+        typeof businessId !==
+          "string" ||
+        !businessId ||
         typeof imageId !==
           "string" ||
         !imageId
@@ -934,7 +833,7 @@ import {
         return NextResponse.json(
           {
             error:
-              "Falta el identificador de la imagen.",
+              "Datos incompletos.",
           },
           {
             status:
@@ -943,72 +842,25 @@ import {
         );
       }
   
-      /*
-       * ============================================================
-       * COMPROBAR NEGOCIO
-       * ============================================================
-       */
-  
       const {
-        data:
-          business,
-        error:
-          businessError,
+        admin,
+        response:
+          authorizationResponse,
       } =
-        await admin
-          .from(
-            "businesses"
-          )
-          .select(`
-            id,
-            name,
-            owner_id
-          `)
-          .eq(
-            "id",
-            businessId
-          )
-          .maybeSingle();
+        await requireOwnedBusiness(
+          businessId
+        );
   
       if (
-        businessError
+        authorizationResponse ||
+        !admin
       ) {
-        console.error(
-          "Error loading business before deleting image:",
-          businessError
-        );
-  
-        return NextResponse.json(
-          {
-            error:
-              "No se ha podido comprobar el negocio.",
-          },
-          {
-            status:
-              500,
-          }
-        );
-      }
-  
-      if (
-        !business
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "El negocio no existe.",
-          },
-          {
-            status:
-              404,
-          }
-        );
+        return authorizationResponse;
       }
   
       /*
-       * ============================================================
-       * COMPROBAR IMAGEN
-       * ============================================================
+       * Comprobar que la imagen pertenece
+       * realmente al negocio.
        */
   
       const {
@@ -1023,8 +875,7 @@ import {
           )
           .select(`
             id,
-            image_url,
-            position
+            image_url
           `)
           .eq(
             "id",
@@ -1036,14 +887,7 @@ import {
           )
           .maybeSingle();
   
-      if (
-        imageError
-      ) {
-        console.error(
-          "Error loading admin business image:",
-          imageError
-        );
-  
+      if (imageError) {
         return NextResponse.json(
           {
             error:
@@ -1056,9 +900,7 @@ import {
         );
       }
   
-      if (
-        !image
-      ) {
+      if (!image) {
         return NextResponse.json(
           {
             error:
@@ -1071,26 +913,52 @@ import {
         );
       }
   
+      const storagePath =
+        storagePathFromUrl(
+          image.image_url
+        );
+  
       /*
-       * Guardamos una copia antes de borrar.
-       * Se utilizará en la auditoría.
+       * Primero Storage.
+       *
+       * Si falla, NO eliminamos todavía
+       * el registro de la base de datos.
        */
   
-      const deletedImageSnapshot = {
-        id:
-          image.id,
+      if (storagePath) {
+        const {
+          error:
+            storageError,
+        } =
+          await admin.storage
+            .from(
+              BUCKET_NAME
+            )
+            .remove([
+              storagePath,
+            ]);
   
-        image_url:
-          image.image_url,
+        if (storageError) {
+          console.error(
+            "Error deleting business image from Storage:",
+            storageError
+          );
   
-        position:
-          image.position,
-      };
+          return NextResponse.json(
+            {
+              error:
+                "No se ha podido eliminar el archivo de la imagen.",
+            },
+            {
+              status:
+                500,
+            }
+          );
+        }
+      }
   
       /*
-       * ============================================================
-       * ELIMINAR REGISTRO DE LA FICHA
-       * ============================================================
+       * Ahora eliminamos BD
        */
   
       const {
@@ -1111,11 +979,9 @@ import {
             businessId
           );
   
-      if (
-        deleteError
-      ) {
+      if (deleteError) {
         console.error(
-          "Error deleting admin business image row:",
+          "Error deleting business image row:",
           deleteError
         );
   
@@ -1132,118 +998,7 @@ import {
       }
   
       /*
-       * ============================================================
-       * LIMPIAR STORAGE
-       * ============================================================
-       */
-  
-      const storagePath =
-        storagePathFromUrl(
-          image.image_url
-        );
-  
-      let storageWarning:
-        string |
-        null =
-        null;
-  
-      if (
-        storagePath
-      ) {
-        const {
-          error:
-            storageError,
-        } =
-          await admin.storage
-            .from(
-              BUCKET_NAME
-            )
-            .remove([
-              storagePath,
-            ]);
-  
-        if (
-          storageError
-        ) {
-          console.error(
-            "Image row deleted but storage cleanup failed:",
-            storageError
-          );
-  
-          storageWarning =
-            "La imagen se eliminó de la ficha, pero no se pudo limpiar el archivo de Storage.";
-        }
-      }
-  
-      /*
-       * ============================================================
-       * AUDITORÍA
-       * ============================================================
-       *
-       * La imagen ya ha sido eliminada de la ficha.
-       * Guardamos la información anterior para poder saber
-       * exactamente qué eliminó el administrador.
-       */
-  
-      try {
-        await writeAdminAuditLog({
-          adminUserId:
-            user.id,
-  
-          action:
-            "BUSINESS_IMAGE_DELETED",
-  
-          entityType:
-            "BUSINESS_IMAGE",
-  
-          entityId:
-            image.id,
-  
-          businessId:
-            business.id,
-  
-          targetUserId:
-            business.owner_id,
-  
-          description:
-            `Se eliminó una imagen de ${business.name}.`,
-  
-          oldValues:
-            deletedImageSnapshot,
-  
-          newValues: {
-            deleted:
-              true,
-          },
-  
-          metadata: {
-            storage_cleanup:
-              storageWarning
-                ? "FAILED"
-                : "SUCCESS",
-  
-            storage_path:
-              storagePath,
-          },
-        });
-      } catch (
-        auditError
-      ) {
-        /*
-         * No devolvemos error porque la imagen
-         * ya se ha eliminado correctamente.
-         */
-  
-        console.error(
-          "Error writing deleted image admin audit:",
-          auditError
-        );
-      }
-  
-      /*
-       * ============================================================
-       * OBTENER IMÁGENES RESTANTES
-       * ============================================================
+       * Obtener imágenes restantes
        */
   
       const {
@@ -1270,20 +1025,12 @@ import {
             "position"
           );
   
-      if (
-        remainingError
-      ) {
-        console.error(
-          "Image deleted but remaining images could not be loaded:",
-          remainingError
-        );
-  
+      if (remainingError) {
         return NextResponse.json({
           success:
             true,
   
           warning:
-            storageWarning ??
             "La imagen se eliminó, pero no se pudo normalizar el orden.",
   
           images:
@@ -1292,17 +1039,7 @@ import {
       }
   
       /*
-       * ============================================================
-       * NORMALIZAR POSICIONES
-       * ============================================================
-       *
-       * Ejemplo:
-       *
-       * 0, 1, 3, 4
-       *
-       * pasa a:
-       *
-       * 0, 1, 2, 3
+       * Normalizar posiciones 0, 1, 2...
        */
   
       const normalizedRows =
@@ -1341,32 +1078,44 @@ import {
               }
             );
   
-        if (
-          normalizeError
-        ) {
+        if (normalizeError) {
           console.error(
-            "Error normalizing admin image order:",
+            "Error normalizing business image order:",
             normalizeError
           );
   
-          storageWarning =
-            storageWarning ??
-            "La imagen se eliminó, pero no se pudo normalizar el orden.";
+          return NextResponse.json({
+            success:
+              true,
+  
+            warning:
+              "La imagen se eliminó, pero no se pudo normalizar el orden.",
+  
+            images:
+              normalizedRows.map(
+                (
+                  remainingImage
+                ) => ({
+                  id:
+                    remainingImage.id,
+  
+                  image_url:
+                    remainingImage.image_url,
+  
+                  position:
+                    remainingImage.position,
+                })
+              ),
+          });
         }
       }
-  
-      /*
-       * ============================================================
-       * RESPUESTA
-       * ============================================================
-       */
   
       return NextResponse.json({
         success:
           true,
   
         warning:
-          storageWarning,
+          null,
   
         images:
           normalizedRows.map(
@@ -1384,11 +1133,9 @@ import {
             })
           ),
       });
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
-        "Unexpected admin image deletion error:",
+        "Unexpected business image deletion error:",
         error
       );
   
@@ -1400,7 +1147,7 @@ import {
         {
           status:
             500,
-          }
-        );
+        }
+      );
     }
   }

@@ -2,11 +2,8 @@
 
 import {
   useCallback,
-  useMemo,
   useState,
 } from "react";
-
-import { createClient } from "@/lib/supabase/client";
 
 import type {
   AgendaCellEvent,
@@ -22,8 +19,12 @@ function durationMilliseconds(
   event: AgendaCellEvent
 ) {
   return (
-    new Date(event.endAt).getTime() -
-    new Date(event.startAt).getTime()
+    new Date(
+      event.endAt
+    ).getTime() -
+    new Date(
+      event.startAt
+    ).getTime()
   );
 }
 
@@ -132,13 +133,6 @@ export default function useAgendaDragMove({
   businessId,
   reloadAgenda,
 }: Props) {
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
-
   const [
     draggedEvent,
     setDraggedEvent,
@@ -173,6 +167,12 @@ export default function useAgendaDragMove({
   ] =
     useState("");
 
+  /*
+   * ============================================================
+   * INICIAR ARRASTRE
+   * ============================================================
+   */
+
   const startDragging =
     useCallback(
       (
@@ -190,6 +190,12 @@ export default function useAgendaDragMove({
       []
     );
 
+  /*
+   * ============================================================
+   * FINALIZAR ARRASTRE
+   * ============================================================
+   */
+
   const finishDragging =
     useCallback(
       () => {
@@ -199,6 +205,12 @@ export default function useAgendaDragMove({
       },
       []
     );
+
+  /*
+   * ============================================================
+   * SOLTAR EVENTO
+   * ============================================================
+   */
 
   const dropAt =
     useCallback(
@@ -215,13 +227,17 @@ export default function useAgendaDragMove({
         }
 
         const targetStart =
-          new Date(day);
+          new Date(
+            day
+          );
 
         targetStart.setHours(
           Math.floor(
-            minute / 60
+            minute /
+              60
           ),
-          minute % 60,
+          minute %
+            60,
           0,
           0
         );
@@ -236,9 +252,9 @@ export default function useAgendaDragMove({
 
         if (
           targetStart.getTime() ===
-            new Date(
-              draggedEvent.startAt
-            ).getTime()
+          new Date(
+            draggedEvent.startAt
+          ).getTime()
         ) {
           setDraggedEvent(
             null
@@ -282,6 +298,12 @@ export default function useAgendaDragMove({
       ]
     );
 
+  /*
+   * ============================================================
+   * CANCELAR MOVIMIENTO
+   * ============================================================
+   */
+
   const cancelPendingMove =
     useCallback(
       () => {
@@ -303,6 +325,12 @@ export default function useAgendaDragMove({
         moving,
       ]
     );
+
+  /*
+   * ============================================================
+   * CONFIRMAR MOVIMIENTO
+   * ============================================================
+   */
 
   const confirmMove =
     useCallback(
@@ -328,272 +356,228 @@ export default function useAgendaDragMove({
         } =
           pendingMove;
 
-        let rpcError:
-          {
-            message:
-              string;
-          } |
-          null =
-          null;
+        try {
+          /*
+           * ======================================================
+           * MOVER MEDIANTE API SEGURA
+           * ======================================================
+           */
 
-        if (
-          event.type ===
-          "booking"
-        ) {
-          const result =
-            await supabase.rpc(
-              "business_move_booking_to_time",
+          const response =
+            await fetch(
+              "/api/agenda/move",
               {
-                p_booking_id:
-                  event.source.id,
+                method:
+                  "POST",
 
-                p_start_at:
-                  targetStartAt,
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
 
-                p_end_at:
-                  targetEndAt,
+                body:
+                  JSON.stringify({
+                    type:
+                      event.type,
+
+                    eventId:
+                      event.source.id,
+
+                    startAt:
+                      targetStartAt,
+
+                    endAt:
+                      targetEndAt,
+                  }),
               }
             );
 
-          rpcError =
-            result.error;
-        } else if (
-          event.type ===
-          "manual"
-        ) {
-          const booking =
-            event.source;
-
           const result =
-            await supabase.rpc(
-              "update_manual_booking",
-              {
-                p_booking_id:
-                  booking.id,
+            await response.json();
 
-                p_service_id:
-                  booking.service_id,
-
-                p_customer_name:
-                  booking.customer_name,
-
-                p_customer_phone:
-                  booking.customer_phone ??
-                  "",
-
-                p_customer_email:
-                  booking.customer_email ??
-                  "",
-
-                p_start_at:
-                  targetStartAt,
-
-                p_end_at:
-                  targetEndAt,
-
-                p_notes:
-                  booking.notes ??
-                  "",
-              }
+          if (
+            !response.ok
+          ) {
+            console.error(
+              "Error moving agenda event:",
+              result
             );
 
-          rpcError =
-            result.error;
-        } else if (
-          event.type ===
-          "block"
-        ) {
-          const result =
-            await supabase.rpc(
-              "update_agenda_block",
-              {
-                p_block_id:
-                  event.source.id,
-
-                p_start_at:
-                  targetStartAt,
-
-                p_end_at:
-                  targetEndAt,
-
-                p_reason:
-                  event.source.reason ??
-                  "",
-              }
+            setMoveError(
+              errorMessage(
+                result.error ??
+                  "No se ha podido mover el evento."
+              )
             );
 
-          rpcError =
-            result.error;
-        } else {
-          const result =
-            await supabase.rpc(
-              "update_agenda_slot",
-              {
-                p_slot_id:
-                  event.source.id,
+            await reloadAgenda();
 
-                p_service_id:
-                  event.source.service_id,
+            return;
+          }
 
-                p_start_at:
-                  targetStartAt,
+          /*
+           * ======================================================
+           * DISPONIBILIDAD MOVIDA
+           * ======================================================
+           *
+           * Si movemos un slot, avisamos a los suscriptores.
+           */
 
-                p_end_at:
-                  targetEndAt,
+          if (
+            event.type ===
+            "slot"
+          ) {
+            try {
+              const notificationResponse =
+                await fetch(
+                  "/api/notifications/new-slots",
+                  {
+                    method:
+                      "POST",
+
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+
+                    body:
+                      JSON.stringify({
+                        businessId,
+
+                        slotIds: [
+                          event.source.id,
+                        ],
+                      }),
+                  }
+                );
+
+              if (
+                !notificationResponse.ok
+              ) {
+                console.error(
+                  "La disponibilidad se movió, pero no se pudo avisar a los suscriptores:",
+                  await notificationResponse.text()
+                );
+              } else {
+                const notificationResult =
+                  await notificationResponse.json();
+
+                console.log(
+                  "Resultado de notificación de disponibilidad movida:",
+                  notificationResult
+                );
               }
-            );
+            } catch (
+              notificationError
+            ) {
+              console.error(
+                "Error avisando de la disponibilidad movida:",
+                notificationError
+              );
+            }
+          }
 
-          rpcError =
-            result.error;
-        }
+          /*
+           * ======================================================
+           * RESERVA ONLINE MOVIDA
+           * ======================================================
+           *
+           * La modificación ya se ha realizado mediante
+           * /api/agenda/move.
+           *
+           * Esta llamada únicamente gestiona la notificación
+           * de reprogramación al cliente.
+           */
 
-        if (
-          rpcError
-        ) {
-          console.error(
-            "Error moving agenda event:",
-            rpcError
-          );
+          if (
+            event.type ===
+            "booking"
+          ) {
+            try {
+              const notificationResponse =
+                await fetch(
+                  "/api/business/bookings/rescheduled",
+                  {
+                    method:
+                      "POST",
 
-          setMoveError(
-            errorMessage(
-              rpcError.message
-            )
-          );
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
 
-          setMoving(
-            false
+                    body:
+                      JSON.stringify({
+                        bookingId:
+                          event.source.id,
+
+                        previousStartAt:
+                          event.startAt,
+
+                        previousEndAt:
+                          event.endAt,
+
+                        newStartAt:
+                          targetStartAt,
+
+                        newEndAt:
+                          targetEndAt,
+                      }),
+                  }
+                );
+
+              if (
+                !notificationResponse.ok
+              ) {
+                console.error(
+                  "La reserva se movió, pero no se pudo enviar el email:",
+                  await notificationResponse.text()
+                );
+              }
+            } catch (
+              emailError
+            ) {
+              console.error(
+                "Error enviando el email de reprogramación:",
+                emailError
+              );
+            }
+          }
+
+          /*
+           * ======================================================
+           * FINALIZAR
+           * ======================================================
+           */
+
+          setPendingMove(
+            null
           );
 
           await reloadAgenda();
-
-          return;
-        }
-
-        if (
-          event.type ===
-          "slot"
+        } catch (
+          error
         ) {
-          try {
-            const response =
-              await fetch(
-                "/api/notifications/new-slots",
-                {
-                  method:
-                    "POST",
+          console.error(
+            "Unexpected agenda move error:",
+            error
+          );
 
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
+          setMoveError(
+            "No se ha podido mover el evento."
+          );
 
-                  body:
-                    JSON.stringify({
-                      businessId,
-
-                      slotIds: [
-                        event.source.id,
-                      ],
-                    }),
-                }
-              );
-
-            if (
-              !response.ok
-            ) {
-              console.error(
-                "La disponibilidad se movió, pero no se pudo avisar a los suscriptores:",
-                await response.text()
-              );
-            }else {
-              const result =
-                await response.json();
-            
-              console.log(
-                "Resultado de notificación de disponibilidad movida:",
-                result
-              );
-            }
-          } catch (
-            notificationError
-          ) {
-            console.error(
-              "Error avisando de la disponibilidad movida:",
-              notificationError
-            );
-          }
+          await reloadAgenda();
+        } finally {
+          setMoving(
+            false
+          );
         }
-
-        if (
-          event.type ===
-          "booking"
-        ) {
-          try {
-            const response =
-              await fetch(
-                "/api/business/bookings/rescheduled",
-                {
-                  method:
-                    "POST",
-
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
-
-                  body:
-                    JSON.stringify({
-                      bookingId:
-                        event.source.id,
-
-                      previousStartAt:
-                        event.startAt,
-
-                      previousEndAt:
-                        event.endAt,
-
-                      newStartAt:
-                        targetStartAt,
-
-                      newEndAt:
-                        targetEndAt,
-                    }),
-                }
-              );
-
-            if (
-              !response.ok
-            ) {
-              console.error(
-                "La reserva se movió, pero no se pudo enviar el email:",
-                await response.text()
-              );
-            }
-          } catch (
-            emailError
-          ) {
-            console.error(
-              "Error enviando el email de reprogramación:",
-              emailError
-            );
-          }
-        }
-
-        setPendingMove(
-          null
-        );
-
-        setMoving(
-          false
-        );
-
-        await reloadAgenda();
       },
       [
         businessId,
         pendingMove,
         reloadAgenda,
-        supabase,
       ]
     );
 
