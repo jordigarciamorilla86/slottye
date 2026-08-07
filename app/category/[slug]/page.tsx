@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { NearbyBusinesses } from "@/components/NearbyBusinesses";
+import { HomeSearch } from "@/components/HomeSearch";
 import { createClient } from "@/lib/supabase/server";
+import CategoryAvailabilityResults from "./CategoryAvailabilityResults";
 
 type Props = {
   params: Promise<{
@@ -12,6 +14,23 @@ type Props = {
 
   searchParams: Promise<{
     q?: string;
+  
+    mode?:
+      string;
+  
+    when?:
+      string;
+  
+    date?:
+      string;
+  
+    page?:
+      string;
+
+      sort?: string;
+lat?: string;
+lng?: string;
+distance?: string;
   }>;
 };
 
@@ -25,8 +44,27 @@ export async function generateMetadata({
   params,
   searchParams,
 }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const { q } = await searchParams;
+  const {
+    slug,
+  } =
+    await params;
+  
+    const {
+      q,
+      mode,
+      when,
+      date,
+      page,
+      sort,
+      lat,
+      lng,
+      distance,
+    } =
+      await searchParams;
+  
+  const availabilityMode =
+    mode ===
+    "availability";
 
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
@@ -215,11 +253,63 @@ export default async function CategoryPage({
   params,
   searchParams,
 }: Props) {
-  const { slug } = await params;
-  const { q } = await searchParams;
+  const {
+    slug,
+  } =
+    await params;
+
+    const {
+      q,
+      mode,
+      when,
+      date,
+      page,
+      sort,
+      lat,
+      lng,
+      distance,
+    } =
+      await searchParams;
+
+  const availabilityMode =
+    mode ===
+    "availability";
 
   const supabase =
     await createClient();
+  
+    const {
+      data:
+        searchCategories,
+      error:
+        searchCategoriesError,
+    } =
+      await supabase
+        .from(
+          "categories"
+        )
+        .select(`
+          id,
+          name,
+          slug,
+          icon
+        `)
+        .eq(
+          "active",
+          true
+        )
+        .order(
+          "name"
+        );
+    
+    if (
+      searchCategoriesError
+    ) {
+      console.error(
+        "Error loading search categories:",
+        searchCategoriesError
+      );
+    }
 
   let categoryName =
     "Todos los negocios";
@@ -685,27 +775,31 @@ export default async function CategoryPage({
               </div>
 
               <h1 className="business-title">
-                {q?.trim()
-                  ? `Resultados para "${q.trim()}"`
-                  : categoryName}
+              {availabilityMode
+  ? `Citas de ${categoryName}`
+  : q?.trim()
+    ? `Resultados para "${q.trim()}"`
+    : categoryName}
               </h1>
 
-              <p className="muted">
-                {
-                  normalizedBusinesses.length
-                }{" "}
-                negocio
-                {normalizedBusinesses.length ===
-                1
-                  ? ""
-                  : "s"}{" "}
-                encontrado
-                {normalizedBusinesses.length ===
-                1
-                  ? ""
-                  : "s"}
-                .
-              </p>
+              {!availabilityMode && (
+  <p className="muted">
+    {
+      normalizedBusinesses.length
+    }{" "}
+    negocio
+    {normalizedBusinesses.length ===
+    1
+      ? ""
+      : "s"}{" "}
+    encontrado
+    {normalizedBusinesses.length ===
+    1
+      ? ""
+      : "s"}
+    .
+  </p>
+)}
             </div>
 
             <Link
@@ -716,67 +810,125 @@ export default async function CategoryPage({
             </Link>
           </div>
 
-          {/* ====================================================
-              BUSCADOR
-              ==================================================== */}
+        {/* ====================================================
+    BUSCADOR
+    ==================================================== */}
 
-          <form
-            className="search"
-            action={`/category/${slug}`}
-            style={{
-              marginBottom: 24,
-            }}
-          >
-            <input
-              name="q"
-              defaultValue={
-                q ?? ""
-              }
-              placeholder="Negocio, servicio, ciudad, categoría..."
-            />
-
-            <button>
-              Buscar
-            </button>
-          </form>
-
+<div
+  style={{
+    marginBottom:
+      24,
+  }}
+>
+<HomeSearch
+  categories={
+    searchCategories ??
+    []
+  }
+  businessAction={
+    `/category/${slug}`
+  }
+  availabilityAction={
+    `/category/${slug}`
+  }
+  initialQuery={
+    q ??
+    ""
+  }
+  initialCategorySlug={
+    slug ===
+    "todos"
+      ? ""
+      : slug
+  }
+  initialMode={
+    availabilityMode
+      ? "availability"
+      : "business"
+  }
+  availabilityInCategory
+/>
+</div>
           {/* ====================================================
               RESULTADOS
               ==================================================== */}
 
-          {normalizedBusinesses.length >
-          0 ? (
-            <NearbyBusinesses
-              businesses={
-                normalizedBusinesses
-              }
-            />
-          ) : (
-            <div className="panel">
-              <h3>
-                No hemos encontrado
-                negocios
-              </h3>
+{availabilityMode ? (
+  categoryId ? (
+    <CategoryAvailabilityResults
+      categoryId={
+        categoryId
+      }
+      categorySlug={
+        slug
+      }
+      categoryName={
+        categoryName
+      }
+      when={
+        when
+      }
+      selectedDate={
+        date
+      }
+      requestedPage={
+        page
+      }
+      sort={
+        sort
+      }
+      latitude={
+        lat
+      }
+      longitude={
+        lng
+      }
+      maxDistance={
+        distance
+      }
+    />
+  ) : (
+    <div className="panel">
+      <h3>
+        Selecciona una categoría
+      </h3>
 
-              <p className="muted">
-                Prueba con otro nombre,
-                ciudad, categoría o
-                término de búsqueda.
-              </p>
+      <p className="muted">
+        Elige qué tipo de cita necesitas en el buscador superior.
+      </p>
+    </div>
+  )
+) : normalizedBusinesses.length >
+  0 ? (
+  <NearbyBusinesses
+    businesses={
+      normalizedBusinesses
+    }
+  />
+) : (
+  <div className="panel">
+    <h3>
+      No hemos encontrado negocios
+    </h3>
 
-              {q?.trim() && (
-                <Link
-                  href={`/category/${slug}`}
-                  className="btn"
-                  style={{
-                    marginTop: 12,
-                  }}
-                >
-                  Limpiar búsqueda
-                </Link>
-              )}
-            </div>
-          )}
+    <p className="muted">
+      Prueba con otro nombre, ciudad, categoría o término de búsqueda.
+    </p>
+
+    {q?.trim() && (
+      <Link
+        href={`/category/${slug}`}
+        className="btn"
+        style={{
+          marginTop:
+            12,
+        }}
+      >
+        Limpiar búsqueda
+      </Link>
+    )}
+  </div>
+)}
         </section>
       </main>
     </>

@@ -20,23 +20,59 @@ export async function GET(request: Request) {
    * Solo permitimos destinos internos conocidos.
    * Evitamos redirecciones arbitrarias.
    */
-  const allowedNext = new Set([
-    "/account",
-    "/business-dashboard",
-    "/business-dashboard/create",
-  ]);
-
+ 
   const fallbackNext =
-    requestedRole === "business"
-      ? "/business-dashboard/create"
-      : "/account";
+  requestedRole ===
+    "business"
+    ? "/business-dashboard/create"
+    : "/account";
 
-  const next =
-    requestedNext &&
-    allowedNext.has(requestedNext)
-      ? requestedNext
-      : fallbackNext;
+let next =
+  fallbackNext;
 
+if (
+  requestedNext
+) {
+  try {
+    const target =
+      new URL(
+        requestedNext,
+        url.origin
+      );
+
+    const pathname =
+      target.pathname;
+
+    const allowed =
+      target.origin ===
+        url.origin &&
+      (
+        pathname ===
+          "/account" ||
+        pathname.startsWith(
+          "/account/"
+        ) ||
+        pathname ===
+          "/business-dashboard" ||
+        pathname.startsWith(
+          "/business-dashboard/"
+        ) ||
+        pathname.startsWith(
+          "/business/"
+        )
+      );
+
+    if (
+      allowed
+    ) {
+      next =
+        `${target.pathname}${target.search}${target.hash}`;
+    }
+  } catch {
+    next =
+      fallbackNext;
+  }
+}
   /*
    * Sin código OAuth / confirmación.
    */

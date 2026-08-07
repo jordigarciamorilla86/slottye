@@ -58,6 +58,9 @@ type Props = {
   onServiceChange: (
     serviceId: string
   ) => void;
+
+  requestedSlot:
+    Slot | null;
 };
 
 type SelectedSlot = {
@@ -68,13 +71,14 @@ type SelectedSlot = {
 const PAGE_SIZE =
   10;
 
-export function AvailableSlots({
-  businessId,
-  services,
-  loggedIn,
-  selectedServiceId,
-  onServiceChange,
-}: Props) {
+  export function AvailableSlots({
+    businessId,
+    services,
+    loggedIn,
+    selectedServiceId,
+    onServiceChange,
+    requestedSlot,
+  }: Props) {
   const router =
     useRouter();
 
@@ -462,12 +466,15 @@ export function AvailableSlots({
     if (
       !loggedIn
     ) {
+      const nextUrl =
+        `${window.location.pathname}${window.location.search}`;
+    
       router.push(
         `/login?next=${encodeURIComponent(
-          window.location.pathname
+          nextUrl
         )}`
       );
-
+    
       return;
     }
 
@@ -735,189 +742,307 @@ export function AvailableSlots({
       ]
     );
 
-  return (
-    <>
-      {/* ========================================================
-          FILTRO POR SERVICIO
-          ======================================================== */}
-
-      {services.length >
-        0 && (
+    return (
+      <>
+        {/* ========================================================
+            BUSCADOR DE FECHA
+            ======================================================== */}
+    
         <div
+          className="panel"
           style={{
-            display:
-              "flex",
-
-            flexWrap:
-              "wrap",
-
-            gap:
-              10,
-
             marginBottom:
+              18,
+    
+            padding:
               18,
           }}
         >
-          <button
-            type="button"
-            className={
-              selectedServiceId ===
-              "all"
-                ? "btn primary"
-                : "btn"
-            }
-            disabled={
-              loadingSlots
-            }
-            onClick={() =>
-              changeService(
-                "all"
-              )
-            }
+          <div
+            style={{
+              display:
+                "flex",
+    
+              justifyContent:
+                "space-between",
+    
+              alignItems:
+                "flex-end",
+    
+              gap:
+                14,
+    
+              flexWrap:
+                "wrap",
+            }}
           >
-            Todos los servicios
-          </button>
-
-          {services.map(
-            (
-              service
-            ) => (
-              <button
-                type="button"
-                key={
-                  service.id
+            <label
+              style={{
+                flex:
+                  "1 1 260px",
+              }}
+            >
+              <strong>
+                Buscar por fecha
+              </strong>
+    
+              <input
+                type="date"
+                value={
+                  selectedDate
                 }
-                className={
-                  selectedServiceId ===
-                  service.id
-                    ? "btn primary"
-                    : "btn"
+                min={
+                  new Date()
+                    .toLocaleDateString(
+                      "en-CA",
+                      {
+                        timeZone:
+                          "Europe/Madrid",
+                      }
+                    )
                 }
                 disabled={
                   loadingSlots
                 }
-                onClick={() =>
-                  changeService(
+                onChange={(
+                  event
+                ) =>
+                  changeDate(
+                    event.target.value
+                  )
+                }
+                style={
+                  inputStyle
+                }
+              />
+            </label>
+    
+            {selectedDate && (
+              <button
+                type="button"
+                className="btn"
+                disabled={
+                  loadingSlots
+                }
+                onClick={
+                  clearDate
+                }
+              >
+                Limpiar fecha
+              </button>
+            )}
+          </div>
+    
+          <p
+            className="muted"
+            style={{
+              margin:
+                "10px 0 0",
+    
+              fontSize:
+                13,
+            }}
+          >
+            {selectedDate
+              ? "Mostrando únicamente las citas del día seleccionado."
+              : "Selecciona un día para consultar su disponibilidad."}
+          </p>
+        </div>
+    
+        {/* ========================================================
+            FILTRO POR SERVICIO
+            ======================================================== */}
+    
+        {services.length >
+          0 && (
+          <div
+            style={{
+              display:
+                "flex",
+    
+              flexWrap:
+                "wrap",
+    
+              gap:
+                10,
+    
+              marginBottom:
+                18,
+            }}
+          >
+            <button
+              type="button"
+              className={
+                selectedServiceId ===
+                "all"
+                  ? "btn primary"
+                  : "btn"
+              }
+              disabled={
+                loadingSlots
+              }
+              onClick={() =>
+                changeService(
+                  "all"
+                )
+              }
+            >
+              Todos los servicios
+            </button>
+    
+            {services.map(
+              (
+                service
+              ) => (
+                <button
+                  type="button"
+                  key={
                     service.id
+                  }
+                  className={
+                    selectedServiceId ===
+                    service.id
+                      ? "btn primary"
+                      : "btn"
+                  }
+                  disabled={
+                    loadingSlots
+                  }
+                  onClick={() =>
+                    changeService(
+                      service.id
+                    )
+                  }
+                >
+                  {service.name}
+                </button>
+              )
+            )}
+          </div>
+        )}
+    
+        {/* ========================================================
+            CITA SELECCIONADA DESDE EL BUSCADOR
+            ======================================================== */}
+    
+        {requestedSlot && (
+          <div
+            style={{
+              marginBottom:
+                22,
+    
+              padding:
+                20,
+    
+              border:
+                "1px solid #c4b5fd",
+    
+              borderRadius:
+                18,
+    
+              background:
+                "linear-gradient(135deg, #f5f3ff 0%, #ffffff 75%)",
+    
+              boxShadow:
+                "0 10px 30px rgba(76, 29, 149, 0.08)",
+            }}
+          >
+            <div
+              className="kicker"
+              style={{
+                marginBottom:
+                  8,
+              }}
+            >
+              ⚡ Cita que has elegido
+            </div>
+    
+            <div
+              style={{
+                display:
+                  "flex",
+    
+                justifyContent:
+                  "space-between",
+    
+                alignItems:
+                  "center",
+    
+                gap:
+                  20,
+    
+                flexWrap:
+                  "wrap",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin:
+                      0,
+                  }}
+                >
+                  {getServiceName(
+                    requestedSlot.service_id
+                  )}
+                </h3>
+    
+                <div
+                  className="meta"
+                  style={{
+                    marginTop:
+                      10,
+                  }}
+                >
+                  📅{" "}
+                  {formatDate(
+                    requestedSlot.start_at
+                  )}
+                </div>
+    
+                <div
+                  style={{
+                    marginTop:
+                      7,
+    
+                    fontSize:
+                      24,
+    
+                    fontWeight:
+                      800,
+                  }}
+                >
+                  🕐{" "}
+                  {formatTime(
+                    requestedSlot.start_at
+                  )}
+                </div>
+              </div>
+    
+              <button
+                type="button"
+                className="btn primary"
+                disabled={
+                  loadingId !==
+                  null
+                }
+                onClick={() =>
+                  openConfirmation(
+                    requestedSlot
                   )
                 }
               >
-                {service.name}
+                Reservar esta cita
               </button>
-            )
-          )}
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+    
+        {/* ========================================================
+            CONTADOR
+            ======================================================== */}
 
-      {/* ========================================================
-          BUSCADOR DE FECHA
-          ======================================================== */}
-
-      <div
-        className="panel"
-        style={{
-          marginBottom:
-            18,
-
-          padding:
-            18,
-        }}
-      >
-        <div
-          style={{
-            display:
-              "flex",
-
-            justifyContent:
-              "space-between",
-
-            alignItems:
-              "flex-end",
-
-            gap:
-              14,
-
-            flexWrap:
-              "wrap",
-          }}
-        >
-          <label
-            style={{
-              flex:
-                "1 1 260px",
-            }}
-          >
-            <strong>
-              Buscar por fecha
-            </strong>
-
-            <input
-              type="date"
-              value={
-                selectedDate
-              }
-              min={
-                new Date()
-                  .toLocaleDateString(
-                    "en-CA",
-                    {
-                      timeZone:
-                        "Europe/Madrid",
-                    }
-                  )
-              }
-              disabled={
-                loadingSlots
-              }
-              onChange={(
-                event
-              ) =>
-                changeDate(
-                  event.target.value
-                )
-              }
-              style={
-                inputStyle
-              }
-            />
-          </label>
-
-          {selectedDate && (
-            <button
-              type="button"
-              className="btn"
-              disabled={
-                loadingSlots
-              }
-              onClick={
-                clearDate
-              }
-            >
-              Limpiar fecha
-            </button>
-          )}
-        </div>
-
-        <p
-          className="muted"
-          style={{
-            margin:
-              "10px 0 0",
-
-            fontSize:
-              13,
-          }}
-        >
-          {selectedDate
-            ? "Mostrando únicamente las citas del día seleccionado."
-            : "Selecciona un día para consultar su disponibilidad."}
-        </p>
-      </div>
-
-      {/* ========================================================
-          CONTADOR
-          ======================================================== */}
-
+     
       {!slotsError && (
         <div
           style={{

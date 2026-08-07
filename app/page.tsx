@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
 import { NearbyBusinesses } from "@/components/NearbyBusinesses";
+import { HomeSearch } from "@/components/HomeSearch";
 
 /*
  * ============================================================
@@ -485,19 +486,13 @@ export default async function Home() {
             esperas.
           </p>
 
-          <form
-            className="search"
-            action="/category/todos"
-          >
-            <input
-              name="q"
-              placeholder="Buscar dentista, peluquería, psicólogo..."
-            />
-
-            <button>
-              Buscar
-            </button>
-          </form>
+          <HomeSearch
+  categories={
+    categories ?? []
+  }
+  availabilityInCategory
+/>
+            
         </section>
 
         {/* ======================================================

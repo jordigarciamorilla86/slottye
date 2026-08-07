@@ -16,23 +16,37 @@ type Service = {
   duration_minutes: number;
 };
 
+type Slot = {
+  id: string;
+  service_id: string | null;
+  start_at: string;
+  end_at: string;
+  status: string;
+};
+
 type Props = {
   businessId: string;
   services: Service[];
   loggedIn: boolean;
+
+  requestedSlot:
+    Slot | null;
 };
 
 export function BusinessBookingSection({
   businessId,
   services,
   loggedIn,
+  requestedSlot,
 }: Props) {
   const [
     selectedServiceId,
     setSelectedServiceId,
   ] =
-    useState<string>(
-      "all"
+    useState(
+      requestedSlot
+        ?.service_id ??
+        "all"
     );
 
   const slotsRef =
@@ -197,6 +211,9 @@ export function BusinessBookingSection({
           }
           onServiceChange={
             setSelectedServiceId
+          }
+          requestedSlot={
+            requestedSlot
           }
         />
       </section>

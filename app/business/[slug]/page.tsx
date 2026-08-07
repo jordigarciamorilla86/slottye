@@ -13,7 +13,13 @@ type Props = {
   params: Promise<{
     slug: string;
   }>;
+
+  searchParams: Promise<{
+    slot?: string;
+  }>;
 };
+
+
 
 /*
  * ============================================================
@@ -294,9 +300,18 @@ export async function generateMetadata({
 
 export default async function BusinessPage({
   params,
+  searchParams,
 }: Props) {
-  const { slug } =
+  const {
+    slug,
+  } =
     await params;
+
+  const {
+    slot:
+      requestedSlotId,
+  } =
+    await searchParams;
 
   const supabase =
     await createClient();
@@ -608,7 +623,77 @@ export default async function BusinessPage({
       .order(
         "name"
       );
+/*
+ * ============================================================
+ * CITA SOLICITADA DESDE EL BUSCADOR DE DISPONIBILIDAD
+ * ============================================================
+ */
 
+let requestedSlot:
+  | {
+      id: string;
+      service_id: string | null;
+      start_at: string;
+      end_at: string;
+      status: string;
+    }
+  | null =
+  null;
+
+if (
+  typeof requestedSlotId ===
+    "string" &&
+  requestedSlotId
+) {
+  const {
+    data:
+      requestedSlotData,
+    error:
+      requestedSlotError,
+  } =
+    await supabase
+      .from(
+        "slots"
+      )
+      .select(`
+        id,
+        service_id,
+        start_at,
+        end_at,
+        status
+      `)
+      .eq(
+        "id",
+        requestedSlotId
+      )
+      .eq(
+        "business_id",
+        business.id
+      )
+      .eq(
+        "status",
+        "AVAILABLE"
+      )
+      .gte(
+        "start_at",
+        new Date()
+          .toISOString()
+      )
+      .maybeSingle();
+
+  if (
+    requestedSlotError
+  ) {
+    console.error(
+      "Error loading requested slot:",
+      requestedSlotError
+    );
+  }
+
+  requestedSlot =
+    requestedSlotData ??
+    null;
+}
   /*
    * ============================================================
    * HORARIOS
@@ -1873,6 +1958,9 @@ export default async function BusinessPage({
   }
   loggedIn={
     !!user
+  }
+  requestedSlot={
+    requestedSlot
   }
 />
 

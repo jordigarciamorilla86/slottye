@@ -16,6 +16,14 @@ type ReleasedSlot = {
   startAt: string;
 };
 
+type AccountDeletionRpcRow = {
+  released_booking_id: string;
+  released_slot_id: string;
+  released_business_id: string;
+  released_service_id: string | null;
+  released_start_at: string;
+};
+
 export async function DELETE() {
   try {
     const supabase =
@@ -31,8 +39,11 @@ export async function DELETE() {
      */
 
     const {
-      data: { user },
-      error: userError,
+      data: {
+        user,
+      },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
@@ -46,7 +57,8 @@ export async function DELETE() {
             "No autorizado.",
         },
         {
-          status: 401,
+          status:
+            401,
         }
       );
     }
@@ -58,11 +70,15 @@ export async function DELETE() {
      */
 
     const {
-      data: profile,
-      error: profileError,
+      data:
+        profile,
+      error:
+        profileError,
     } =
       await admin
-        .from("profiles")
+        .from(
+          "profiles"
+        )
         .select(`
           id,
           role
@@ -88,60 +104,21 @@ export async function DELETE() {
             "No se ha podido comprobar la cuenta.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
     /*
      * ============================================================
-     * CLIENTE
-     *
-     * Liberamos sus reservas CONFIRMED futuras
-     * antes de eliminar su cuenta.
+     * SI ES NEGOCIO: AVISAR ANTES DE ELIMINAR
      * ============================================================
-     */
-
-    if (
-      profile.role ===
-        "customer" ||
-      profile.role ===
-        "business"
-    ) {
-      const result =
-        await prepareCustomerDeletion({
-          admin,
-          userId:
-            user.id,
-        });
-
-      if (!result.success) {
-        return NextResponse.json(
-          {
-            error:
-              result.error,
-          },
-          {
-            status: 500,
-          }
-        );
-      }
-    }
-
-    /*
-     * ============================================================
-     * NEGOCIO
      *
-     * Antes de eliminar:
+     * Los emails de reservas activas del negocio se procesan
+     * antes del borrado definitivo.
      *
-     * 1. Buscar reservas CONFIRMED futuras.
-     * 2. Enviar email a TODOS los clientes afectados.
-     * 3. Solo si los emails se procesan correctamente,
-     *    continuar con la eliminación.
-     *
-     * No liberamos slots porque el negocio entero
-     * va a desaparecer.
-     * ============================================================
+     * Si alguno falla, NO eliminamos todavía la cuenta.
      */
 
     if (
@@ -155,14 +132,17 @@ export async function DELETE() {
             user.id,
         });
 
-      if (!result.success) {
+      if (
+        !result.success
+      ) {
         return NextResponse.json(
           {
             error:
               result.error,
           },
           {
-            status: 500,
+            status:
+              500,
           }
         );
       }
@@ -170,47 +150,41 @@ export async function DELETE() {
 
     /*
      * ============================================================
-     * ELIMINAR PROFILE
-     *
-     * Gracias a los CASCADE:
-     *
-     * CLIENTE:
-     * - bookings
-     * - favoritos
-     * - suscripciones
-     * - reviews
-     * - notifications
-     *
-     * NEGOCIO:
-     * - businesses
-     * - slots
-     * - services
-     * - business_hours
-     * - business_images
-     * - business_blocks
-     * - bookings
-     * - etc.
+     * ELIMINACIÓN TRANSACCIONAL DE DATOS
      * ============================================================
+     *
+     * Una sola transacción PostgreSQL:
+     *
+     * 1. Bloquea el perfil.
+     * 2. Cancela las reservas futuras del usuario.
+     * 3. Cambia las reservas a CANCELLED_ACCOUNT_DELETED.
+     * 4. Libera sus slots.
+     * 5. Borra profiles.
+     * 6. Aplica CASCADE / SET NULL del esquema.
+     *
+     * Si cualquier paso falla, PostgreSQL revierte TODO.
      */
 
     const {
+      data:
+        deletionRows,
       error:
-        profileDeleteError,
+        deletionError,
     } =
-      await admin
-        .from("profiles")
-        .delete()
-        .eq(
-          "id",
-          user.id
-        );
+      await admin.rpc(
+        "delete_account_data_transactional",
+        {
+          p_user_id:
+            user.id,
+        }
+      );
 
     if (
-      profileDeleteError
+      deletionError
     ) {
       console.error(
-        "Error deleting profile:",
-        profileDeleteError
+        "Transactional account deletion error:",
+        deletionError
       );
 
       return NextResponse.json(
@@ -219,26 +193,69 @@ export async function DELETE() {
             "No se han podido eliminar los datos de la cuenta.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
     /*
      * ============================================================
-     * ELIMINAR USUARIO DE AUTH
+     * NORMALIZAR SLOTS LIBERADOS
      * ============================================================
      */
 
+    const releasedSlots:
+      ReleasedSlot[] =
+      (
+        (
+          deletionRows ??
+          []
+        ) as AccountDeletionRpcRow[]
+      ).map(
+        (
+          row
+        ) => ({
+          bookingId:
+            row.released_booking_id,
+
+          slotId:
+            row.released_slot_id,
+
+          businessId:
+            row.released_business_id,
+
+          serviceId:
+            row.released_service_id,
+
+          startAt:
+            row.released_start_at,
+        })
+      );
+
+    /*
+     * ============================================================
+     * ELIMINAR USUARIO DE AUTH
+     * ============================================================
+     *
+     * Supabase Auth está fuera de la transacción PostgreSQL.
+     *
+     * Llegados aquí, los datos de aplicación ya se han eliminado
+     * correctamente.
+     */
+
     const {
-      error: authError,
+      error:
+        authError,
     } =
       await admin.auth.admin
         .deleteUser(
           user.id
         );
 
-    if (authError) {
+    if (
+      authError
+    ) {
       console.error(
         "Error deleting auth user:",
         authError
@@ -250,9 +267,43 @@ export async function DELETE() {
             "Los datos se han eliminado, pero ha ocurrido un problema al finalizar la eliminación de la cuenta. Contacta con soporte.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
+    }
+
+    /*
+     * ============================================================
+     * AVISAR DE HUECOS LIBERADOS
+     * ============================================================
+     *
+     * BEST EFFORT.
+     *
+     * Un fallo de Resend o notifications NO puede provocar que
+     * una cuenta ya eliminada aparezca como fallida.
+     */
+
+    for (
+      const released of
+      releasedSlots
+    ) {
+      try {
+        await notifyReleasedSlot({
+          admin,
+          released,
+          deletedUserId:
+            user.id,
+        });
+      } catch (
+        error
+      ) {
+        console.error(
+          "Error notifying released slot after account deletion:",
+          released.slotId,
+          error
+        );
+      }
     }
 
     /*
@@ -262,9 +313,12 @@ export async function DELETE() {
      */
 
     return NextResponse.json({
-      success: true,
+      success:
+        true,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Unexpected account deletion error:",
       error
@@ -276,219 +330,19 @@ export async function DELETE() {
           "Ha ocurrido un error inesperado al eliminar la cuenta.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
 }
-
 /*
  * ==============================================================
  * PREPARAR ELIMINACIÓN DE CLIENTE
  * ==============================================================
  */
 
-async function prepareCustomerDeletion({
-  admin,
-  userId,
-}: {
-  admin: ReturnType<
-    typeof createAdminClient
-  >;
 
-  userId: string;
-}): Promise<
-  | {
-      success: true;
-    }
-  | {
-      success: false;
-      error: string;
-    }
-> {
-  const {
-    data: bookings,
-    error: bookingsError,
-  } =
-    await admin
-      .from("bookings")
-      .select(`
-        id,
-        slot_id,
-        business_id,
-        service_id,
-        status,
-
-        slots (
-          id,
-          start_at,
-          status
-        )
-      `)
-      .eq(
-        "user_id",
-        userId
-      )
-      .eq(
-        "status",
-        "CONFIRMED"
-      );
-
-  if (bookingsError) {
-    console.error(
-      "Error loading customer bookings:",
-      bookingsError
-    );
-
-    return {
-      success: false,
-      error:
-        "No se han podido comprobar las reservas activas.",
-    };
-  }
-
-  const now =
-    new Date();
-
-  const releasedSlots:
-    ReleasedSlot[] = [];
-
-  /*
-   * ============================================================
-   * LIBERAR SLOTS FUTUROS
-   * ============================================================
-   */
-
-  for (
-    const booking of
-    bookings ?? []
-  ) {
-    const slot =
-      Array.isArray(
-        booking.slots
-      )
-        ? booking.slots[0] ??
-          null
-        : booking.slots;
-
-    if (!slot) {
-      continue;
-    }
-
-    if (
-      new Date(
-        slot.start_at
-      ) <= now
-    ) {
-      continue;
-    }
-
-    if (
-      slot.status !==
-      "BOOKED"
-    ) {
-      continue;
-    }
-
-    const {
-      data: updatedSlot,
-      error:
-        updateError,
-    } =
-      await admin
-        .from("slots")
-        .update({
-          status:
-            "AVAILABLE",
-
-          updated_at:
-            new Date()
-              .toISOString(),
-        })
-        .eq(
-          "id",
-          booking.slot_id
-        )
-        .eq(
-          "status",
-          "BOOKED"
-        )
-        .select(`
-          id,
-          start_at
-        `)
-        .maybeSingle();
-
-    if (updateError) {
-      console.error(
-        "Error releasing slot:",
-        booking.slot_id,
-        updateError
-      );
-
-      return {
-        success: false,
-        error:
-          "No se han podido liberar todas las citas reservadas.",
-      };
-    }
-
-    if (!updatedSlot) {
-      continue;
-    }
-
-    releasedSlots.push({
-      bookingId:
-        booking.id,
-
-      slotId:
-        booking.slot_id,
-
-      businessId:
-        booking.business_id,
-
-      serviceId:
-        booking.service_id,
-
-      startAt:
-        updatedSlot.start_at,
-    });
-  }
-
-  /*
-   * ============================================================
-   * AVISAR SUSCRIPTORES
-   *
-   * El email es best-effort:
-   * un fallo de Resend no bloquea el derecho
-   * del cliente a eliminar su cuenta.
-   * ============================================================
-   */
-
-  for (
-    const released of
-    releasedSlots
-  ) {
-    try {
-      await notifyReleasedSlot({
-        admin,
-        released,
-        deletedUserId:
-          userId,
-      });
-    } catch (error) {
-      console.error(
-        "Error notifying released slot:",
-        released.slotId,
-        error
-      );
-    }
-  }
-
-  return {
-    success: true,
-  };
-}
 
 /*
  * ==============================================================

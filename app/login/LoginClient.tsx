@@ -325,6 +325,68 @@ export default function Login() {
       : "/account";
   }
 
+  function getRequestedDestination() {
+    const requestedNext =
+      searchParams.get(
+        "next"
+      );
+  
+    if (
+      !requestedNext ||
+      !requestedNext.startsWith(
+        "/"
+      ) ||
+      requestedNext.startsWith(
+        "//"
+      )
+    ) {
+      return null;
+    }
+  
+    try {
+      const target =
+        new URL(
+          requestedNext,
+          window.location.origin
+        );
+  
+      if (
+        target.origin !==
+        window.location.origin
+      ) {
+        return null;
+      }
+  
+      const pathname =
+        target.pathname;
+  
+      const allowed =
+        pathname ===
+          "/account" ||
+        pathname.startsWith(
+          "/account/"
+        ) ||
+        pathname ===
+          "/business-dashboard" ||
+        pathname.startsWith(
+          "/business-dashboard/"
+        ) ||
+        pathname.startsWith(
+          "/business/"
+        );
+  
+      if (
+        !allowed
+      ) {
+        return null;
+      }
+  
+      return `${target.pathname}${target.search}${target.hash}`;
+    } catch {
+      return null;
+    }
+  }
+
   /*
    * ============================================================
    * CAMBIO DE MODO
@@ -388,9 +450,10 @@ export default function Login() {
     );
 
     const destination =
-      getDestination(
-        role
-      );
+  getRequestedDestination() ??
+  getDestination(
+    role
+  );
 
     const redirectTo =
       `${window.location.origin}/auth/callback` +
@@ -472,9 +535,10 @@ export default function Login() {
       mode === "signup"
     ) {
       const destination =
-        getDestination(
-          role
-        );
+  getRequestedDestination() ??
+  getDestination(
+    role
+  );
 
       const {
         data,
@@ -673,14 +737,23 @@ export default function Login() {
      * ==========================================================
      */
 
-    router.push(
-      profile?.role ===
-        "business"
-        ? "/business-dashboard"
-        : "/account"
-    );
+    const requestedDestination =
+  getRequestedDestination();
 
-    router.refresh();
+const destination =
+  requestedDestination ??
+  (
+    profile?.role ===
+      "business"
+      ? "/business-dashboard"
+      : "/account"
+  );
+
+router.push(
+  destination
+);
+
+router.refresh();
   }
 
   /*
