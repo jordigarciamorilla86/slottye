@@ -1529,55 +1529,32 @@ export default async function CategoryAvailabilityResults({
                   }}
                 >
                   <div
-                    className="card-body"
-                    style={{
-                      display:
-                        "grid",
-
-                      gridTemplateColumns:
-                        image
-                          ? "110px minmax(0, 1fr) auto"
-                          : "minmax(0, 1fr) auto",
-
-                      gap:
-                        18,
-
-                      alignItems:
-                        "center",
-                    }}
-                  >
+  className={
+    image
+      ? "card-body availability-card-body availability-card-with-image"
+      : "card-body availability-card-body"
+  }
+>
                     {/* ==========================================
                         IMAGEN
                         ========================================== */}
 
-                    {image && (
-                      <img
-                        src={
-                          image
-                        }
-                        alt=""
-                        style={{
-                          width:
-                            110,
-
-                          height:
-                            90,
-
-                          objectFit:
-                            "cover",
-
-                          borderRadius:
-                            14,
-                        }}
-                      />
-                    )}
+{image && (
+  <img
+    src={
+      image
+    }
+    alt=""
+    className="availability-card-image"
+  />
+)}
 
                     {/* ==========================================
                         INFORMACIÓN
                         ========================================== */}
 
-                    <div>
-                      {firstResult && (
+<div className="availability-card-info">
+  {firstResult && (
                         <div
                           className="kicker"
                           style={{
@@ -1707,18 +1684,7 @@ export default async function CategoryAvailabilityResults({
                         ACCIONES
                         ========================================== */}
 
-                    <div
-                      style={{
-                        display:
-                          "grid",
-
-                        gap:
-                          8,
-
-                        minWidth:
-                          135,
-                      }}
-                    >
+<div className="availability-card-actions">
                       <Link
                         href={`/business/${business.slug}?slot=${encodeURIComponent(
                           slot.id
@@ -1817,6 +1783,74 @@ export default async function CategoryAvailabilityResults({
           )}
         </nav>
       )}
+
+<style>{`
+        .availability-card-body {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 18px;
+          align-items: center;
+        }
+
+        .availability-card-body.availability-card-with-image {
+          grid-template-columns: 110px minmax(0, 1fr) auto;
+        }
+
+        .availability-card-image {
+          width: 110px;
+          height: 90px;
+          object-fit: cover;
+          border-radius: 14px;
+          display: block;
+        }
+
+        .availability-card-info {
+          min-width: 0;
+        }
+
+        .availability-card-actions {
+          display: grid;
+          gap: 8px;
+          min-width: 135px;
+        }
+
+        @media (max-width: 700px) {
+          .availability-card-body,
+          .availability-card-body.availability-card-with-image {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 14px;
+            align-items: stretch;
+          }
+
+          .availability-card-image {
+            width: 100%;
+            height: 170px;
+            border-radius: 14px;
+          }
+
+          .availability-card-info {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .availability-card-info h3 {
+            overflow-wrap: anywhere;
+          }
+
+          .availability-card-actions {
+            width: 100%;
+            min-width: 0;
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .availability-card-actions .btn {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            justify-content: center;
+          }
+        }
+      `}</style>
     </>
   );
 }

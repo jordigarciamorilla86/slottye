@@ -4,6 +4,10 @@ import {
   useState,
 } from "react";
 
+import {
+  useRouter,
+} from "next/navigation";
+
 type Category = {
   id: string;
   name: string;
@@ -47,16 +51,23 @@ function todayValue() {
 
 export function HomeSearch({
   categories,
+
   businessAction =
     "/category/todos",
 
   initialQuery = "",
+
   initialCategorySlug = "",
+
   initialMode =
     "business",
+
   availabilityInCategory =
     false,
 }: Props) {
+  const router =
+    useRouter();
+
   const [
     mode,
     setMode,
@@ -102,22 +113,123 @@ export function HomeSearch({
    * DESTINO DEL BUSCADOR DE CITAS
    * ============================================================
    *
-   * En Home:
+   * Tanto desde Home como desde una categoría,
+   * las búsquedas de citas terminan directamente en:
    *
-   * /availability
+   * /category/[slug]?mode=availability
    *
-   * Dentro de una categoría:
-   *
-   * /category/dentistas
-   *
-   * Si el usuario cambia Dentistas por Peluquerías,
-   * el destino también cambia automáticamente.
+   * Si el usuario cambia la categoría,
+   * el destino cambia automáticamente.
    */
 
   const availabilityFormAction =
-  selectedCategorySlug
-    ? `/category/${selectedCategorySlug}`
-    : "/category/todos";
+    selectedCategorySlug
+      ? `/category/${selectedCategorySlug}`
+      : "/category/todos";
+
+  /*
+   * ============================================================
+   * CAMBIO DE MODO
+   * ============================================================
+   *
+   * En Home únicamente cambiamos la UI.
+   *
+   * Dentro de /category/[slug], además limpiamos la URL
+   * para no conservar parámetros pertenecientes al modo
+   * anterior.
+   */
+
+  function changeMode(
+    nextMode:
+      SearchMode
+  ) {
+    setMode(
+      nextMode
+    );
+
+    if (
+      !availabilityInCategory
+    ) {
+      return;
+    }
+
+    /*
+     * ==========================================================
+     * BUSCAR NEGOCIO
+     * ==========================================================
+     *
+     * Eliminamos:
+     *
+     * mode
+     * when
+     * date
+     * sort
+     * lat
+     * lng
+     * distance
+     * page
+     *
+     * y conservamos la categoría actual.
+     */
+
+    if (
+      nextMode ===
+      "business"
+    ) {
+      const target =
+        initialCategorySlug
+          ? `/category/${initialCategorySlug}`
+          : "/category/todos";
+
+      /*
+       * Conservamos la búsqueda de texto solamente
+       * si realmente existe.
+       */
+
+      const search =
+        new URLSearchParams();
+
+      if (
+        searchQuery.trim()
+      ) {
+        search.set(
+          "q",
+          searchQuery.trim()
+        );
+      }
+
+      const queryString =
+        search.toString();
+
+      router.push(
+        queryString
+          ? `${target}?${queryString}`
+          : target
+      );
+
+      return;
+    }
+
+    /*
+     * ==========================================================
+     * BUSCAR UNA CITA
+     * ==========================================================
+     *
+     * Eliminamos la búsqueda textual de negocios y cualquier
+     * filtro anterior. El formulario de citas empezará limpio.
+     */
+
+    const target =
+      selectedCategorySlug
+        ? `/category/${selectedCategorySlug}`
+        : initialCategorySlug
+          ? `/category/${initialCategorySlug}`
+          : "/category/todos";
+
+    router.push(
+      `${target}?mode=availability`
+    );
+  }
 
   return (
     <div
@@ -154,7 +266,7 @@ export function HomeSearch({
         <button
           type="button"
           onClick={() =>
-            setMode(
+            changeMode(
               "business"
             )
           }
@@ -199,7 +311,7 @@ export function HomeSearch({
         <button
           type="button"
           onClick={() =>
-            setMode(
+            changeMode(
               "availability"
             )
           }
