@@ -828,9 +828,6 @@ export default async function CategoryPage({
   businessAction={
     `/category/${slug}`
   }
-  availabilityAction={
-    `/category/${slug}`
-  }
   initialQuery={
     q ??
     ""

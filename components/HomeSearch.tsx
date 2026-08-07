@@ -21,9 +21,6 @@ type Props = {
   businessAction?:
     string;
 
-  availabilityAction?:
-    string;
-
   initialQuery?:
     string;
 
@@ -52,8 +49,7 @@ export function HomeSearch({
   categories,
   businessAction =
     "/category/todos",
-  availabilityAction =
-    "/availability",
+
   initialQuery = "",
   initialCategorySlug = "",
   initialMode =
@@ -119,10 +115,9 @@ export function HomeSearch({
    */
 
   const availabilityFormAction =
-    availabilityInCategory &&
-    selectedCategorySlug
-      ? `/category/${selectedCategorySlug}`
-      : availabilityAction;
+  selectedCategorySlug
+    ? `/category/${selectedCategorySlug}`
+    : "/category/todos";
 
   return (
     <div
