@@ -994,6 +994,31 @@ export default function AgendaCell({
           )}
         </>
       )}
+
+
+{positionedEvents.length > 0 && (
+  <div
+    style={{
+      position: "relative",
+      zIndex: 9999,
+      background: "#ff00ff",
+      color: "#ffffff",
+      padding: 8,
+      fontWeight: 800,
+    }}
+  >
+    DEBUG EVENTO:{" "}
+    {positionedEvents
+      .map(
+        ({
+          event,
+        }) =>
+          event.title
+      )
+      .join(", ")}
+  </div>
+)}
+
       {positionedEvents.map(
         ({
           event,
