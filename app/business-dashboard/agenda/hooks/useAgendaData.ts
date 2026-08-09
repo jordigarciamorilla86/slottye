@@ -202,6 +202,44 @@ export default function useAgendaData({
             result.manualBookings ??
               []
           );
+
+          alert(
+            JSON.stringify(
+              {
+                source:
+                  "ADMIN LOAD FINAL",
+          
+                start:
+                  normalizedStart.toString(),
+          
+                slots:
+                  result.slots?.length ??
+                  0,
+          
+                bookings:
+                  result.bookings?.length ??
+                  0,
+          
+                blocks:
+                  result.blocks?.length ??
+                  0,
+          
+                manualBookings:
+                  result.manualBookings?.length ??
+                  0,
+          
+                sundayBooking:
+                  result.bookings?.find(
+                    (booking) =>
+                      booking.id ===
+                      "d382180a-b479-48ab-9a88-5b6b3c3abaea"
+                  ) ?? null,
+              },
+              null,
+              2
+            )
+          );
+          
         } catch (
           error
         ) {
