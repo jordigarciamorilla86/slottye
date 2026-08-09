@@ -735,11 +735,17 @@ export default function AgendaCell({
               : "#f8fafc",
 
               zIndex:
-              dragOverMinute !== null
-                ? 200
-                : positionedEvents.length > 0
-                  ? 20
-                  : 1,
+  dragOverMinute !==
+  null
+    ? 200
+    : positionedEvents.length >
+        0
+      ? 100 -
+        Math.floor(
+          minute /
+            SLOT_MINUTES
+        )
+      : 1,
 
         overflow:
           "visible",
