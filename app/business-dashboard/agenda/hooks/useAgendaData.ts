@@ -139,17 +139,33 @@ export default function useAgendaData({
            * sesión, bloqueo y propiedad antes de devolver datos.
            */
 
-          const endpoint =
-            mode ===
-            "admin"
-              ? `/api/admin/businesses/${businessId}/agenda/week?start=${encodeURIComponent(
-                  normalizedStart.toISOString()
-                )}`
-              : `/api/agenda/week?businessId=${encodeURIComponent(
-                  businessId
-                )}&start=${encodeURIComponent(
-                  normalizedStart.toISOString()
-                )}`;
+          const normalizedEnd =
+  new Date(
+    normalizedStart
+  );
+
+normalizedEnd.setDate(
+  normalizedStart.getDate() +
+    7
+);
+
+const startParam =
+  encodeURIComponent(
+    normalizedStart.toISOString()
+  );
+
+const endParam =
+  encodeURIComponent(
+    normalizedEnd.toISOString()
+  );
+
+const endpoint =
+  mode ===
+    "admin"
+    ? `/api/admin/businesses/${businessId}/agenda/week?start=${startParam}&end=${endParam}`
+    : `/api/agenda/week?businessId=${encodeURIComponent(
+        businessId
+      )}&start=${startParam}&end=${endParam}`;
 
           const response =
             await fetch(
@@ -203,42 +219,7 @@ export default function useAgendaData({
               []
           );
 
-          alert(
-            JSON.stringify(
-              {
-                source:
-                  "ADMIN LOAD FINAL",
           
-                start:
-                  normalizedStart.toString(),
-          
-                slots:
-                  result.slots?.length ??
-                  0,
-          
-                bookings:
-                  result.bookings?.length ??
-                  0,
-          
-                blocks:
-                  result.blocks?.length ??
-                  0,
-          
-                manualBookings:
-                  result.manualBookings?.length ??
-                  0,
-          
-                sundayBooking:
-                  result.bookings?.find(
-                    (booking) =>
-                      booking.id ===
-                      "d382180a-b479-48ab-9a88-5b6b3c3abaea"
-                  ) ?? null,
-              },
-              null,
-              2
-            )
-          );
           
         } catch (
           error

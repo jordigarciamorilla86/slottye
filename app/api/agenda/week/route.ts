@@ -67,14 +67,20 @@ import {
           "businessId"
         );
   
-      const startValue =
+        const startValue =
         request.nextUrl.searchParams.get(
           "start"
         );
-  
+      
+      const endValue =
+        request.nextUrl.searchParams.get(
+          "end"
+        );
+      
       if (
         !businessId ||
-        !startValue
+        !startValue ||
+        !endValue
       ) {
         return NextResponse.json(
           {
@@ -87,21 +93,31 @@ import {
           }
         );
       }
-  
+      
       const weekStart =
         new Date(
           startValue
         );
-  
+      
+      const weekEnd =
+        new Date(
+          endValue
+        );
+      
       if (
         Number.isNaN(
           weekStart.getTime()
-        )
+        ) ||
+        Number.isNaN(
+          weekEnd.getTime()
+        ) ||
+        weekEnd.getTime() <=
+          weekStart.getTime()
       ) {
         return NextResponse.json(
           {
             error:
-              "La fecha de inicio no es válida.",
+              "El rango de fechas no es válido.",
           },
           {
             status:
@@ -109,23 +125,6 @@ import {
           }
         );
       }
-  
-      weekStart.setHours(
-        0,
-        0,
-        0,
-        0
-      );
-  
-      const weekEnd =
-        new Date(
-          weekStart
-        );
-  
-      weekEnd.setDate(
-        weekStart.getDate() +
-          7
-      );
   
       /*
        * ==========================================================

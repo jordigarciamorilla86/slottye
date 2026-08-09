@@ -29,18 +29,24 @@ import {
       } =
         await params;
   
-      const startValue =
+        const startValue =
         request.nextUrl.searchParams.get(
           "start"
         );
-  
+      
+      const endValue =
+        request.nextUrl.searchParams.get(
+          "end"
+        );
+      
       if (
-        !startValue
+        !startValue ||
+        !endValue
       ) {
         return NextResponse.json(
           {
             error:
-              "Falta la fecha inicial de la semana.",
+              "Falta el rango de fechas de la semana.",
           },
           {
             status:
@@ -48,21 +54,31 @@ import {
           }
         );
       }
-  
+      
       const weekStart =
         new Date(
           startValue
         );
-  
+      
+      const weekEnd =
+        new Date(
+          endValue
+        );
+      
       if (
         !Number.isFinite(
           weekStart.getTime()
-        )
+        ) ||
+        !Number.isFinite(
+          weekEnd.getTime()
+        ) ||
+        weekEnd <=
+          weekStart
       ) {
         return NextResponse.json(
           {
             error:
-              "La fecha inicial no es válida.",
+              "El rango de fechas no es válido.",
           },
           {
             status:
@@ -70,23 +86,6 @@ import {
           }
         );
       }
-  
-      weekStart.setHours(
-        0,
-        0,
-        0,
-        0
-      );
-  
-      const weekEnd =
-        new Date(
-          weekStart
-        );
-  
-      weekEnd.setDate(
-        weekStart.getDate() +
-          7
-      );
   
       const supabase =
         await createClient();
