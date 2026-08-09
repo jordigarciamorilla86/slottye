@@ -26,6 +26,10 @@ type Props = {
   ) => void;
 };
 
+export type MobileAgendaMode =
+  | "day"
+  | "week";
+
 const SLOT_MINUTES = 30;
 const ROW_HEIGHT = 58;
 const INITIAL_SCROLL_HOUR = 8;
@@ -35,9 +39,7 @@ function startOfDay(
   date: Date
 ) {
   const result =
-    new Date(
-      date
-    );
+    new Date(date);
 
   result.setHours(
     0,
@@ -53,9 +55,7 @@ function getMonday(
   date: Date
 ) {
   const result =
-    startOfDay(
-      date
-    );
+    startOfDay(date);
 
   const day =
     result.getDay();
@@ -110,9 +110,8 @@ function scrollTopForMinute(
 
   return (
     normalizedMinute /
-    SLOT_MINUTES
-  ) *
-    ROW_HEIGHT;
+      SLOT_MINUTES
+  ) * ROW_HEIGHT;
 }
 
 export default function useAgendaView({
@@ -129,12 +128,21 @@ export default function useAgendaView({
     useState(false);
 
   const [
-    currentTime,
-    setCurrentTime,
+    mobileAgendaMode,
+    setMobileAgendaMode,
   ] =
-    useState(
-      new Date()
+    useState<MobileAgendaMode>(
+      "day"
     );
+
+    const [
+      currentTime,
+      setCurrentTime,
+    ] =
+      useState(
+        () =>
+          new Date(0)
+      );
 
   const agendaScrollRef =
     useRef<HTMLDivElement | null>(
@@ -148,6 +156,17 @@ export default function useAgendaView({
    */
 
   useEffect(() => {
+    /*
+     * La hora real se establece únicamente
+     * después de hidratar el componente.
+     *
+     * Esto evita diferencias entre el HTML
+     * generado por el servidor y el navegador.
+     */
+    setCurrentTime(
+      new Date()
+    );
+  
     const interval =
       window.setInterval(
         () => {
@@ -157,7 +176,7 @@ export default function useAgendaView({
         },
         60 * 1000
       );
-
+  
     return () => {
       window.clearInterval(
         interval
@@ -202,6 +221,16 @@ export default function useAgendaView({
    * ============================================================
    * DÍAS VISIBLES
    * ============================================================
+   *
+   * Escritorio:
+   * siempre muestra la semana completa.
+   *
+   * Móvil / Día:
+   * muestra únicamente el día seleccionado.
+   *
+   * Móvil / Semana:
+   * muestra los siete días.
+   * ============================================================
    */
 
   const visibleDays =
@@ -209,7 +238,9 @@ export default function useAgendaView({
       AgendaVisibleDay[]
     >(() => {
       if (
-        isMobile
+        isMobile &&
+        mobileAgendaMode ===
+          "day"
       ) {
         return [
           {
@@ -237,23 +268,46 @@ export default function useAgendaView({
       );
     }, [
       isMobile,
+      mobileAgendaMode,
       weekDays,
       selectedMobileDay,
     ]);
 
+  /*
+   * ============================================================
+   * COLUMNAS DE LA AGENDA
+   * ============================================================
+   */
+
   const gridTemplateColumns =
-    isMobile
-      ? "72px minmax(220px, 1fr)"
-      : "80px repeat(7, minmax(130px, 1fr))";
+    useMemo(() => {
+      if (!isMobile) {
+        return "80px repeat(7, minmax(130px, 1fr))";
+      }
+
+      if (
+        mobileAgendaMode ===
+        "week"
+      ) {
+        /*
+         * En móvil semanal:
+         *
+         * - columna de horas estrecha
+         * - siete columnas iguales
+         * - sin ancho mínimo que provoque scroll horizontal
+         */
+        return "46px repeat(7, minmax(0, 1fr))";
+      }
+
+      return "62px minmax(0, 1fr)";
+    }, [
+      isMobile,
+      mobileAgendaMode,
+    ]);
 
   /*
    * ============================================================
    * FILAS VISUALES
-   * ============================================================
-   *
-   * La agenda conserva líneas cada 30 minutos.
-   * Los eventos, clics, movimientos y scroll pueden trabajar
-   * con minutos exactos dentro de cada fila.
    * ============================================================
    */
 
@@ -264,8 +318,7 @@ export default function useAgendaView({
         [];
 
       for (
-        let minute =
-          0;
+        let minute = 0;
         minute <
         24 * 60;
         minute +=
@@ -289,8 +342,7 @@ export default function useAgendaView({
     useCallback(
       (
         date: Date,
-        delay =
-          0
+        delay = 0
       ) => {
         const performScroll =
           () => {
@@ -467,6 +519,10 @@ export default function useAgendaView({
 
   return {
     isMobile,
+
+    mobileAgendaMode,
+    setMobileAgendaMode,
+
     currentTime,
     agendaScrollRef,
     visibleDays,

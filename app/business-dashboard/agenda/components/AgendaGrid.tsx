@@ -92,6 +92,26 @@ function formatTime(
   )}`;
 }
 
+
+function getMobileWeekdayLabel(
+  date: Date
+) {
+  const labels =
+    [
+      "D",
+      "L",
+      "M",
+      "X",
+      "J",
+      "V",
+      "S",
+    ];
+
+  return labels[
+    date.getDay()
+  ];
+}
+
 function sameLocalDay(
   a: Date,
   b: Date
@@ -268,13 +288,17 @@ export default function AgendaGrid({
                       "capitalize",
                   }}
                 >
-                  {day.toLocaleDateString(
-                    "es-ES",
-                    {
-                      weekday:
-                        "long",
-                    }
-                  )}
+                  {isMobile
+  ? getMobileWeekdayLabel(
+      day
+    )
+  : day.toLocaleDateString(
+      "es-ES",
+      {
+        weekday:
+          "long",
+      }
+    )}
                 </strong>
 
                 <div

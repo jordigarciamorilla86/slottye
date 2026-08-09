@@ -133,6 +133,10 @@ export default function WeeklyAgenda({
 
   const {
     isMobile,
+  
+    mobileAgendaMode,
+    setMobileAgendaMode,
+  
     currentTime,
     agendaScrollRef,
     visibleDays,
@@ -471,38 +475,52 @@ export default function WeeklyAgenda({
   }}
 />
 
-      {isMobile && (
-        <AgendaMobileDaySelector
-          weekDays={weekDays}
-          selectedDayIndex={
-            selectedMobileDay
-          }
-          currentTime={
-            currentTime
-          }
-          onSelectDay={
-            setSelectedMobileDay
-          }
-        />
-      )}
+{isMobile && (
+  <AgendaMobileDaySelector
+    weekDays={
+      weekDays
+    }
+    selectedDayIndex={
+      selectedMobileDay
+    }
+    currentTime={
+      currentTime
+    }
+    mode={
+      mobileAgendaMode
+    }
+    onModeChange={
+      setMobileAgendaMode
+    }
+    onSelectDay={
+      setSelectedMobileDay
+    }
+  />
+)}
 
-      <AgendaSummary
-        summaryDay={
-          summaryDay
-        }
-        currentTime={
-          currentTime
-        }
-        isMobile={
-          isMobile
-        }
-        viewingCurrentWeek={
-          viewingCurrentWeek
-        }
-        dailySummary={
-          dailySummary
-        }
-      />
+{!(
+  isMobile &&
+  mobileAgendaMode ===
+    "week"
+) && (
+  <AgendaSummary
+    summaryDay={
+      summaryDay
+    }
+    currentTime={
+      currentTime
+    }
+    isMobile={
+      isMobile
+    }
+    viewingCurrentWeek={
+      viewingCurrentWeek
+    }
+    dailySummary={
+      dailySummary
+    }
+  />
+)}
 
       <AgendaLegend />
 

@@ -819,46 +819,22 @@ export default function AgendaCell({
               }
             >
               <span
-                style={{
-                  display:
-                    "flex",
+  style={{
+    fontSize:
+      14,
 
-                  alignItems:
-                    "center",
+    fontWeight:
+      700,
 
-                  justifyContent:
-                    "center",
+    lineHeight:
+      1,
 
-                  width:
-                    22,
-
-                  height:
-                    22,
-
-                  borderRadius:
-                    "50%",
-
-                  background:
-                    "rgba(255, 255, 255, 0.95)",
-
-                  border:
-                    "1px dashed var(--border)",
-
-                  fontSize:
-                    16,
-
-                  fontWeight:
-                    700,
-
-                  lineHeight:
-                    1,
-
-                  boxShadow:
-                    "0 1px 4px rgba(15, 23, 42, 0.10)",
-                }}
-              >
-                +
-              </span>
+    color:
+      "var(--muted)",
+  }}
+>
+  +
+</span>
             </button>
           ) : (
             freeQuarterStarts.map(
@@ -953,46 +929,22 @@ export default function AgendaCell({
                     )}`}
                   >
                     <span
-                      style={{
-                        display:
-                          "flex",
+  style={{
+    fontSize:
+      14,
 
-                        alignItems:
-                          "center",
+    fontWeight:
+      700,
 
-                        justifyContent:
-                          "center",
+    lineHeight:
+      1,
 
-                        width:
-                          22,
-
-                        height:
-                          22,
-
-                        borderRadius:
-                          "50%",
-
-                        background:
-                          "rgba(255, 255, 255, 0.95)",
-
-                        border:
-                          "1px dashed var(--border)",
-
-                        fontSize:
-                          16,
-
-                        fontWeight:
-                          700,
-
-                        lineHeight:
-                          1,
-
-                        boxShadow:
-                          "0 1px 4px rgba(15, 23, 42, 0.10)",
-                      }}
-                    >
-                      +
-                    </span>
+    color:
+      "var(--muted)",
+  }}
+>
+  +
+</span>
                   </button>
                 );
               }
