@@ -17,6 +17,7 @@ type Props = {
   open: boolean;
   events: AgendaCellEvent[];
   currentTime: Date;
+  compactMobileWeek: boolean;
   dragEnabled: boolean;
   draggingEvent: AgendaCellEvent | null;
 
@@ -363,6 +364,7 @@ export default function AgendaCell({
   open,
   events,
   currentTime,
+  compactMobileWeek,
   dragEnabled,
   draggingEvent,
   onOpenEvent,
@@ -786,7 +788,9 @@ export default function AgendaCell({
                   "1px dashed var(--border)",
 
                 borderRadius:
-                  10,
+                  compactMobileWeek
+                    ? 4
+                    : 10,
 
                 background:
                   "transparent",
@@ -821,7 +825,9 @@ export default function AgendaCell({
               <span
   style={{
     fontSize:
-      14,
+      compactMobileWeek
+        ? 9
+        : 14,
 
     fontWeight:
       700,
@@ -931,7 +937,9 @@ export default function AgendaCell({
                     <span
   style={{
     fontSize:
-      14,
+      compactMobileWeek
+        ? 9
+        : 14,
 
     fontWeight:
       700,
@@ -1091,6 +1099,16 @@ export default function AgendaCell({
             lane *
             widthPercent;
 
+          const horizontalInset =
+            compactMobileWeek
+              ? 2
+              : EVENT_HORIZONTAL_INSET;
+
+          const horizontalGap =
+            compactMobileWeek
+              ? 1
+              : EVENT_HORIZONTAL_GAP;
+
           function handleDragStart(
             dragEvent:
               DragEvent<HTMLButtonElement>
@@ -1161,16 +1179,16 @@ export default function AgendaCell({
 
                 left:
                   `calc(${leftPercent}% + ${
-                    EVENT_HORIZONTAL_INSET +
+                    horizontalInset +
                     lane *
-                      EVENT_HORIZONTAL_GAP
+                      horizontalGap
                   }px)`,
 
                 width:
                   `calc(${widthPercent}% - ${
-                    EVENT_HORIZONTAL_INSET *
+                    horizontalInset *
                       2 +
-                    EVENT_HORIZONTAL_GAP
+                    horizontalGap
                   }px)`,
 
                 height:
@@ -1220,9 +1238,11 @@ export default function AgendaCell({
                   "left",
 
                 padding:
-                  compactEvent
-                    ? "3px 7px"
-                    : "6px 8px",
+                  compactMobileWeek
+                    ? 0
+                    : compactEvent
+                      ? "3px 7px"
+                      : "6px 8px",
 
                 color:
                   "inherit",
@@ -1234,60 +1254,64 @@ export default function AgendaCell({
                   "hidden",
               }}
             >
-              <strong
-                style={{
-                  display:
-                    "block",
+              {!compactMobileWeek && (
+                <>
+                  <strong
+                    style={{
+                      display:
+                        "block",
 
-                  fontSize:
-                    compactEvent
-                      ? 11
-                      : 12,
+                      fontSize:
+                        compactEvent
+                          ? 11
+                          : 12,
 
-                  lineHeight:
-                    compactEvent
-                      ? 1.1
-                      : 1.2,
+                      lineHeight:
+                        compactEvent
+                          ? 1.1
+                          : 1.2,
 
-                  overflow:
-                    "hidden",
+                      overflow:
+                        "hidden",
 
-                  textOverflow:
-                    "ellipsis",
+                      textOverflow:
+                        "ellipsis",
 
-                  whiteSpace:
-                    "nowrap",
-                }}
-              >
-                {event.title}
-              </strong>
+                      whiteSpace:
+                        "nowrap",
+                    }}
+                  >
+                    {event.title}
+                  </strong>
 
-              {event.subtitle &&
-                !compactEvent && (
-                <div
-                  className="muted"
-                  style={{
-                    marginTop:
-                      3,
+                  {event.subtitle &&
+                    !compactEvent && (
+                      <div
+                        className="muted"
+                        style={{
+                          marginTop:
+                            3,
 
-                    fontSize:
-                      11,
+                          fontSize:
+                            11,
 
-                    lineHeight:
-                      1.15,
+                          lineHeight:
+                            1.15,
 
-                    overflow:
-                      "hidden",
+                          overflow:
+                            "hidden",
 
-                    textOverflow:
-                      "ellipsis",
+                          textOverflow:
+                            "ellipsis",
 
-                    whiteSpace:
-                      "nowrap",
-                  }}
-                >
-                  {event.subtitle}
-                </div>
+                          whiteSpace:
+                            "nowrap",
+                        }}
+                      >
+                        {event.subtitle}
+                      </div>
+                    )}
+                </>
               )}
             </button>
           );

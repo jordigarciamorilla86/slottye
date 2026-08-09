@@ -534,6 +534,11 @@ export default function WeeklyAgenda({
         isMobile={
           isMobile
         }
+        compactMobileWeek={
+          isMobile &&
+          mobileAgendaMode ===
+            "week"
+        }
         gridTemplateColumns={
           gridTemplateColumns
         }
