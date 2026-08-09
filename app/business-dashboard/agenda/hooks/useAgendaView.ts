@@ -126,7 +126,18 @@ export default function useAgendaView({
     isMobile,
     setIsMobile,
   ] =
-    useState(false);
+    useState(() => {
+      if (
+        typeof window ===
+        "undefined"
+      ) {
+        return false;
+      }
+  
+      return window.matchMedia(
+        `(max-width: ${MOBILE_BREAKPOINT}px)`
+      ).matches;
+    });
 
   const [
     currentTime,
