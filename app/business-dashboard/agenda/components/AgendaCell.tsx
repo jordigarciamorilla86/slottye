@@ -441,86 +441,7 @@ export default function AgendaCell({
       ]
     );
 
-    if (
-      day.getFullYear() === 2026 &&
-      day.getMonth() === 7 &&
-      day.getDate() === 9 &&
-      minute === 12 * 60 + 30
-    ) {
-      alert(
-        JSON.stringify(
-          {
-            source: "AgendaCell",
     
-            date:
-              day.toString(),
-    
-            minute,
-    
-            receivedEvents:
-              events.map(
-                (event) => ({
-                  type:
-                    event.type,
-    
-                  title:
-                    event.title,
-    
-                  startAt:
-                    event.startAt,
-    
-                  endAt:
-                    event.endAt,
-                })
-              ),
-    
-            startingEvents:
-              startingEvents.map(
-                (event) => ({
-                  type:
-                    event.type,
-    
-                  title:
-                    event.title,
-    
-                  startAt:
-                    event.startAt,
-    
-                  endAt:
-                    event.endAt,
-                })
-              ),
-    
-            positionedEvents:
-              positionedEvents.map(
-                ({
-                  event,
-                  lane,
-                  laneCount,
-                }) => ({
-                  type:
-                    event.type,
-    
-                  title:
-                    event.title,
-    
-                  startAt:
-                    event.startAt,
-    
-                  endAt:
-                    event.endAt,
-    
-                  lane,
-    
-                  laneCount,
-                })
-              ),
-          },
-          null,
-          2
-        )
-      );
-    }
 
 
   const freeQuarterStarts =
@@ -813,18 +734,12 @@ export default function AgendaCell({
               ? "#ffffff"
               : "#f8fafc",
 
-            zIndex:
-  dragOverMinute !==
-  null
-    ? 200
-    : positionedEvents.length >
-        0
-      ? 100 -
-        Math.floor(
-          minute /
-            SLOT_MINUTES
-        )
-      : 1,
+              zIndex:
+              dragOverMinute !== null
+                ? 200
+                : positionedEvents.length > 0
+                  ? 20
+                  : 1,
 
         overflow:
           "visible",
