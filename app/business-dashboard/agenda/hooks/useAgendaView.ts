@@ -280,30 +280,23 @@ export default function useAgendaView({
    */
 
   const gridTemplateColumns =
-    useMemo(() => {
-      if (!isMobile) {
-        return "80px repeat(7, minmax(130px, 1fr))";
-      }
+  useMemo(() => {
+    if (!isMobile) {
+      return "80px repeat(7, minmax(130px, 1fr))";
+    }
 
-      if (
-        mobileAgendaMode ===
-        "week"
-      ) {
-        /*
-         * En móvil semanal:
-         *
-         * - columna de horas estrecha
-         * - siete columnas iguales
-         * - sin ancho mínimo que provoque scroll horizontal
-         */
-        return "46px repeat(7, minmax(0, 1fr))";
-      }
+    if (
+      mobileAgendaMode ===
+      "week"
+    ) {
+      return "40px repeat(7, minmax(0, 1fr))";
+    }
 
-      return "62px minmax(0, 1fr)";
-    }, [
-      isMobile,
-      mobileAgendaMode,
-    ]);
+    return "50px minmax(0, 1fr)";
+  }, [
+    isMobile,
+    mobileAgendaMode,
+  ]);
 
   /*
    * ============================================================
