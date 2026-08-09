@@ -620,6 +620,57 @@ if (
   );
 }
 
+if (
+  date.getFullYear() === 2026 &&
+  date.getMonth() === 7 &&
+  date.getDate() === 9 &&
+  minute === 10 * 60 + 30
+) {
+  alert(
+    JSON.stringify(
+      {
+        date:
+          date.toString(),
+
+        minute,
+
+        counts: {
+          slots:
+            slots.length,
+
+          bookings:
+            bookings.length,
+
+          blocks:
+            blocks.length,
+
+          manualBookings:
+            manualBookings.length,
+        },
+
+        events:
+          result.map(
+            (event) => ({
+              type:
+                event.type,
+
+              title:
+                event.title,
+
+              startAt:
+                event.startAt,
+
+              endAt:
+                event.endAt,
+            })
+          ),
+      },
+      null,
+      2
+    )
+  );
+}
+
         return result.sort(
           (
             first,
