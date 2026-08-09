@@ -4,9 +4,6 @@ import {
   useState,
 } from "react";
 
-import {
-  useRouter,
-} from "next/navigation";
 
 type Category = {
   id: string;
@@ -65,8 +62,7 @@ export function HomeSearch({
   availabilityInCategory =
     false,
 }: Props) {
-  const router =
-    useRouter();
+  
 
   const [
     mode,
@@ -145,89 +141,6 @@ export function HomeSearch({
   ) {
     setMode(
       nextMode
-    );
-
-    if (
-      !availabilityInCategory
-    ) {
-      return;
-    }
-
-    /*
-     * ==========================================================
-     * BUSCAR NEGOCIO
-     * ==========================================================
-     *
-     * Eliminamos:
-     *
-     * mode
-     * when
-     * date
-     * sort
-     * lat
-     * lng
-     * distance
-     * page
-     *
-     * y conservamos la categoría actual.
-     */
-
-    if (
-      nextMode ===
-      "business"
-    ) {
-      const target =
-        initialCategorySlug
-          ? `/category/${initialCategorySlug}`
-          : "/category/todos";
-
-      /*
-       * Conservamos la búsqueda de texto solamente
-       * si realmente existe.
-       */
-
-      const search =
-        new URLSearchParams();
-
-      if (
-        searchQuery.trim()
-      ) {
-        search.set(
-          "q",
-          searchQuery.trim()
-        );
-      }
-
-      const queryString =
-        search.toString();
-
-      router.push(
-        queryString
-          ? `${target}?${queryString}`
-          : target
-      );
-
-      return;
-    }
-
-    /*
-     * ==========================================================
-     * BUSCAR UNA CITA
-     * ==========================================================
-     *
-     * Eliminamos la búsqueda textual de negocios y cualquier
-     * filtro anterior. El formulario de citas empezará limpio.
-     */
-
-    const target =
-      selectedCategorySlug
-        ? `/category/${selectedCategorySlug}`
-        : initialCategorySlug
-          ? `/category/${initialCategorySlug}`
-          : "/category/todos";
-
-    router.push(
-      `${target}?mode=availability`
     );
   }
 
