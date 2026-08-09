@@ -441,6 +441,87 @@ export default function AgendaCell({
       ]
     );
 
+    if (
+      day.getFullYear() === 2026 &&
+      day.getMonth() === 7 &&
+      day.getDate() === 9 &&
+      minute === 12 * 60 + 30
+    ) {
+      alert(
+        JSON.stringify(
+          {
+            source: "AgendaCell",
+    
+            date:
+              day.toString(),
+    
+            minute,
+    
+            receivedEvents:
+              events.map(
+                (event) => ({
+                  type:
+                    event.type,
+    
+                  title:
+                    event.title,
+    
+                  startAt:
+                    event.startAt,
+    
+                  endAt:
+                    event.endAt,
+                })
+              ),
+    
+            startingEvents:
+              startingEvents.map(
+                (event) => ({
+                  type:
+                    event.type,
+    
+                  title:
+                    event.title,
+    
+                  startAt:
+                    event.startAt,
+    
+                  endAt:
+                    event.endAt,
+                })
+              ),
+    
+            positionedEvents:
+              positionedEvents.map(
+                ({
+                  event,
+                  lane,
+                  laneCount,
+                }) => ({
+                  type:
+                    event.type,
+    
+                  title:
+                    event.title,
+    
+                  startAt:
+                    event.startAt,
+    
+                  endAt:
+                    event.endAt,
+    
+                  lane,
+    
+                  laneCount,
+                })
+              ),
+          },
+          null,
+          2
+        )
+      );
+    }
+
 
   const freeQuarterStarts =
     useMemo(
