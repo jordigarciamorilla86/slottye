@@ -15,6 +15,10 @@ import {
     writeAdminAuditLog,
   } from "@/lib/admin/audit";
   
+  import {
+    deleteBookingGoogleCalendarEvent,
+  } from "@/lib/google-calendar";
+
   type BookingAction =
     | "cancel"
     | "complete"
@@ -434,6 +438,35 @@ import {
           }
         );
       }
+
+      /*
+ * ============================================================
+ * GOOGLE CALENDAR
+ * ============================================================
+ *
+ * Solo eliminamos el evento cuando la reserva
+ * ha sido cancelada.
+ *
+ * Complete y no_show no deben eliminarlo.
+ */
+
+if (
+  action ===
+  "cancel"
+) {
+  try {
+    await deleteBookingGoogleCalendarEvent(
+      booking.id
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Booking cancelled but Google Calendar delete failed:",
+      calendarError
+    );
+  }
+}
   
       /*
        * ============================================================

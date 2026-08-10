@@ -11,6 +11,10 @@ import {
     createAdminClient,
   } from "@/lib/supabase/admin";
   
+  import {
+    deleteBookingGoogleCalendarEvent,
+    updateBookingGoogleCalendarEvent,
+  } from "@/lib/google-calendar";
   type Action =
     | "cancel"
     | "reschedule";
@@ -767,6 +771,8 @@ import {
             "Customer booking cancellation RPC error:",
             rpcError
           );
+
+
   
           return NextResponse.json(
             {
@@ -779,6 +785,25 @@ import {
             }
           );
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR
+ * ============================================================
+ */
+
+try {
+  await deleteBookingGoogleCalendarEvent(
+    booking.id
+  );
+} catch (
+  calendarError
+) {
+  console.error(
+    "Customer booking cancelled but Google Calendar delete failed:",
+    calendarError
+  );
+}
   
         return NextResponse.json({
           success:
@@ -983,6 +1008,29 @@ import {
           }
         );
       }
+
+/*
+ * ==========================================================
+ * GOOGLE CALENDAR
+ * ==========================================================
+ *
+ * La reserva ya está reprogramada en Slottye.
+ * Si Google falla, no deshacemos el cambio.
+ */
+
+try {
+  await updateBookingGoogleCalendarEvent(
+    booking.id
+  );
+} catch (
+  calendarError
+) {
+  console.error(
+    "Booking rescheduled but Google Calendar sync failed:",
+    calendarError
+  );
+}
+
   
       return NextResponse.json({
         success:

@@ -14,6 +14,16 @@ import {
   import {
     writeAdminAuditLog,
   } from "@/lib/admin/audit";
+
+  import {
+    deleteManualBookingGoogleCalendarEvent,
+    getManualBookingGoogleCalendarDeleteContext,
+    updateManualBookingGoogleCalendarEvent,
+  
+    deleteBlockGoogleCalendarEvent,
+    getBlockGoogleCalendarDeleteContext,
+    updateBlockGoogleCalendarEvent,
+  } from "@/lib/google-calendar";
   
   type EventType =
     | "manual"
@@ -678,6 +688,28 @@ import {
             }
           );
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR
+ * ============================================================
+ *
+ * Slottye ya está actualizado.
+ * Un fallo de Google no deshace el cambio.
+ */
+
+try {
+  await updateManualBookingGoogleCalendarEvent(
+    currentEvent.id
+  );
+} catch (
+  calendarError
+) {
+  console.error(
+    "Manual booking updated but Google Calendar sync failed:",
+    calendarError
+  );
+}
   
         if (
           authorization.isAdmin
@@ -884,6 +916,25 @@ import {
             }
           );
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR
+ * ============================================================
+ */
+
+try {
+  await updateBlockGoogleCalendarEvent(
+    currentEvent.id
+  );
+} catch (
+  calendarError
+) {
+  console.error(
+    "Block updated but Google Calendar sync failed:",
+    calendarError
+  );
+}
   
         if (
           authorization.isAdmin
@@ -1375,6 +1426,42 @@ import {
         ) {
           return authorization.response;
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR - GUARDAR REFERENCIA ANTES DE BORRAR
+ * ============================================================
+ *
+ * manual_booking_google_calendar_events tiene ON DELETE CASCADE.
+ * Por eso necesitamos guardar google_event_id antes de eliminar
+ * la reserva manual.
+ */
+
+let googleCalendarContext:
+Awaited<
+  ReturnType<
+    typeof getManualBookingGoogleCalendarDeleteContext
+  >
+> =
+null;
+
+try {
+googleCalendarContext =
+  await getManualBookingGoogleCalendarDeleteContext(
+    currentEvent.id
+  );
+} catch (
+calendarContextError
+) {
+/*
+ * No bloqueamos la eliminación de Slottye
+ * por un fallo auxiliar de Google Calendar.
+ */
+console.error(
+  "Could not load manual booking Google Calendar context:",
+  calendarContextError
+);
+}
   
         const {
           error:
@@ -1402,6 +1489,31 @@ import {
             }
           );
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR - ELIMINAR EVENTO
+ * ============================================================
+ *
+ * La reserva ya se ha eliminado correctamente de Slottye.
+ */
+
+if (
+  googleCalendarContext
+) {
+  try {
+    await deleteManualBookingGoogleCalendarEvent(
+      googleCalendarContext
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Manual booking deleted but Google Calendar delete failed:",
+      calendarError
+    );
+  }
+}
   
         if (
           authorization.isAdmin
@@ -1546,6 +1658,34 @@ import {
         ) {
           return authorization.response;
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR - GUARDAR REFERENCIA
+ * ============================================================
+ */
+
+let googleCalendarContext:
+Awaited<
+  ReturnType<
+    typeof getBlockGoogleCalendarDeleteContext
+  >
+> =
+null;
+
+try {
+googleCalendarContext =
+  await getBlockGoogleCalendarDeleteContext(
+    currentEvent.id
+  );
+} catch (
+calendarContextError
+) {
+console.error(
+  "Could not load block Google Calendar context:",
+  calendarContextError
+);
+}
   
         const {
           error:
@@ -1573,6 +1713,29 @@ import {
             }
           );
         }
+
+        /*
+ * ============================================================
+ * GOOGLE CALENDAR - ELIMINAR EVENTO
+ * ============================================================
+ */
+
+if (
+  googleCalendarContext
+) {
+  try {
+    await deleteBlockGoogleCalendarEvent(
+      googleCalendarContext
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Block deleted but Google Calendar delete failed:",
+      calendarError
+    );
+  }
+}
   
         if (
           authorization.isAdmin

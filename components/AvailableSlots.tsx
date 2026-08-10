@@ -524,36 +524,56 @@ const PAGE_SIZE =
       null
     );
 
-    const {
-      data:
-        bookingId,
-      error,
-    } =
-      await supabase.rpc(
-        "book_slot",
-        {
-          p_slot_id:
-            slotId,
-        }
-      );
+    const bookingResponse =
+  await fetch(
+    "/api/bookings/create",
+    {
+      method:
+        "POST",
 
-    if (
-      error
-    ) {
-      setMessage(
-        error.message
-      );
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
-      setMessageType(
-        "error"
-      );
-
-      setLoadingId(
-        null
-      );
-
-      return;
+      body:
+        JSON.stringify({
+          slotId,
+        }),
     }
+  );
+
+const bookingResult =
+  (
+    await bookingResponse.json()
+  ) as {
+    bookingId?: string;
+    calendarSynced?: boolean;
+    error?: string;
+  };
+
+if (
+  !bookingResponse.ok ||
+  !bookingResult.bookingId
+) {
+  setMessage(
+    bookingResult.error ??
+      "No se ha podido realizar la reserva."
+  );
+
+  setMessageType(
+    "error"
+  );
+
+  setLoadingId(
+    null
+  );
+
+  return;
+}
+
+const bookingId =
+  bookingResult.bookingId;
 
     if (
       bookingId

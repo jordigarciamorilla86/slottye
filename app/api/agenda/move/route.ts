@@ -14,6 +14,12 @@ import {
   import {
     writeAdminAuditLog,
   } from "@/lib/admin/audit";
+
+  import {
+    updateBookingGoogleCalendarEvent,
+    updateManualBookingGoogleCalendarEvent,
+    updateBlockGoogleCalendarEvent,
+  } from "@/lib/google-calendar";
   
   type AgendaEventType =
     | "booking"
@@ -1048,6 +1054,69 @@ import {
           rpcError.message
         );
       }
+
+      /*
+ * ==========================================================
+ * GOOGLE CALENDAR
+ * ==========================================================
+ *
+ * Solo las reservas online tienen actualmente
+ * sincronización con Google Calendar.
+ */
+
+if (
+  type ===
+  "booking"
+) {
+  try {
+    await updateBookingGoogleCalendarEvent(
+      snapshot.id
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Agenda booking moved but Google Calendar sync failed:",
+      calendarError
+    );
+  }
+}
+
+if (
+  type ===
+  "manual"
+) {
+  try {
+    await updateManualBookingGoogleCalendarEvent(
+      snapshot.id
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Manual booking moved but Google Calendar sync failed:",
+      calendarError
+    );
+  }
+}
+
+if (
+  type ===
+  "block"
+) {
+  try {
+    await updateBlockGoogleCalendarEvent(
+      snapshot.id
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Agenda block moved but Google Calendar sync failed:",
+      calendarError
+    );
+  }
+}
   
       /*
        * ==========================================================

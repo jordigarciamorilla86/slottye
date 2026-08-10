@@ -14,6 +14,14 @@ import {
   import {
     writeAdminAuditLog,
   } from "@/lib/admin/audit";
+
+  import {
+    syncManualBookingToGoogleCalendar,
+  } from "@/lib/google-calendar";
+
+  import {
+    syncBlockToGoogleCalendar,
+  } from "@/lib/google-calendar";
   
   type CreationType =
     | "manual"
@@ -574,6 +582,41 @@ import {
             }
           );
         }
+
+        const createdManualRecord =
+  Array.isArray(
+    rpcData
+  )
+    ? rpcData[0] ??
+      null
+    : rpcData;
+
+const createdManualId =
+  createdManualRecord &&
+  typeof createdManualRecord ===
+    "object" &&
+  "id" in createdManualRecord &&
+  typeof createdManualRecord.id ===
+    "string"
+    ? createdManualRecord.id
+    : null;
+
+if (
+  createdManualId
+) {
+  try {
+    await syncManualBookingToGoogleCalendar(
+      createdManualId
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Manual booking created but Google Calendar sync failed:",
+      calendarError
+    );
+  }
+}
   
         /*
          * Auditoría únicamente cuando actúa Super Admin.
@@ -942,6 +985,48 @@ import {
           }
         );
       }
+
+      const createdBlockRecord =
+  Array.isArray(
+    createdBlock
+  )
+    ? createdBlock[0] ??
+      null
+    : createdBlock;
+
+const createdBlockId =
+  createdBlockRecord &&
+  typeof createdBlockRecord ===
+    "object" &&
+  "id" in
+    createdBlockRecord &&
+  typeof createdBlockRecord.id ===
+    "string"
+    ? createdBlockRecord.id
+    : null;
+
+/*
+ * ============================================================
+ * GOOGLE CALENDAR
+ * ============================================================
+ */
+
+if (
+  createdBlockId
+) {
+  try {
+    await syncBlockToGoogleCalendar(
+      createdBlockId
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Block created but Google Calendar sync failed:",
+      calendarError
+    );
+  }
+}
   
       if (
         isAdmin

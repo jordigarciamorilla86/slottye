@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
+import GoogleCalendarIntegration from "@/components/GoogleCalendarIntegration";
 
 export default async function BusinessDashboardPage() {
   const {
@@ -1341,6 +1342,30 @@ if (
             </div>
           )}
         </section>
+
+          {/* ======================================================
+    GOOGLE CALENDAR
+    ====================================================== */}
+
+<section className="section">
+  <div className="section-head">
+    <div>
+      <h2>
+        Integraciones
+      </h2>
+
+      <p className="muted">
+        Conecta servicios externos con tu negocio.
+      </p>
+    </div>
+  </div>
+
+  <GoogleCalendarIntegration
+    businessId={
+      business.id
+    }
+  />
+</section>
 
         {/* ======================================================
             GESTIÓN
