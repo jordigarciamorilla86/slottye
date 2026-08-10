@@ -1,9 +1,13 @@
 {
-    "$schema": "https://openapi.vercel.sh/vercel.json",
-    "crons": [
-      {
-        "path": "/api/cron/booking-reminders",
-        "schedule": "0 9 * * *"
-      }
-    ]
-  }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/booking-reminders",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/google-calendar-watches",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
