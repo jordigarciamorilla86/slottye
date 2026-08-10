@@ -11,6 +11,10 @@ import {
     createAdminClient,
   } from "@/lib/supabase/admin";
   
+  import {
+    getBusinessGoogleCalendarAccess,
+  } from "@/lib/google-calendar";
+  
   type RequestBody = {
     businessId?: unknown;
   };
@@ -198,14 +202,188 @@ import {
   
       /*
        * ============================================================
-       * ELIMINAR CONEXIÓN
+       * CARGAR CONEXIÓN
        * ============================================================
        *
-       * Importante:
+       * Necesitamos conservar estos datos antes de borrar
+       * la fila de Supabase.
+       */
+  
+      const {
+        data:
+          connection,
+        error:
+          connectionError,
+      } =
+        await admin
+          .from(
+            "business_google_calendar_connections"
+          )
+          .select(`
+            business_id,
+            refresh_token,
+            access_token,
+            watch_channel_id,
+            watch_resource_id
+          `)
+          .eq(
+            "business_id",
+            businessId
+          )
+          .maybeSingle();
+  
+      if (
+        connectionError
+      ) {
+        console.error(
+          "Error loading Google Calendar connection for disconnect:",
+          connectionError
+        );
+  
+        return NextResponse.json(
+          {
+            error:
+              "No se ha podido cargar la conexión de Google Calendar.",
+          },
+          {
+            status:
+              500,
+          }
+        );
+      }
+  
+      /*
+       * Si ya estaba desconectado,
+       * consideramos la operación correcta.
+       */
+  
+      if (
+        !connection
+      ) {
+        return NextResponse.json({
+          success:
+            true,
+  
+          alreadyDisconnected:
+            true,
+        });
+      }
+  
+      /*
+       * ============================================================
+       * ACCESS TOKEN ACTUAL
+       * ============================================================
        *
-       * Por ahora NO revocamos el token en Google.
-       * Eliminamos únicamente las credenciales guardadas
-       * por Slottye.
+       * getBusinessGoogleCalendarAccess() renueva el access token
+       * automáticamente si fuera necesario.
+       */
+  
+      let currentAccessToken:
+        string | null =
+        null;
+  
+      try {
+        const googleAccess =
+          await getBusinessGoogleCalendarAccess(
+            businessId
+          );
+  
+        currentAccessToken =
+          googleAccess
+            ?.accessToken ??
+          null;
+      } catch (
+        accessError
+      ) {
+        /*
+         * No bloqueamos la desconexión si Google ya ha revocado
+         * o invalidado las credenciales.
+         */
+  
+        console.error(
+          "Could not obtain Google access token during disconnect:",
+          accessError
+        );
+      }
+  
+      /*
+       * ============================================================
+       * DETENER WATCH EN GOOGLE
+       * ============================================================
+       */
+  
+      if (
+        currentAccessToken &&
+        connection.watch_channel_id &&
+        connection.watch_resource_id
+      ) {
+        try {
+          const stopResponse =
+            await fetch(
+              "https://www.googleapis.com/calendar/v3/channels/stop",
+              {
+                method:
+                  "POST",
+  
+                headers: {
+                  Authorization:
+                    `Bearer ${currentAccessToken}`,
+  
+                  "Content-Type":
+                    "application/json",
+                },
+  
+                body:
+                  JSON.stringify({
+                    id:
+                      connection.watch_channel_id,
+  
+                    resourceId:
+                      connection.watch_resource_id,
+                  }),
+              }
+            );
+  
+          if (
+            !stopResponse.ok &&
+            stopResponse.status !==
+              404 &&
+            stopResponse.status !==
+              410
+          ) {
+            console.error(
+              "Google Calendar channels.stop failed:",
+              {
+                status:
+                  stopResponse.status,
+  
+                body:
+                  await stopResponse.text(),
+              }
+            );
+          }
+        } catch (
+          stopError
+        ) {
+          /*
+           * Seguimos desconectando localmente.
+           *
+           * Como eliminaremos el channelId de nuestra base de datos,
+           * cualquier aviso posterior de un canal antiguo será
+           * ignorado por nuestro webhook.
+           */
+  
+          console.error(
+            "Could not stop Google Calendar watch during disconnect:",
+            stopError
+          );
+        }
+      }
+  
+      /*
+       * ============================================================
+       * ELIMINAR CONEXIÓN DE SLOTTYE
+       * ============================================================
        */
   
       const {
@@ -240,6 +418,73 @@ import {
               500,
           }
         );
+      }
+  
+      /*
+       * ============================================================
+       * REVOCAR AUTORIZACIÓN GOOGLE
+       * ============================================================
+       *
+       * Esto es best-effort:
+       *
+       * Slottye ya está desconectado aunque Google responda
+       * con error al revocar el token.
+       *
+       * Preferimos refresh_token porque representa la autorización
+       * persistente concedida a Slottye.
+       */
+  
+      const tokenToRevoke =
+        connection.refresh_token ||
+        connection.access_token ||
+        currentAccessToken;
+  
+      if (
+        tokenToRevoke
+      ) {
+        try {
+          const revokeResponse =
+            await fetch(
+              "https://oauth2.googleapis.com/revoke",
+              {
+                method:
+                  "POST",
+  
+                headers: {
+                  "Content-Type":
+                    "application/x-www-form-urlencoded",
+                },
+  
+                body:
+                  new URLSearchParams({
+                    token:
+                      tokenToRevoke,
+                  }),
+              }
+            );
+  
+          if (
+            !revokeResponse.ok
+          ) {
+            console.error(
+              "Google OAuth revoke failed:",
+              {
+                status:
+                  revokeResponse.status,
+  
+                body:
+                  await revokeResponse.text(),
+              }
+            );
+          }
+        } catch (
+          revokeError
+        ) {
+          console.error(
+            "Could not revoke Google OAuth token:",
+            revokeError
+          );
+        }
       }
   
       return NextResponse.json({
