@@ -1254,7 +1254,121 @@ export default function AgendaCell({
                   "hidden",
               }}
             >
-              {!compactMobileWeek && (
+              {compactMobileWeek ? (
+                (() => {
+                  let compactLabel =
+                    "";
+
+                  if (
+                    event.type ===
+                      "booking" ||
+                    event.type ===
+                      "manual"
+                  ) {
+                    compactLabel =
+                      event.title;
+                  } else if (
+                    event.type ===
+                    "block"
+                  ) {
+                    compactLabel =
+                      event.subtitle ||
+                      event.title;
+                  } else if (
+                    event.type ===
+                    "slot"
+                  ) {
+                    compactLabel =
+                      event.subtitle ||
+                      event.title;
+                  }
+
+                  if (
+                    !compactLabel
+                  ) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      style={{
+                        height:
+                          "100%",
+
+                        width:
+                          "100%",
+
+                        display:
+                          "flex",
+
+                        flexDirection:
+                          "column",
+
+                        alignItems:
+                          "center",
+
+                        justifyContent:
+                          "flex-start",
+
+                        gap:
+                          0,
+
+                        padding:
+                          "3px 1px",
+
+                        overflow:
+                          "hidden",
+
+                        fontSize:
+                          eventHeight >= 70
+                            ? 8
+                            : 7,
+
+                        lineHeight:
+                          1.05,
+
+                        fontWeight:
+                          700,
+
+                        textAlign:
+                          "center",
+                      }}
+                    >
+                      {compactLabel
+                        .trim()
+                        .split(/\s+/)
+                        .map(
+                          (
+                            part,
+                            index
+                          ) => (
+                            <span
+                              key={`${part}-${index}`}
+                              style={{
+                                display:
+                                  "block",
+
+                                width:
+                                  "100%",
+
+                                overflow:
+                                  "hidden",
+
+                                textOverflow:
+                                  "clip",
+
+                                whiteSpace:
+                                  "nowrap",
+                              }}
+                            >
+                              {part}
+                            </span>
+                          )
+                        )}
+                    </div>
+                  );
+                })()
+              ) : (
                 <>
                   <strong
                     style={{

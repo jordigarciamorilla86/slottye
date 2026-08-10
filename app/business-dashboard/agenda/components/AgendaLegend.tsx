@@ -10,15 +10,17 @@ function LegendItem({
   return (
     <div
       style={{
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 4,
+        minWidth: 0,
       }}
     >
       <span
         style={{
-          width: 12,
-          height: 12,
+          width: 9,
+          height: 9,
+          flex: "0 0 9px",
           borderRadius: "50%",
           background: color,
           border: `1px solid ${border}`,
@@ -26,7 +28,13 @@ function LegendItem({
         }}
       />
 
-      <span>{label}</span>
+      <span
+        style={{
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }
@@ -36,22 +44,18 @@ export default function AgendaLegend() {
     <div
       style={{
         display: "flex",
-        gap: 16,
+        alignItems: "center",
+        gap: "6px 10px",
         flexWrap: "wrap",
-        marginBottom: 16,
-        fontSize: 13,
+        marginBottom: 12,
+        fontSize: 11,
+        lineHeight: 1.2,
       }}
     >
       <LegendItem
-        color="#22c55e"
-        border="#15803d"
-        label="Disponible"
-      />
-
-      <LegendItem
         color="#a855f7"
         border="#7e22ce"
-        label="Reserva Slottye"
+        label="Reserva"
       />
 
       <LegendItem
@@ -63,7 +67,7 @@ export default function AgendaLegend() {
       <LegendItem
         color="#3b82f6"
         border="#2563eb"
-        label="Reserva manual"
+        label="Manual"
       />
 
       <LegendItem
@@ -75,7 +79,7 @@ export default function AgendaLegend() {
       <LegendItem
         color="#ffffff"
         border="#9ca3af"
-        label="Fuera de horario"
+        label="Fuera horario"
       />
     </div>
   );
