@@ -19,6 +19,10 @@ import type {
   import {
     requireActiveUser,
   } from "@/lib/auth/requireActiveUser";
+
+  import {
+    createAdminClient,
+  } from "@/lib/supabase/admin";
   
   async function completeBusinessOnboarding() {
     "use server";
@@ -328,6 +332,9 @@ import type {
       profile,
     } =
       await requireActiveUser();
+
+      const admin =
+  createAdminClient();
   
     if (
       profile?.role !==
@@ -491,7 +498,7 @@ onboarding_completed_at
             "end_at",
             new Date().toISOString()
           ),
-          supabase
+          admin
   .from(
     "business_google_calendar_connections"
   )
@@ -891,7 +898,7 @@ const totalSteps =
   }
   href={
     googleCalendarConfigured
-      ? "/business-dashboard"
+      ? undefined
       : `/api/google-calendar/connect?businessId=${encodeURIComponent(
           business.id
         )}&returnTo=${encodeURIComponent(
@@ -900,8 +907,11 @@ const totalSteps =
   }
   actionLabel={
     googleCalendarConfigured
-      ? "Gestionar integración"
+      ? "Google Calendar conectado"
       : "Conectar Google Calendar"
+  }
+  disabled={
+    googleCalendarConfigured
   }
 />
           </section>
