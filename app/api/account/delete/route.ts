@@ -4,6 +4,10 @@ import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import {
+  cleanupBusinessGoogleCalendar,
+} from "@/lib/google-calendar-cleanup";
+
 const resend = new Resend(
   process.env.RESEND_API_KEY
 );
@@ -112,14 +116,18 @@ export async function DELETE() {
 
     /*
      * ============================================================
-     * SI ES NEGOCIO: AVISAR ANTES DE ELIMINAR
+     * PREPARACIÓN ESPECÍFICA DE CUENTA BUSINESS
      * ============================================================
      *
-     * Los emails de reservas activas del negocio se procesan
-     * antes del borrado definitivo.
-     *
-     * Si alguno falla, NO eliminamos todavía la cuenta.
+     * 1. Comprobamos los negocios del propietario.
+     * 2. Avisamos a clientes con reservas futuras.
+     * 3. Conservamos los business IDs para poder cerrar
+     *    las integraciones Google Calendar antes del CASCADE.
      */
+
+    let businessIds:
+      string[] =
+      [];
 
     if (
       profile.role ===
@@ -146,6 +154,67 @@ export async function DELETE() {
           }
         );
       }
+
+      businessIds =
+        result.businessIds;
+    }
+
+    /*
+     * ============================================================
+     * CERRAR GOOGLE CALENDAR
+     * ============================================================
+     *
+     * Antes de eliminar los negocios:
+     *
+     * - intentamos detener el events.watch;
+     * - revocamos la autorización OAuth;
+     * - NO borramos eventos existentes en Google Calendar;
+     * - NO borramos aquí la conexión local.
+     *
+     * La conexión local y todos los mappings desaparecerán
+     * posteriormente mediante ON DELETE CASCADE dentro de la
+     * transacción PostgreSQL.
+     *
+     * Los fallos externos de Google (stop/revoke) son best-effort
+     * dentro del helper. Solo abortamos si ni siquiera podemos
+     * consultar correctamente nuestra conexión local.
+     */
+
+    for (
+      const businessId of
+      businessIds
+    ) {
+      const googleCleanup =
+        await cleanupBusinessGoogleCalendar({
+          admin,
+          businessId,
+          deleteLocalConnection:
+            false,
+        });
+
+      if (
+        !googleCleanup.success
+      ) {
+        console.error(
+          "Google Calendar cleanup failed before account deletion:",
+          {
+            businessId,
+            error:
+              googleCleanup.error,
+          }
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No se ha podido cerrar correctamente la integración con Google Calendar. Inténtalo de nuevo.",
+          },
+          {
+            status:
+              500,
+          }
+        );
+      }
     }
 
     /*
@@ -161,6 +230,14 @@ export async function DELETE() {
      * 4. Libera sus slots.
      * 5. Borra profiles.
      * 6. Aplica CASCADE / SET NULL del esquema.
+     *
+     * Para una cuenta business, los CASCADE eliminan también:
+     *
+     * - business_google_calendar_connections
+     * - booking_google_calendar_events
+     * - manual_booking_google_calendar_events
+     * - block_google_calendar_events
+     * - google_calendar_imported_blocks
      *
      * Si cualquier paso falla, PostgreSQL revierte TODO.
      */
@@ -336,13 +413,6 @@ export async function DELETE() {
     );
   }
 }
-/*
- * ==============================================================
- * PREPARAR ELIMINACIÓN DE CLIENTE
- * ==============================================================
- */
-
-
 
 /*
  * ==============================================================
@@ -362,6 +432,7 @@ async function prepareBusinessDeletion({
 }): Promise<
   | {
       success: true;
+      businessIds: string[];
     }
   | {
       success: false;
@@ -378,12 +449,15 @@ async function prepareBusinessDeletion({
    */
 
   const {
-    data: businesses,
+    data:
+      businesses,
     error:
       businessesError,
   } =
     await admin
-      .from("businesses")
+      .from(
+        "businesses"
+      )
       .select(`
         id,
         name,
@@ -394,14 +468,18 @@ async function prepareBusinessDeletion({
         ownerId
       );
 
-  if (businessesError) {
+  if (
+    businessesError
+  ) {
     console.error(
       "Error loading businesses:",
       businessesError
     );
 
     return {
-      success: false,
+      success:
+        false,
+
       error:
         "No se han podido comprobar los negocios asociados a la cuenta.",
     };
@@ -411,13 +489,19 @@ async function prepareBusinessDeletion({
     !businesses?.length
   ) {
     return {
-      success: true,
+      success:
+        true,
+
+      businessIds:
+        [],
     };
   }
 
   const businessIds =
     businesses.map(
-      (business) =>
+      (
+        business
+      ) =>
         business.id
     );
 
@@ -428,11 +512,15 @@ async function prepareBusinessDeletion({
    */
 
   const {
-    data: bookings,
-    error: bookingsError,
+    data:
+      bookings,
+    error:
+      bookingsError,
   } =
     await admin
-      .from("bookings")
+      .from(
+        "bookings"
+      )
       .select(`
         id,
         user_id,
@@ -462,14 +550,18 @@ async function prepareBusinessDeletion({
         "CONFIRMED"
       );
 
-  if (bookingsError) {
+  if (
+    bookingsError
+  ) {
     console.error(
       "Error loading business bookings:",
       bookingsError
     );
 
     return {
-      success: false,
+      success:
+        false,
+
       error:
         "No se han podido comprobar las reservas del negocio.",
     };
@@ -479,28 +571,36 @@ async function prepareBusinessDeletion({
     new Date();
 
   const futureBookings =
-    (bookings ?? [])
-      .filter(
-        (booking) => {
-          const slot =
-            Array.isArray(
-              booking.slots
-            )
-              ? booking.slots[0] ??
-                null
-              : booking.slots;
+    (
+      bookings ??
+      []
+    ).filter(
+      (
+        booking
+      ) => {
+        const slot =
+          Array.isArray(
+            booking.slots
+          )
+            ? booking
+                .slots[0] ??
+              null
+            : booking.slots;
 
-          if (!slot) {
-            return false;
-          }
-
-          return (
-            new Date(
-              slot.start_at
-            ) > now
-          );
+        if (
+          !slot
+        ) {
+          return false;
         }
-      );
+
+        return (
+          new Date(
+            slot.start_at
+          ) >
+          now
+        );
+      }
+    );
 
   /*
    * ============================================================
@@ -555,12 +655,16 @@ async function prepareBusinessDeletion({
 
     const business =
       businesses.find(
-        (item) =>
+        (
+          item
+        ) =>
           item.id ===
           booking.business_id
       );
 
-    if (!business) {
+    if (
+      !business
+    ) {
       continue;
     }
 
@@ -708,7 +812,9 @@ async function prepareBusinessDeletion({
         }
       );
 
-    if (result.error) {
+    if (
+      result.error
+    ) {
       console.error(
         "Error sending business deletion email:",
         booking.id,
@@ -722,7 +828,9 @@ async function prepareBusinessDeletion({
        */
 
       return {
-        success: false,
+        success:
+          false,
+
         error:
           "No se ha podido avisar a todos los clientes con reservas activas. Inténtalo de nuevo.",
       };
@@ -730,7 +838,10 @@ async function prepareBusinessDeletion({
   }
 
   return {
-    success: true,
+    success:
+      true,
+
+    businessIds,
   };
 }
 
@@ -756,11 +867,15 @@ async function notifyReleasedSlot({
     string;
 }) {
   const {
-    data: business,
-    error: businessError,
+    data:
+      business,
+    error:
+      businessError,
   } =
     await admin
-      .from("businesses")
+      .from(
+        "businesses"
+      )
       .select(`
         id,
         name,
@@ -782,16 +897,20 @@ async function notifyReleasedSlot({
   }
 
   let serviceName:
-    string | null = null;
+    string | null =
+    null;
 
   if (
     released.serviceId
   ) {
     const {
-      data: service,
+      data:
+        service,
     } =
       await admin
-        .from("services")
+        .from(
+          "services"
+        )
         .select(`
           id,
           name
@@ -808,7 +927,8 @@ async function notifyReleasedSlot({
   }
 
   const {
-    data: subscriptions,
+    data:
+      subscriptions,
     error:
       subscriptionsError,
   } =
@@ -904,7 +1024,8 @@ async function notifyReleasedSlot({
      */
 
     const {
-      data: notification,
+      data:
+        notification,
       error:
         notificationError,
     } =
@@ -948,7 +1069,9 @@ async function notifyReleasedSlot({
               "ACCOUNT_DELETION",
           },
         })
-        .select("id")
+        .select(
+          "id"
+        )
         .single();
 
     if (
