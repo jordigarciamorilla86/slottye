@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 
 import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
+
 import WeeklyAgenda from "./WeeklyAgenda";
+import GoogleCalendarAgendaButton from "./GoogleCalendarAgendaButton";
 
 type Props = {
   searchParams: Promise<{
@@ -391,17 +393,61 @@ export default async function AgendaPage({
         }}
       >
         <section className="panel">
-          <div className="kicker">
-            Slottye Business
-          </div>
+        <div
+  style={{
+    marginBottom:
+      4,
+  }}
+>
+  <div
+    style={{
+      display:
+        "flex",
 
-          <h1 className="business-title">
-            Agenda
-          </h1>
+      alignItems:
+        "center",
 
-          <p className="muted">
-            Gestiona visualmente la semana de {business.name}.
-          </p>
+      justifyContent:
+        "space-between",
+
+      gap:
+        12,
+
+      marginBottom:
+        6,
+    }}
+  >
+    <div className="kicker">
+      Slottye Business
+    </div>
+
+    <GoogleCalendarAgendaButton
+      businessId={
+        business.id
+      }
+    />
+  </div>
+
+  <h1
+    className="business-title"
+    style={{
+      marginBottom:
+        6,
+    }}
+  >
+    Agenda
+  </h1>
+
+  <p
+    className="muted"
+    style={{
+      marginBottom:
+        0,
+    }}
+  >
+    Gestiona visualmente la semana de {business.name}.
+  </p>
+</div>
 
           <WeeklyAgenda
             businessId={business.id}

@@ -14,7 +14,7 @@ export default function CookiesPage() {
       title="Política de cookies"
     >
       <p className="muted">
-        Última actualización: 30 de julio de 2026
+        Última actualización: 11 de agosto de 2026
       </p>
 
       {/* ======================================================
@@ -182,25 +182,37 @@ export default function CookiesPage() {
       </h2>
 
       <p>
-        Slottye utiliza determinados servicios de Google,
-        como el inicio de sesión mediante Google y
-        funcionalidades relacionadas con mapas o
-        información de lugares.
-      </p>
+  Slottye utiliza determinados servicios de Google,
+  como el inicio de sesión mediante Google,
+  funcionalidades relacionadas con mapas e información
+  de lugares y, cuando el usuario lo activa
+  voluntariamente, la integración con Google Calendar.
+</p>
 
-      <p>
-        Cuando el usuario decide utilizar el inicio de
-        sesión con Google, el proceso puede implicar
-        tecnologías gestionadas directamente por Google en
-        sus propios dominios y conforme a sus políticas.
-      </p>
+<p>
+  Cuando el usuario utiliza el inicio de sesión con
+  Google o conecta su cuenta de Google Calendar, el
+  proceso de autenticación y autorización puede
+  implicar cookies, almacenamiento local u otros
+  mecanismos técnicos gestionados directamente por
+  Google en sus propios dominios y conforme a sus
+  políticas.
+</p>
 
-      <p>
-        Del mismo modo, determinadas funcionalidades
-        externas pueden estar sujetas a las condiciones y
-        políticas de privacidad del proveedor
-        correspondiente.
-      </p>
+<p>
+  La integración con Google Calendar es opcional y se
+  utiliza para sincronizar la agenda del negocio con
+  los eventos del calendario conectado. Slottye no
+  utiliza esta integración con fines publicitarios ni
+  para realizar seguimiento comercial del usuario.
+</p>
+
+<p>
+  Determinadas funcionalidades externas pueden estar
+  sujetas asimismo a las condiciones, políticas de
+  privacidad y políticas de cookies del proveedor
+  correspondiente.
+</p>
 
       {/* ======================================================
           7. GEOLOCALIZACIÓN

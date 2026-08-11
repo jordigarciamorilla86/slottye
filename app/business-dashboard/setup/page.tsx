@@ -400,12 +400,13 @@ onboarding_completed_at
     }
   
     const [
-        imagesResult,
-        servicesResult,
-        hoursResult,
-        slotsResult,
-      ] =
-        await Promise.all([
+      imagesResult,
+      servicesResult,
+      hoursResult,
+      slotsResult,
+      googleCalendarResult,
+    ] =
+      await Promise.all([
             supabase
   .from(
     "business_images"
@@ -490,6 +491,24 @@ onboarding_completed_at
             "end_at",
             new Date().toISOString()
           ),
+          supabase
+  .from(
+    "business_google_calendar_connections"
+  )
+  .select(
+    "business_id",
+    {
+      count:
+        "exact",
+
+      head:
+        true,
+    }
+  )
+  .eq(
+    "business_id",
+    business.id
+  ),
       ]);
       if (
         imagesResult.error
@@ -523,6 +542,15 @@ onboarding_completed_at
       console.error(
         "Error loading onboarding slots:",
         slotsResult.error
+      );
+    }
+
+    if (
+      googleCalendarResult.error
+    ) {
+      console.error(
+        "Error loading onboarding Google Calendar:",
+        googleCalendarResult.error
       );
     }
   
@@ -569,13 +597,20 @@ onboarding_completed_at
         0
       ) >
       0;
+
+      const googleCalendarConfigured =
+  (
+    googleCalendarResult.count ??
+    0
+  ) >
+  0;
   
       const policiesConfigured =
   Boolean(
     business.booking_policies_reviewed_at
   );
   
-    const completedSteps =
+  const completedSteps =
   [
     businessConfigured,
     imagesConfigured,
@@ -583,12 +618,13 @@ onboarding_completed_at
     servicesConfigured,
     hoursConfigured,
     availabilityConfigured,
+    googleCalendarConfigured,
   ].filter(
     Boolean
   ).length;
 
 const totalSteps =
-  6;
+  7;
   
     const progress =
       Math.round(
@@ -842,6 +878,32 @@ const totalSteps =
                 </Link>
               }
             />
+
+<SetupCard
+  number={
+    7
+  }
+  icon="📅"
+  title="Google Calendar"
+  description="Conecta opcionalmente Google Calendar para mantener sincronizadas las reservas, bloqueos y horarios ocupados de tu negocio. Los cambios realizados en Google Calendar podrán reflejarse automáticamente en la agenda de Slottye."
+  completed={
+    googleCalendarConfigured
+  }
+  href={
+    googleCalendarConfigured
+      ? "/business-dashboard"
+      : `/api/google-calendar/connect?businessId=${encodeURIComponent(
+          business.id
+        )}&returnTo=${encodeURIComponent(
+          "/business-dashboard/setup"
+        )}`
+  }
+  actionLabel={
+    googleCalendarConfigured
+      ? "Gestionar integración"
+      : "Conectar Google Calendar"
+  }
+/>
           </section>
   
           <section
