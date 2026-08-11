@@ -1,56 +1,130 @@
-import { NextResponse } from "next/server";
+import {
+  NextResponse,
+} from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import {
+  createClient,
+} from "@/lib/supabase/server";
 
-function createSlug(value: string) {
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+function createSlug(
+  value: string
+) {
   return value
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[^a-z0-9]+/g,
+      "-"
+    )
+    .replace(
+      /^-+|-+$/g,
+      ""
+    );
 }
 
-function optionalString(value: unknown) {
-  if (typeof value !== "string") {
+function optionalString(
+  value: unknown
+) {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return null;
   }
 
-  const trimmed = value.trim();
+  const trimmed =
+    value.trim();
 
-  return trimmed || null;
+  return (
+    trimmed ||
+    null
+  );
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   try {
-    const supabase = await createClient();
+    const supabase =
+      await createClient();
+
+    const admin =
+      createAdminClient();
+
+    /*
+     * ============================================================
+     * USUARIO AUTENTICADO
+     * ============================================================
+     */
 
     const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      data: {
+        user,
+      },
+      error:
+        userError,
+    } =
+      await supabase.auth
+        .getUser();
 
-    if (userError || !user) {
+    if (
+      userError ||
+      !user
+    ) {
       return NextResponse.json(
         {
-          error: "No has iniciado sesión.",
+          error:
+            "No has iniciado sesión.",
         },
         {
-          status: 401,
+          status:
+            401,
         }
       );
     }
 
-    const {
-      data: profile,
-      error: profileError,
-    } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+    /*
+     * ============================================================
+     * COMPROBAR CUENTA BUSINESS ACTIVA
+     * ============================================================
+     *
+     * Esta comprobación se realiza en servidor.
+     *
+     * Además del rol, comprobamos que la cuenta no esté bloqueada.
+     */
 
-    if (profileError) {
+    const {
+      data:
+        profile,
+      error:
+        profileError,
+    } =
+      await admin
+        .from(
+          "profiles"
+        )
+        .select(`
+          id,
+          role,
+          is_blocked
+        `)
+        .eq(
+          "id",
+          user.id
+        )
+        .maybeSingle();
+
+    if (
+      profileError
+    ) {
       console.error(
         "Error checking profile before creating business:",
         profileError
@@ -62,173 +136,332 @@ export async function POST(request: Request) {
             "No se ha podido comprobar tu cuenta.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
-    if (profile?.role !== "business") {
+    if (
+      !profile ||
+      profile.role !==
+        "business" ||
+      profile.is_blocked
+    ) {
       return NextResponse.json(
         {
           error:
             "Tu cuenta no tiene permisos para crear un negocio.",
         },
         {
-          status: 403,
+          status:
+            403,
         }
       );
     }
 
-    const body = await request.json();
+    /*
+     * ============================================================
+     * EVITAR CREAR UN SEGUNDO NEGOCIO
+     * ============================================================
+     *
+     * El modelo actual de Slottye utiliza un negocio por cuenta.
+     */
+
+    const {
+      data:
+        existingBusiness,
+      error:
+        existingBusinessError,
+    } =
+      await admin
+        .from(
+          "businesses"
+        )
+        .select(
+          "id"
+        )
+        .eq(
+          "owner_id",
+          user.id
+        )
+        .maybeSingle();
+
+    if (
+      existingBusinessError
+    ) {
+      console.error(
+        "Error checking existing business:",
+        existingBusinessError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar si ya tienes un negocio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      existingBusiness
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta cuenta ya tiene un negocio asociado.",
+        },
+        {
+          status:
+            409,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * BODY
+     * ============================================================
+     */
+
+    const body =
+      await request.json();
 
     const name =
-      typeof body.name === "string"
+      typeof body.name ===
+      "string"
         ? body.name.trim()
         : "";
 
     const categoryId =
-      typeof body.categoryId === "string"
+      typeof body.categoryId ===
+      "string"
         ? body.categoryId.trim()
         : "";
 
     const address =
-      typeof body.address === "string"
+      typeof body.address ===
+      "string"
         ? body.address.trim()
         : "";
 
     const city =
-      typeof body.city === "string"
+      typeof body.city ===
+      "string"
         ? body.city.trim()
         : "";
 
-    if (!name) {
+    if (
+      !name
+    ) {
       return NextResponse.json(
         {
           error:
             "Introduce el nombre del negocio.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    if (!categoryId) {
+    if (
+      !categoryId
+    ) {
       return NextResponse.json(
         {
-          error: "Selecciona una categoría.",
+          error:
+            "Selecciona una categoría.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    if (!address) {
+    if (
+      !address
+    ) {
       return NextResponse.json(
         {
-          error: "Introduce la dirección.",
+          error:
+            "Introduce la dirección.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
-    if (!city) {
+    if (
+      !city
+    ) {
       return NextResponse.json(
         {
-          error: "Introduce la ciudad.",
+          error:
+            "Introduce la ciudad.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
+
+    /*
+     * ============================================================
+     * COORDENADAS
+     * ============================================================
+     */
 
     const latitude =
-      typeof body.latitude === "number" &&
-      Number.isFinite(body.latitude)
+      typeof body.latitude ===
+        "number" &&
+      Number.isFinite(
+        body.latitude
+      )
         ? body.latitude
         : null;
 
     const longitude =
-      typeof body.longitude === "number" &&
-      Number.isFinite(body.longitude)
+      typeof body.longitude ===
+        "number" &&
+      Number.isFinite(
+        body.longitude
+      )
         ? body.longitude
         : null;
 
     const googlePlaceId =
-      optionalString(body.googlePlaceId);
+      optionalString(
+        body.googlePlaceId
+      );
 
-    const baseSlug = createSlug(name);
+    /*
+     * ============================================================
+     * SLUG
+     * ============================================================
+     */
 
-    if (!baseSlug) {
+    const baseSlug =
+      createSlug(
+        name
+      );
+
+    if (
+      !baseSlug
+    ) {
       return NextResponse.json(
         {
           error:
             "No se ha podido generar un identificador válido para el negocio.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
     const slug =
-      `${baseSlug}-${crypto.randomUUID().slice(
-        0,
-        6
-      )}`;
+      `${baseSlug}-${crypto
+        .randomUUID()
+        .slice(
+          0,
+          6
+        )}`;
 
-    const { error } = await supabase
-      .from("businesses")
-      .insert({
-        owner_id: user.id,
+    /*
+     * ============================================================
+     * CREAR NEGOCIO
+     * ============================================================
+     *
+     * La escritura se realiza exclusivamente en servidor
+     * utilizando service_role.
+     *
+     * El navegador ya no necesita permiso INSERT directo
+     * sobre public.businesses.
+     *
+     * owner_id y active no proceden del navegador.
+     */
 
-        category_id: categoryId,
+    const {
+      error:
+        insertError,
+    } =
+      await admin
+        .from(
+          "businesses"
+        )
+        .insert({
+          owner_id:
+            user.id,
 
-        name,
+          category_id:
+            categoryId,
 
-        slug,
+          name,
 
-        description:
-          optionalString(body.description),
+          slug,
 
-        address,
+          description:
+            optionalString(
+              body.description
+            ),
 
-        city,
+          address,
 
-        postal_code:
-          optionalString(body.postalCode),
+          city,
 
-        phone:
-          optionalString(body.phone),
+          postal_code:
+            optionalString(
+              body.postalCode
+            ),
 
-        email:
-          optionalString(body.email),
+          phone:
+            optionalString(
+              body.phone
+            ),
 
-        website:
-          optionalString(body.website),
+          email:
+            optionalString(
+              body.email
+            ),
 
-        latitude,
+          website:
+            optionalString(
+              body.website
+            ),
 
-        longitude,
+          latitude,
 
-        google_place_id:
-          googlePlaceId,
+          longitude,
 
-        show_google_reviews:
-          !!googlePlaceId &&
-          body.showGoogleReviews === true,
+          google_place_id:
+            googlePlaceId,
 
-        active: true,
-      });
+          show_google_reviews:
+            !!googlePlaceId &&
+            body.showGoogleReviews ===
+              true,
 
-    if (error) {
+          active:
+            true,
+        });
+
+    if (
+      insertError
+    ) {
       console.error(
         "Error creating business:",
-        error
+        insertError
       );
 
       return NextResponse.json(
@@ -237,15 +470,19 @@ export async function POST(request: Request) {
             "No se ha podido crear el negocio.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
     return NextResponse.json({
-      success: true,
+      success:
+        true,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Unexpected error creating business:",
       error
@@ -257,7 +494,8 @@ export async function POST(request: Request) {
           "No se ha podido crear el negocio.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }

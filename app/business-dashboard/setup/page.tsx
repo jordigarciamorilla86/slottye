@@ -28,7 +28,6 @@ import type {
     "use server";
   
     const {
-      supabase,
       user,
       profile,
     } =
@@ -43,16 +42,32 @@ import type {
       );
     }
   
+    /*
+     * ============================================================
+     * FINALIZAR ONBOARDING
+     * ============================================================
+     *
+     * La escritura se realiza exclusivamente en servidor
+     * mediante service_role.
+     *
+     * El usuario autenticado no necesita permiso UPDATE
+     * directo sobre businesses para esta operación.
+     */
+  
+    const admin =
+      createAdminClient();
+  
     const {
       error,
     } =
-      await supabase
+      await admin
         .from(
           "businesses"
         )
         .update({
           onboarding_completed_at:
-            new Date().toISOString(),
+            new Date()
+              .toISOString(),
         })
         .eq(
           "owner_id",

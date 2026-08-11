@@ -51,20 +51,10 @@ export async function generateMetadata({
   
     const {
       q,
-      mode,
-      when,
-      date,
-      page,
-      sort,
-      lat,
-      lng,
-      distance,
     } =
       await searchParams;
   
-  const availabilityMode =
-    mode ===
-    "availability";
+ 
 
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ??

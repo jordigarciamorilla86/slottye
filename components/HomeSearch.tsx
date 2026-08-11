@@ -59,8 +59,7 @@ export function HomeSearch({
   initialMode =
     "business",
 
-  availabilityInCategory =
-    false,
+ 
 }: Props) {
   
 

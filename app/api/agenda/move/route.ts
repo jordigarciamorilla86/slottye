@@ -21,12 +21,6 @@ import {
     updateBlockGoogleCalendarEvent,
   } from "@/lib/google-calendar";
   
-  type AgendaEventType =
-    | "booking"
-    | "manual"
-    | "block"
-    | "slot";
-  
   type RequestBody = {
     type?: unknown;
     eventId?: unknown;

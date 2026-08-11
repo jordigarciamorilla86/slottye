@@ -15,9 +15,6 @@ import {
     deleteBookingGoogleCalendarEvent,
     updateBookingGoogleCalendarEvent,
   } from "@/lib/google-calendar";
-  type Action =
-    | "cancel"
-    | "reschedule";
   
   type RequestBody = {
     action?: unknown;

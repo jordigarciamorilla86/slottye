@@ -25,10 +25,6 @@ import {
     updateBlockGoogleCalendarEvent,
   } from "@/lib/google-calendar";
   
-  type EventType =
-    | "manual"
-    | "block"
-    | "slot";
   
   type RequestBody = {
     type?: unknown;

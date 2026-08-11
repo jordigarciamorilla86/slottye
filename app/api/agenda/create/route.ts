@@ -23,11 +23,6 @@ import {
     syncBlockToGoogleCalendar,
   } from "@/lib/google-calendar";
   
-  type CreationType =
-    | "manual"
-    | "slot"
-    | "block";
-  
   type RequestBody = {
     type?: unknown;
     businessId?: unknown;

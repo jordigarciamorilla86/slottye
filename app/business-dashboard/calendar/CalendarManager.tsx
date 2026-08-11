@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 
 type Service = {
   id: string;
@@ -59,8 +58,7 @@ export default function CalendarManager({
   businessHours,
   initialBlocks,
 }: Props) {
-  const supabase =
-    createClient();
+  
 
   // ============================================================
   // CITA INDIVIDUAL

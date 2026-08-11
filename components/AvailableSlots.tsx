@@ -11,9 +11,6 @@ import {
   useRouter,
 } from "next/navigation";
 
-import {
-  createClient,
-} from "@/lib/supabase/client";
 
 type Service = {
   id: string;
@@ -82,12 +79,6 @@ const PAGE_SIZE =
   const router =
     useRouter();
 
-  const supabase =
-    useMemo(
-      () =>
-        createClient(),
-      []
-    );
 
   const [
     slots,
