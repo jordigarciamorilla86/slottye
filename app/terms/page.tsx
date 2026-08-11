@@ -14,7 +14,7 @@ export default function TermsPage() {
       title="Condiciones de uso"
     >
       <p className="muted">
-        Última actualización: 30 de julio de 2026
+        Última actualización: 11 de agosto de 2026
       </p>
 
       <h2>1. Objeto</h2>
@@ -119,11 +119,19 @@ export default function TermsPage() {
       </p>
 
       <p>
+        Cuando un negocio active una integración con un
+        calendario externo, la disponibilidad también podrá
+        depender de la información obtenida mediante dicha
+        integración.
+      </p>
+
+      <p>
         Aunque Slottye aplica mecanismos técnicos para
         reducir conflictos de disponibilidad, pueden
         producirse incidencias excepcionales derivadas de
-        errores, sincronización, modificaciones realizadas
-        por el negocio u otras circunstancias.
+        errores, retrasos de sincronización, modificaciones
+        realizadas por el negocio, incidencias en servicios
+        de terceros u otras circunstancias.
       </p>
 
       <h2>7. Confirmaciones y comunicaciones</h2>
@@ -227,6 +235,13 @@ export default function TermsPage() {
           servicios.
         </li>
       </ul>
+
+      <p>
+        Cuando el negocio conecte servicios o calendarios
+        externos, será responsable de utilizar cuentas y
+        calendarios sobre los que disponga de autorización
+        suficiente.
+      </p>
 
       <p>
         El negocio será responsable de disponer de las
@@ -428,14 +443,43 @@ export default function TermsPage() {
         razonable de Slottye.
       </p>
 
-      <h2>21. Servicios de terceros</h2>
+      <h2>21. Servicios e integraciones de terceros</h2>
 
       <p>
         Algunas funcionalidades de Slottye dependen de
         proveedores tecnológicos externos, como servicios
         de autenticación, mapas, información de lugares,
-        infraestructura, correo electrónico o
+        calendarios, infraestructura, correo electrónico o
         alojamiento.
+      </p>
+
+      <p>
+        Entre estas funcionalidades puede encontrarse la
+        integración opcional con Google Calendar, que
+        permite a los negocios sincronizar determinadas
+        reservas, eventos y periodos ocupados entre su
+        calendario y la agenda de Slottye.
+      </p>
+
+      <p>
+        El funcionamiento de estas integraciones puede
+        depender de la disponibilidad, condiciones,
+        permisos, límites técnicos y cambios introducidos
+        por el proveedor externo correspondiente.
+      </p>
+
+      <p>
+        Slottye procurará gestionar correctamente las
+        integraciones ofrecidas, pero no puede garantizar
+        la disponibilidad ininterrumpida de servicios
+        proporcionados y controlados por terceros.
+      </p>
+
+      <p>
+        La conexión con Google Calendar es voluntaria. El
+        negocio puede desconectarla mediante las opciones
+        disponibles en Slottye cuando ya no desee utilizar
+        la sincronización.
       </p>
 
       <p>

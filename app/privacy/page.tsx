@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       title="Política de privacidad"
     >
       <p className="muted">
-        Última actualización: 30 de julio de 2026
+        Última actualización: 11 de agosto de 2026
       </p>
 
       {/* ======================================================
@@ -225,31 +225,86 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      {/* ======================================================
-          4. GOOGLE
-          ====================================================== */}
+     {/* ======================================================
+    4. GOOGLE
+    ====================================================== */}
 
-      <h2>
-        4. Inicio de sesión con Google
-      </h2>
+<h2>
+  4. Servicios de Google y Google Calendar
+</h2>
 
-      <p>
-        Slottye permite crear una cuenta o iniciar sesión
-        mediante Google.
-      </p>
+<h3>
+  Inicio de sesión con Google
+</h3>
 
-      <p>
-        Cuando utilizas esta opción, Google proporciona a
-        Slottye los datos necesarios para identificar tu
-        cuenta, como tu dirección de correo electrónico y
-        los datos básicos de perfil que hayas autorizado
-        durante el proceso de autenticación.
-      </p>
+<p>
+  Slottye permite crear una cuenta o iniciar sesión
+  mediante Google.
+</p>
 
-      <p>
-        Slottye no recibe ni almacena la contraseña de tu
-        cuenta de Google.
-      </p>
+<p>
+  Cuando utilizas esta opción, Google proporciona a
+  Slottye los datos necesarios para identificar tu
+  cuenta, como tu dirección de correo electrónico y
+  los datos básicos de perfil que hayas autorizado
+  durante el proceso de autenticación.
+</p>
+
+<p>
+  Slottye no recibe ni almacena la contraseña de tu
+  cuenta de Google.
+</p>
+
+<h3>
+  Integración con Google Calendar
+</h3>
+
+<p>
+  Las cuentas de negocio pueden conectar
+  voluntariamente Google Calendar con Slottye para
+  sincronizar su agenda.
+</p>
+
+<p>
+  Cuando un negocio activa esta integración, Slottye
+  puede acceder a los eventos del calendario
+  autorizado en la medida necesaria para detectar
+  periodos ocupados y mantener sincronizada la agenda
+  del negocio.
+</p>
+
+<p>
+  La integración también puede crear, actualizar o
+  eliminar eventos de Google Calendar cuando sea
+  necesario para reflejar reservas, modificaciones,
+  cancelaciones u otros cambios realizados en la
+  agenda de Slottye.
+</p>
+
+<p>
+  Asimismo, los cambios realizados por el usuario en
+  los eventos sincronizados de Google Calendar pueden
+  reflejarse en Slottye para mantener ambas agendas
+  coordinadas.
+</p>
+
+<p>
+  Para mantener activa esta funcionalidad, Slottye
+  puede almacenar de forma segura las credenciales o
+  tokens de autorización proporcionados durante el
+  proceso OAuth de Google, así como identificadores
+  técnicos del calendario y de los eventos
+  sincronizados.
+</p>
+
+<p>
+  La conexión con Google Calendar es opcional y puede
+  desconectarse desde Slottye. Los datos obtenidos a
+  través de Google Calendar se utilizan exclusivamente
+  para proporcionar la funcionalidad de sincronización
+  solicitada por el usuario y no con fines
+  publicitarios.
+</p>
 
       {/* ======================================================
           5. GEOLOCALIZACIÓN
@@ -336,6 +391,14 @@ export default function PrivacyPage() {
           Gestionar las fichas, servicios, horarios y
           disponibilidad de los negocios.
         </li>
+
+        <li>
+  Sincronizar, cuando el negocio active
+  voluntariamente la integración, la agenda de
+  Slottye con Google Calendar, incluyendo la consulta,
+  creación, actualización y eliminación de eventos
+  necesaria para mantener ambas agendas coordinadas.
+</li>
 
         <li>
           Prevenir abusos, fraude y accesos no autorizados.
@@ -478,10 +541,10 @@ export default function PrivacyPage() {
         </li>
 
         <li>
-          Servicios de mapas, información de lugares y
-          autenticación, como los proporcionados por
-          Google.
-        </li>
+  Servicios de mapas, información de lugares,
+  autenticación e integración de calendarios, como
+  los proporcionados por Google.
+</li>
 
         <li>
           Servicios de infraestructura, DNS y
