@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -46,10 +51,13 @@ async function requireBusinessOwner(
     data: {
       user,
     },
+    error:
+      userError,
   } =
     await supabase.auth.getUser();
 
   if (
+    userError ||
     !user
   ) {
     return {
@@ -101,11 +109,44 @@ async function requireBusinessOwner(
       .maybeSingle();
 
   if (
-    profileError ||
+    profileError
+  ) {
+    console.error(
+      "Error checking service business profile:",
+      profileError
+    );
+
+    return {
+      success:
+        false as const,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "No se ha podido comprobar tu cuenta.",
+          },
+          {
+            status:
+              500,
+          }
+        ),
+
+      admin:
+        null,
+
+      user:
+        null,
+
+      business:
+        null,
+    };
+  }
+
+  if (
     !profile ||
     profile.role !==
-      "business" ||
-    profile.is_blocked
+      "business"
   ) {
     return {
       success:
@@ -116,6 +157,36 @@ async function requireBusinessOwner(
           {
             error:
               "No autorizado.",
+          },
+          {
+            status:
+              403,
+          }
+        ),
+
+      admin:
+        null,
+
+      user:
+        null,
+
+      business:
+        null,
+    };
+  }
+
+  if (
+    profile.is_blocked
+  ) {
+    return {
+      success:
+        false as const,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "Tu cuenta está bloqueada.",
           },
           {
             status:
@@ -331,16 +402,28 @@ export async function POST(
     NextRequest
 ) {
   try {
-    const body:
-      ServiceInput & {
-        businessId?: unknown;
-      } =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<
+        ServiceInput & {
+          businessId?: unknown;
+        }
+      >(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const businessId =
       typeof body.businessId ===
-      "string"
-        ? body.businessId
+        "string"
+        ? body.businessId.trim()
         : "";
 
     if (
@@ -350,6 +433,24 @@ export async function POST(
         {
           error:
             "Falta el identificador del negocio.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
         },
         {
           status:
@@ -435,7 +536,6 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            error?.message ??
             "No se ha podido crear el servicio.",
         },
         {
@@ -480,22 +580,34 @@ export async function PATCH(
     NextRequest
 ) {
   try {
-    const body:
-      ServiceInput & {
-        businessId?: unknown;
-      } =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<
+        ServiceInput & {
+          businessId?: unknown;
+        }
+      >(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const businessId =
       typeof body.businessId ===
-      "string"
-        ? body.businessId
+        "string"
+        ? body.businessId.trim()
         : "";
 
     const serviceId =
       typeof body.serviceId ===
-      "string"
-        ? body.serviceId
+        "string"
+        ? body.serviceId.trim()
         : "";
 
     if (
@@ -506,6 +618,27 @@ export async function PATCH(
         {
           error:
             "Datos incompletos.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+
+    if (
+      !isUuid(
+        businessId
+      ) ||
+      !isUuid(
+        serviceId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Los identificadores enviados no son válidos.",
         },
         {
           status:
@@ -643,7 +776,6 @@ export async function PATCH(
         return NextResponse.json(
           {
             error:
-              error?.message ??
               "No se ha podido cambiar el estado del servicio.",
           },
           {
@@ -733,7 +865,6 @@ export async function PATCH(
       return NextResponse.json(
         {
           error:
-            updateError?.message ??
             "No se ha podido editar el servicio.",
         },
         {
@@ -778,22 +909,34 @@ export async function DELETE(
     NextRequest
 ) {
   try {
-    const body:
-      ServiceInput & {
-        businessId?: unknown;
-      } =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<
+        ServiceInput & {
+          businessId?: unknown;
+        }
+      >(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const businessId =
       typeof body.businessId ===
-      "string"
-        ? body.businessId
+        "string"
+        ? body.businessId.trim()
         : "";
 
     const serviceId =
       typeof body.serviceId ===
-      "string"
-        ? body.serviceId
+        "string"
+        ? body.serviceId.trim()
         : "";
 
     if (
@@ -804,6 +947,27 @@ export async function DELETE(
         {
           error:
             "Datos incompletos.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+
+    if (
+      !isUuid(
+        businessId
+      ) ||
+      !isUuid(
+        serviceId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Los identificadores enviados no son válidos.",
         },
         {
           status:

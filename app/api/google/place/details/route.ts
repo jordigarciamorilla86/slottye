@@ -1,7 +1,58 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import {
+  NextResponse,
+} from "next/server";
 
-export async function POST(request: Request) {
+import {
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
+type RequestBody = {
+  placeId?: unknown;
+};
+
+type GooglePlaceResponse = {
+  id?: string;
+
+  displayName?: {
+    text?: string;
+  };
+
+  formattedAddress?: string;
+
+  postalAddress?: {
+    addressLines?: string[];
+    locality?: string;
+    postalCode?: string;
+    administrativeArea?: string;
+  };
+
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+
+  websiteUri?: string;
+
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+
+  rating?: number;
+  userRatingCount?: number;
+
+  googleMapsUri?: string;
+};
+
+export async function POST(
+  request: Request
+) {
   try {
     /*
      * ============================================================
@@ -13,8 +64,11 @@ export async function POST(request: Request) {
       await createClient();
 
     const {
-      data: { user },
-      error: userError,
+      data: {
+        user,
+      },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
@@ -25,10 +79,11 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "No autorizado",
+            "No autorizado.",
         },
         {
-          status: 401,
+          status:
+            401,
         }
       );
     }
@@ -39,19 +94,72 @@ export async function POST(request: Request) {
      * ============================================================
      */
 
-    const {
-      placeId,
-    } =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
 
-    if (!placeId) {
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const placeId =
+      typeof bodyResult.data
+        .placeId ===
+        "string"
+        ? bodyResult.data
+            .placeId.trim()
+        : "";
+
+    if (
+      !placeId
+    ) {
       return NextResponse.json(
         {
           error:
-            "Falta placeId",
+            "Falta placeId.",
         },
         {
-          status: 400,
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * RATE LIMIT
+     * ============================================================
+     */
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "google-place-details",
+
+        limit:
+          30,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
         }
       );
     }
@@ -66,14 +174,21 @@ export async function POST(request: Request) {
       process.env
         .GOOGLE_MAPS_API_KEY;
 
-    if (!apiKey) {
+    if (
+      !apiKey
+    ) {
+      console.error(
+        "GOOGLE_MAPS_API_KEY is not configured."
+      );
+
       return NextResponse.json(
         {
           error:
-            "GOOGLE_MAPS_API_KEY no está configurada",
+            "El servicio de Google Maps no está configurado.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
@@ -90,7 +205,8 @@ export async function POST(request: Request) {
           placeId
         )}`,
         {
-          method: "GET",
+          method:
+            "GET",
 
           headers: {
             "X-Goog-Api-Key":
@@ -109,7 +225,9 @@ export async function POST(request: Request) {
                 "rating",
                 "userRatingCount",
                 "googleMapsUri",
-              ].join(","),
+              ].join(
+                ","
+              ),
           },
 
           cache:
@@ -117,22 +235,31 @@ export async function POST(request: Request) {
         }
       );
 
-    if (!response.ok) {
-      const googleError =
-        await response.text();
-
+    if (
+      !response.ok
+    ) {
       console.error(
-        "Google Place Details error:",
-        googleError
+        "Google Place Details request failed:",
+        {
+          status:
+            response.status,
+
+          statusText:
+            response.statusText ||
+            null,
+
+          placeId,
+        }
       );
 
       return NextResponse.json(
         {
           error:
-            "No se pudieron obtener los datos de Google Maps",
+            "No se pudieron obtener los datos de Google Maps.",
         },
         {
-          status: 502,
+          status:
+            502,
         }
       );
     }
@@ -143,19 +270,54 @@ export async function POST(request: Request) {
      * ============================================================
      */
 
-    const place =
-      await response.json();
+    let place:
+      GooglePlaceResponse;
+
+    try {
+      place =
+        (
+          await response.json()
+        ) as GooglePlaceResponse;
+    } catch (
+      parseError
+    ) {
+      console.error(
+        "Could not parse Google Place Details response:",
+        parseError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "Google Maps ha devuelto una respuesta no válida.",
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
 
     const postalAddress =
       place.postalAddress ??
       {};
 
+    const latitude =
+      place.location
+        ?.latitude;
+
+    const longitude =
+      place.location
+        ?.longitude;
+
     return NextResponse.json({
-      success: true,
+      success:
+        true,
 
       place: {
         placeId:
-          place.id,
+          place.id ??
+          null,
 
         name:
           place.displayName
@@ -167,9 +329,13 @@ export async function POST(request: Request) {
           null,
 
         addressLines:
-          postalAddress
-            .addressLines ??
-          [],
+          Array.isArray(
+            postalAddress
+              .addressLines
+          )
+            ? postalAddress
+                .addressLines
+            : [],
 
         city:
           postalAddress
@@ -198,23 +364,41 @@ export async function POST(request: Request) {
           null,
 
         latitude:
-          place.location
-            ?.latitude ??
-          null,
+          typeof latitude ===
+            "number" &&
+          Number.isFinite(
+            latitude
+          )
+            ? latitude
+            : null,
 
         longitude:
-          place.location
-            ?.longitude ??
-          null,
+          typeof longitude ===
+            "number" &&
+          Number.isFinite(
+            longitude
+          )
+            ? longitude
+            : null,
 
         rating:
-          place.rating ??
-          null,
+          typeof place.rating ===
+            "number" &&
+          Number.isFinite(
+            place.rating
+          )
+            ? place.rating
+            : null,
 
         reviewCount:
-          place
-            .userRatingCount ??
-          0,
+          typeof place
+            .userRatingCount ===
+            "number" &&
+          Number.isFinite(
+            place.userRatingCount
+          )
+            ? place.userRatingCount
+            : 0,
 
         googleMapsUrl:
           place
@@ -222,7 +406,9 @@ export async function POST(request: Request) {
           null,
       },
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Google place details error:",
       error
@@ -231,10 +417,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Error consultando Google Maps",
+          "Error consultando Google Maps.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }

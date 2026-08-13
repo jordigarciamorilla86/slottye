@@ -3,6 +3,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -37,10 +42,13 @@ export async function POST(
       data: {
         user,
       },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
     if (
+      userError ||
       !user
     ) {
       return NextResponse.json(
@@ -105,13 +113,27 @@ export async function POST(
     if (
       !profile ||
       profile.role !==
-        "business" ||
-      profile.is_blocked
+        "business"
     ) {
       return NextResponse.json(
         {
           error:
             "No autorizado.",
+        },
+        {
+          status:
+            403,
+        }
+      );
+    }
+
+    if (
+      profile.is_blocked
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Tu cuenta está bloqueada.",
         },
         {
           status:
@@ -126,14 +148,23 @@ export async function POST(
      * ============================================================
      */
 
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
     const body =
-      (
-        await request.json()
-      ) as RequestBody;
+      bodyResult.data;
 
     const businessId =
       typeof body.businessId ===
-      "string"
+        "string"
         ? body.businessId.trim()
         : "";
 
@@ -144,6 +175,23 @@ export async function POST(
         {
           error:
             "Falta businessId.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
         },
         {
           status:
@@ -264,6 +312,9 @@ export async function POST(
      * ============================================================
      * ACTUALIZAR
      * ============================================================
+     *
+     * Es una única escritura sobre businesses.
+     * No requiere una RPC transaccional adicional.
      */
 
     const {
@@ -316,7 +367,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            updateError.message,
+            "No se ha podido actualizar la vinculación con Google.",
         },
         {
           status:

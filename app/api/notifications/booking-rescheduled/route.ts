@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+type RequestBody = {
+  bookingId?: unknown;
+};
 
 export async function POST(request: Request) {
   try {
@@ -8,16 +20,30 @@ export async function POST(request: Request) {
 
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json(
         { error: "No autorizado" },
         { status: 401 }
       );
     }
 
-    const { bookingId } = await request.json();
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (!bodyResult.ok) {
+      return bodyResult.response;
+    }
+
+    const bookingId =
+      typeof bodyResult.data.bookingId ===
+      "string"
+        ? bodyResult.data.bookingId.trim()
+        : "";
 
     if (!bookingId) {
       return NextResponse.json(
@@ -26,9 +52,58 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!isUuid(bookingId)) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador de la reserva no es válido",
+        },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * ============================================================
+     * RATE LIMIT
+     * ============================================================
+     */
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "booking-rescheduled",
+
+        limit:
+          10,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
+        }
+      );
+    }
+
     const admin = createAdminClient();
 
-    const { data: booking, error } =
+    const {
+      data: booking,
+      error: bookingError,
+    } =
       await admin
         .from("bookings")
         .select(`
@@ -63,7 +138,22 @@ export async function POST(request: Request) {
         .eq("id", bookingId)
         .maybeSingle();
 
-    if (error || !booking) {
+    if (bookingError) {
+      console.error(
+        "Error loading rescheduled booking:",
+        bookingError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar la reserva",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!booking) {
       return NextResponse.json(
         { error: "Reserva no encontrada" },
         { status: 404 }
@@ -113,6 +203,24 @@ if (
   console.error(
     "Error checking reschedule authorization:",
     businessAuthorizationResult.error
+  );
+
+  return NextResponse.json(
+    {
+      error:
+        "No se han podido comprobar los permisos",
+    },
+    {
+      status:
+        500,
+    }
+  );
+}
+
+if (adminProfileResult.error) {
+  console.error(
+    "Error checking reschedule admin permissions:",
+    adminProfileResult.error
   );
 
   return NextResponse.json(
@@ -207,15 +315,25 @@ const rescheduleActor:
     let ownerEmail: string | null = null;
 
     if (business.owner_id) {
-      const { data: owner } =
+      const {
+        data: owner,
+        error: ownerError,
+      } =
         await admin
           .from("profiles")
           .select("email")
           .eq("id", business.owner_id)
           .maybeSingle();
 
-      ownerEmail =
-        owner?.email ?? null;
+      if (ownerError) {
+        console.error(
+          "Error loading business owner email for reschedule notification:",
+          ownerError
+        );
+      } else {
+        ownerEmail =
+          owner?.email ?? null;
+      }
     }
 
     const businessEmail =
@@ -247,6 +365,23 @@ const rescheduleActor:
       .filter(Boolean)
       .join(" · ");
 
+    const resendApiKey =
+      process.env.RESEND_API_KEY;
+
+    if (!resendApiKey) {
+      console.error(
+        "RESEND_API_KEY is not configured."
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "El servicio de correo no está configurado",
+        },
+        { status: 500 }
+      );
+    }
+
     /*
      * EMAIL CLIENTE
      */
@@ -258,7 +393,7 @@ const rescheduleActor:
 
           headers: {
             Authorization:
-              `Bearer ${process.env.RESEND_API_KEY}`,
+              `Bearer ${resendApiKey}`,
 
             "Content-Type":
               "application/json",
@@ -317,7 +452,7 @@ const rescheduleActor:
 
                   <div style="text-align:center;margin:30px 0;">
                     <a
-                      href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/account/bookings"
+                      href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://slottye.com"}/account/bookings"
                       style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
                     >
                       Ver mis citas
@@ -343,8 +478,13 @@ const rescheduleActor:
 
     if (!clientResponse.ok) {
       console.error(
-        "Error email cliente:",
-        await clientResponse.text()
+        "Resend customer reschedule email error:",
+        {
+          status: clientResponse.status,
+          statusText:
+            clientResponse.statusText || null,
+          bookingId: booking.id,
+        }
       );
     }
 
@@ -362,7 +502,7 @@ const rescheduleActor:
 
             headers: {
               Authorization:
-                `Bearer ${process.env.RESEND_API_KEY}`,
+                `Bearer ${resendApiKey}`,
 
               "Content-Type":
                 "application/json",
@@ -422,7 +562,7 @@ const rescheduleActor:
 
                     <div style="text-align:center;margin:30px 0;">
                       <a
-                        href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/business-dashboard/agenda"
+                        href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://slottye.com"}/business-dashboard/agenda"
                         style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
                       >
                         Ver agenda
@@ -451,16 +591,30 @@ const rescheduleActor:
 
       if (!businessResponse.ok) {
         console.error(
-          "Error email negocio:",
-          await businessResponse.text()
+          "Resend business reschedule email error:",
+          {
+            status: businessResponse.status,
+            statusText:
+              businessResponse.statusText || null,
+            bookingId: booking.id,
+          }
         );
       }
     }
 
+    if (!clientResponse.ok) {
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo enviar el email de reprogramación al cliente",
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      clientEmailSent:
-        clientResponse.ok,
+      clientEmailSent: true,
       businessEmailSent,
     });
   } catch (error) {

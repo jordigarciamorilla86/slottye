@@ -3,12 +3,33 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
 import {
   createAdminClient,
 } from "@/lib/supabase/admin";
+
+type RequestBody = {
+  name?: unknown;
+  categoryId?: unknown;
+  address?: unknown;
+  city?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  googlePlaceId?: unknown;
+  description?: unknown;
+  postalCode?: unknown;
+  phone?: unknown;
+  email?: unknown;
+  website?: unknown;
+  showGoogleReviews?: unknown;
+};
 
 function createSlug(
   value: string
@@ -35,7 +56,7 @@ function optionalString(
 ) {
   if (
     typeof value !==
-    "string"
+      "string"
   ) {
     return null;
   }
@@ -95,10 +116,6 @@ export async function POST(
      * ============================================================
      * COMPROBAR CUENTA BUSINESS ACTIVA
      * ============================================================
-     *
-     * Esta comprobación se realiza en servidor.
-     *
-     * Además del rol, comprobamos que la cuenta no esté bloqueada.
      */
 
     const {
@@ -162,10 +179,13 @@ export async function POST(
 
     /*
      * ============================================================
-     * EVITAR CREAR UN SEGUNDO NEGOCIO
+     * COMPROBACIÓN PREVIA
      * ============================================================
      *
-     * El modelo actual de Slottye utiliza un negocio por cuenta.
+     * Esto sirve para dar una respuesta rápida y clara.
+     *
+     * La protección real contra carreras simultáneas está además
+     * en PostgreSQL mediante businesses_owner_unique.
      */
 
     const {
@@ -228,30 +248,41 @@ export async function POST(
      * ============================================================
      */
 
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
     const body =
-      await request.json();
+      bodyResult.data;
 
     const name =
       typeof body.name ===
-      "string"
+        "string"
         ? body.name.trim()
         : "";
 
     const categoryId =
       typeof body.categoryId ===
-      "string"
+        "string"
         ? body.categoryId.trim()
         : "";
 
     const address =
       typeof body.address ===
-      "string"
+        "string"
         ? body.address.trim()
         : "";
 
     const city =
       typeof body.city ===
-      "string"
+        "string"
         ? body.city.trim()
         : "";
 
@@ -277,6 +308,23 @@ export async function POST(
         {
           error:
             "Selecciona una categoría.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        categoryId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La categoría seleccionada no es válida.",
         },
         {
           status:
@@ -339,6 +387,50 @@ export async function POST(
         ? body.longitude
         : null;
 
+    if (
+      latitude !==
+        null &&
+      (
+        latitude <
+          -90 ||
+        latitude >
+          90
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La latitud no es válida.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      longitude !==
+        null &&
+      (
+        longitude <
+          -180 ||
+        longitude >
+          180
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La longitud no es válida.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const googlePlaceId =
       optionalString(
         body.googlePlaceId
@@ -382,14 +474,6 @@ export async function POST(
      * ============================================================
      * CREAR NEGOCIO
      * ============================================================
-     *
-     * La escritura se realiza exclusivamente en servidor
-     * utilizando service_role.
-     *
-     * El navegador ya no necesita permiso INSERT directo
-     * sobre public.businesses.
-     *
-     * owner_id y active no proceden del navegador.
      */
 
     const {
@@ -448,7 +532,9 @@ export async function POST(
             googlePlaceId,
 
           show_google_reviews:
-            !!googlePlaceId &&
+            Boolean(
+              googlePlaceId
+            ) &&
             body.showGoogleReviews ===
               true,
 
@@ -459,6 +545,35 @@ export async function POST(
     if (
       insertError
     ) {
+      if (
+        insertError.code ===
+          "23505"
+      ) {
+        const details =
+          `${insertError.message ?? ""} ${insertError.details ?? ""}`
+            .toLowerCase();
+
+        if (
+          details.includes(
+            "businesses_owner_unique"
+          ) ||
+          details.includes(
+            "owner_id"
+          )
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Esta cuenta ya tiene un negocio asociado.",
+            },
+            {
+              status:
+                409,
+            }
+          );
+        }
+      }
+
       console.error(
         "Error creating business:",
         insertError

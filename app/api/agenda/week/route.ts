@@ -38,10 +38,13 @@ import {
         data: {
           user,
         },
+        error:
+          userError,
       } =
         await supabase.auth.getUser();
-  
+      
       if (
+        userError ||
         !user
       ) {
         return NextResponse.json(

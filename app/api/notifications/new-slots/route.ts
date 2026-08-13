@@ -2,8 +2,22 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+type RequestBody = {
+  businessId?: unknown;
+  slotIds?: unknown;
+};
 
 export async function POST(request: Request) {
   try {
@@ -12,33 +26,108 @@ export async function POST(request: Request) {
 
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json(
         { error: "No autorizado" },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
 
-    const {
-      businessId,
-      slotIds,
-    }: {
-      businessId: string;
-      slotIds: string[];
-    } = body;
+    if (!bodyResult.ok) {
+      return bodyResult.response;
+    }
+
+    const businessId =
+      typeof bodyResult.data.businessId ===
+      "string"
+        ? bodyResult.data.businessId.trim()
+        : "";
+
+    const slotIds =
+      Array.isArray(bodyResult.data.slotIds)
+        ? bodyResult.data.slotIds
+            .filter(
+              (value): value is string =>
+                typeof value === "string"
+            )
+            .map((value) => value.trim())
+        : [];
 
     if (
       !businessId ||
-      !Array.isArray(slotIds) ||
       slotIds.length === 0
     ) {
       return NextResponse.json(
         { error: "Datos incompletos" },
         { status: 400 }
+      );
+    }
+
+    if (!isUuid(businessId)) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      slotIds.some(
+        (slotId) => !isUuid(slotId)
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Uno o más identificadores de cita no son válidos.",
+        },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * ==========================================================
+     * RATE LIMIT
+     * ==========================================================
+     */
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "new-slots",
+
+        limit:
+          20,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
+        }
       );
     }
 
@@ -77,6 +166,23 @@ export async function POST(request: Request) {
         {
           error:
             "No se ha podido comprobar el negocio",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (adminProfileResult.error) {
+      console.error(
+        "Error checking new-slot admin permissions:",
+        adminProfileResult.error
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se han podido comprobar los permisos",
         },
         {
           status: 500,

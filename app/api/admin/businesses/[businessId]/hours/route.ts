@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -44,10 +49,15 @@ async function requireAdmin() {
     data: {
       user,
     },
+    error:
+      userError,
   } =
     await supabase.auth.getUser();
 
-  if (!user) {
+  if (
+    userError ||
+    !user
+  ) {
     return {
       success:
         false as const,
@@ -93,8 +103,40 @@ async function requireAdmin() {
       .maybeSingle();
 
   if (
-    profileError ||
-    !profile?.is_admin
+    profileError
+  ) {
+    console.error(
+      "Error checking admin permissions for business hours:",
+      profileError
+    );
+
+    return {
+      success:
+        false as const,
+
+      admin:
+        null,
+
+      user:
+        null,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "No se han podido comprobar los permisos.",
+          },
+          {
+            status:
+              500,
+          }
+        ),
+    };
+  }
+
+  if (
+    !profile
+      ?.is_admin
   ) {
     return {
       success:
@@ -158,6 +200,23 @@ export async function PUT(
       businessId,
     } =
       await params;
+
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
 
     const authorization =
       await requireAdmin();
@@ -292,13 +351,28 @@ export async function PUT(
      * ============================================================
      */
 
-    const body =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<{
+        days?: unknown;
+      }>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
 
     const submittedDays =
-      body.days as
-        | SubmittedDay[]
-        | undefined;
+      Array.isArray(
+        bodyResult.data.days
+      )
+        ? (
+            bodyResult.data.days as
+              SubmittedDay[]
+          )
+        : undefined;
 
     if (
       !Array.isArray(
@@ -516,42 +590,97 @@ export async function PUT(
       error:
         saveError,
     } =
-      await admin
-        .from(
-          "business_hours"
-        )
-        .upsert(
-          rows,
-          {
-            onConflict:
-              "business_id,day_of_week",
-          }
-        )
-        .select(`
-          id,
-          day_of_week,
-          open_time,
-          close_time,
-          open_time_2,
-          close_time_2,
-          closed
-        `)
-        .order(
-          "day_of_week"
-        );
+      await admin.rpc(
+        "save_business_hours_transactional",
+        {
+          p_business_id:
+            business.id,
+
+          p_days:
+            rows,
+        }
+      );
 
     if (
       saveError
     ) {
+      const message =
+        saveError.message
+          ?.trim() ??
+        "";
+
+      if (
+        message.includes(
+          "BUSINESS_NOT_FOUND"
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El negocio no existe.",
+          },
+          {
+            status:
+              404,
+          }
+        );
+      }
+
+      if (
+        message.includes(
+          "BUSINESS_ID_REQUIRED"
+        ) ||
+        message.includes(
+          "INVALID_DAYS"
+        ) ||
+        message.includes(
+          "SEVEN_DAYS_REQUIRED"
+        ) ||
+        message.includes(
+          "INVALID_DAY_SET"
+        ) ||
+        message.includes(
+          "INVALID_DAY_DATA"
+        ) ||
+        message.includes(
+          "INVALID_DAY_OF_WEEK"
+        ) ||
+        message.includes(
+          "INVALID_CLOSED_VALUE"
+        ) ||
+        message.includes(
+          "INVALID_TIME_FORMAT_DAY_"
+        ) ||
+        message.includes(
+          "INVALID_FIRST_SHIFT_DAY_"
+        ) ||
+        message.includes(
+          "INVALID_SECOND_SHIFT_DAY_"
+        ) ||
+        message.includes(
+          "OVERLAPPING_SHIFTS_DAY_"
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El horario enviado no es válido.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
       console.error(
-        "Error saving admin business hours:",
+        "Error saving admin business hours transactionally:",
         saveError
       );
 
       return NextResponse.json(
         {
           error:
-            saveError.message ||
             "No se ha podido guardar el horario.",
         },
         {

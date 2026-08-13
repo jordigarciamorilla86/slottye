@@ -4,6 +4,4 @@ node_modules
 .vercel
 *.log
 supabase/.temp/
-supabase/.temp/
-
 tsconfig.tsbuildinfo

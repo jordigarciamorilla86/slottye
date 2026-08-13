@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -39,10 +44,13 @@ export async function POST(
       data: {
         user,
       },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
     if (
+      userError ||
       !user
     ) {
       return NextResponse.json(
@@ -85,7 +93,26 @@ export async function POST(
         .maybeSingle();
 
     if (
-      profileError ||
+      profileError
+    ) {
+      console.error(
+        "Error checking Google Calendar disconnect profile:",
+        profileError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar tu cuenta.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !profile ||
       profile.role !==
         "business" ||
@@ -109,10 +136,19 @@ export async function POST(
      * ============================================================
      */
 
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
     const body =
-      (
-        await request.json()
-      ) as RequestBody;
+      bodyResult.data;
 
     const businessId =
       typeof body.businessId ===
@@ -127,6 +163,23 @@ export async function POST(
         {
           error:
             "Falta el identificador del negocio.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
         },
         {
           status:
@@ -217,10 +270,20 @@ export async function POST(
     if (
       !result.success
     ) {
+      console.error(
+        "Google Calendar cleanup failed:",
+        {
+          businessId,
+          error:
+            result.error ??
+            null,
+        }
+      );
+
       return NextResponse.json(
         {
           error:
-            result.error,
+            "No se ha podido desconectar Google Calendar.",
         },
         {
           status:

@@ -1,28 +1,144 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  NextResponse,
+} from "next/server";
+
+import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
+
+type RequestBody = {
+  bookingId?: unknown;
+};
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: {
+        user,
+      },
+      error:
+        userError,
+    } =
+      await supabase.auth.getUser();
 
-    if (!user) {
+    if (
+      userError ||
+      !user
+    ) {
       return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 401 }
+        {
+          error:
+            "No autorizado.",
+        },
+        {
+          status:
+            401,
+        }
       );
     }
 
-    const { bookingId } = await request.json();
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
 
-    if (!bookingId) {
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const bookingId =
+      typeof bodyResult.data
+        .bookingId ===
+        "string"
+        ? bodyResult.data
+            .bookingId.trim()
+        : "";
+
+    if (
+      !bookingId
+    ) {
       return NextResponse.json(
-        { error: "Falta bookingId" },
-        { status: 400 }
+        {
+          error:
+            "Falta bookingId.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        bookingId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador de la reserva no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * RATE LIMIT
+     * ============================================================
+     *
+     * Esta ruta puede enviar hasta dos emails mediante Resend,
+     * por lo que limitamos las llamadas por usuario autenticado.
+     */
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "booking-confirmed",
+
+        limit:
+          10,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
+        }
       );
     }
 
@@ -69,15 +185,38 @@ export async function POST(request: Request) {
         .eq("id", bookingId)
         .maybeSingle();
 
-    if (bookingError || !booking) {
+    if (
+      bookingError
+    ) {
       console.error(
         "Error loading booking:",
         bookingError
       );
 
       return NextResponse.json(
-        { error: "Reserva no encontrada" },
-        { status: 404 }
+        {
+          error:
+            "No se ha podido comprobar la reserva.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      !booking
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Reserva no encontrada.",
+        },
+        {
+          status:
+            404,
+        }
       );
     }
 
@@ -139,15 +278,40 @@ export async function POST(request: Request) {
      */
     let ownerEmail: string | null = null;
 
-    if (business.owner_id) {
-      const { data: ownerProfile } = await admin
-        .from("profiles")
-        .select("email")
-        .eq("id", business.owner_id)
-        .maybeSingle();
+    if (
+      business.owner_id
+    ) {
+      const {
+        data:
+          ownerProfile,
+        error:
+          ownerProfileError,
+      } =
+        await admin
+          .from(
+            "profiles"
+          )
+          .select(
+            "email"
+          )
+          .eq(
+            "id",
+            business.owner_id
+          )
+          .maybeSingle();
 
-      ownerEmail =
-        ownerProfile?.email ?? null;
+      if (
+        ownerProfileError
+      ) {
+        console.error(
+          "Error loading business owner email:",
+          ownerProfileError
+        );
+      } else {
+        ownerEmail =
+          ownerProfile?.email ??
+          null;
+      }
     }
 
     const businessEmail =
@@ -183,20 +347,69 @@ export async function POST(request: Request) {
      * Evitamos duplicar la confirmación
      * si la llamada se repite.
      */
-    const { data: existingNotification } =
+    const {
+      data:
+        existingNotification,
+      error:
+        existingNotificationError,
+    } =
       await admin
-        .from("notifications")
-        .select("id,status")
-        .eq("booking_id", booking.id)
-        .eq("user_id", booking.user_id)
-        .eq("type", "BOOKING_CONFIRMATION")
-        .in("status", ["PENDING", "SENT"])
+        .from(
+          "notifications"
+        )
+        .select(
+          "id,status"
+        )
+        .eq(
+          "booking_id",
+          booking.id
+        )
+        .eq(
+          "user_id",
+          booking.user_id
+        )
+        .eq(
+          "type",
+          "BOOKING_CONFIRMATION"
+        )
+        .in(
+          "status",
+          [
+            "PENDING",
+            "SENT",
+          ]
+        )
         .maybeSingle();
 
-    if (existingNotification) {
+    if (
+      existingNotificationError
+    ) {
+      console.error(
+        "Error checking existing booking confirmation:",
+        existingNotificationError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el estado de la notificación.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      existingNotification
+    ) {
       return NextResponse.json({
-        success: true,
-        duplicate: true,
+        success:
+          true,
+
+        duplicate:
+          true,
       });
     }
 
@@ -224,9 +437,21 @@ export async function POST(request: Request) {
       .single();
 
     if (
-      notificationError ||
-      !notification
+      notificationError
     ) {
+      if (
+        notificationError.code ===
+          "23505"
+      ) {
+        return NextResponse.json({
+          success:
+            true,
+
+          duplicate:
+            true,
+        });
+      }
+
       console.error(
         "Error creating notification:",
         notificationError
@@ -235,11 +460,83 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "No se pudo crear la notificación",
+            "No se pudo crear la notificación.",
         },
-        { status: 500 }
+        {
+          status:
+            500,
+        }
       );
     }
+
+    if (
+      !notification
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo crear la notificación.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    const resendApiKey =
+      process.env
+        .RESEND_API_KEY;
+
+    if (
+      !resendApiKey
+    ) {
+      console.error(
+        "RESEND_API_KEY is not configured."
+      );
+
+      const {
+        error:
+          failedStatusError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .update({
+            status:
+              "FAILED",
+          })
+          .eq(
+            "id",
+            notification.id
+          );
+
+      if (
+        failedStatusError
+      ) {
+        console.error(
+          "Error marking booking confirmation as FAILED:",
+          failedStatusError
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            "El servicio de correo no está configurado.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    const baseUrl =
+      process.env
+        .NEXT_PUBLIC_APP_URL ??
+      "https://slottye.com";
 
     /*
      * ======================================================
@@ -253,7 +550,7 @@ export async function POST(request: Request) {
         method: "POST",
         headers: {
           Authorization:
-            `Bearer ${process.env.RESEND_API_KEY}`,
+            `Bearer ${resendApiKey}`,
           "Content-Type":
             "application/json",
         },
@@ -312,7 +609,7 @@ export async function POST(request: Request) {
 
                 <div style="text-align:center;margin:30px 0;">
                   <a
-                    href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/account/bookings"
+                    href="${baseUrl}/account/bookings"
                     style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
                   >
                     Ver mis citas
@@ -341,42 +638,101 @@ export async function POST(request: Request) {
       }
     );
 
-    if (!clientResponse.ok) {
-      const resendError =
-        await clientResponse.text();
-
+    if (
+      !clientResponse.ok
+    ) {
       console.error(
-        "Resend client error:",
-        resendError
+        "Resend client confirmation error:",
+        {
+          status:
+            clientResponse.status,
+
+          statusText:
+            clientResponse.statusText ||
+            null,
+
+          bookingId:
+            booking.id,
+        }
       );
 
-      await admin
-        .from("notifications")
-        .update({
-          status: "FAILED",
-        })
-        .eq("id", notification.id);
+      const {
+        error:
+          failedStatusError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .update({
+            status:
+              "FAILED",
+          })
+          .eq(
+            "id",
+            notification.id
+          );
+
+      if (
+        failedStatusError
+      ) {
+        console.error(
+          "Client email failed and confirmation could not be marked FAILED:",
+          failedStatusError
+        );
+      }
 
       return NextResponse.json(
         {
           error:
-            "La reserva existe pero no se pudo enviar el email al cliente",
+            "La reserva existe pero no se pudo enviar el email al cliente.",
         },
-        { status: 500 }
+        {
+          status:
+            502,
+        }
       );
     }
 
     /*
      * La confirmación del cliente ya está enviada.
      */
-    await admin
-      .from("notifications")
-      .update({
-        status: "SENT",
-        sent_at:
-          new Date().toISOString(),
-      })
-      .eq("id", notification.id);
+
+    const {
+      error:
+        sentStatusError,
+    } =
+      await admin
+        .from(
+          "notifications"
+        )
+        .update({
+          status:
+            "SENT",
+
+          sent_at:
+            new Date()
+              .toISOString(),
+        })
+        .eq(
+          "id",
+          notification.id
+        );
+
+    if (
+      sentStatusError
+    ) {
+      /*
+       * El email YA ha salido.
+       * Registramos el fallo, pero no provocamos un reintento
+       * que pudiera enviar un segundo correo al cliente.
+       */
+
+      console.error(
+        "Client confirmation email sent but notification could not be marked SENT:",
+        sentStatusError
+      );
+    }
 
     /*
      * ======================================================
@@ -394,7 +750,7 @@ export async function POST(request: Request) {
             method: "POST",
             headers: {
               Authorization:
-                `Bearer ${process.env.RESEND_API_KEY}`,
+                `Bearer ${resendApiKey}`,
 
               "Content-Type":
                 "application/json",
@@ -451,7 +807,7 @@ export async function POST(request: Request) {
 
                     <div style="text-align:center;margin:30px 0;">
                       <a
-                        href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/business-dashboard/agenda"
+                        href="${baseUrl}/business-dashboard/agenda"
                         style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
                       >
                         Gestionar reserva
@@ -479,10 +835,22 @@ export async function POST(request: Request) {
       businessEmailSent =
         businessResponse.ok;
 
-      if (!businessResponse.ok) {
+      if (
+        !businessResponse.ok
+      ) {
         console.error(
-          "Resend business error:",
-          await businessResponse.text()
+          "Resend business confirmation error:",
+          {
+            status:
+              businessResponse.status,
+
+            statusText:
+              businessResponse.statusText ||
+              null,
+
+            bookingId:
+              booking.id,
+          }
         );
       }
     }

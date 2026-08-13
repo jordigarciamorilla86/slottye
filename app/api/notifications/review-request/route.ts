@@ -10,9 +10,18 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   bookingId?:
-    string;
+    unknown;
 };
 
 export async function POST(
@@ -27,10 +36,13 @@ export async function POST(
       data: {
         user,
       },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
     if (
+      userError ||
       !user
     ) {
       return NextResponse.json(
@@ -45,12 +57,24 @@ export async function POST(
       );
     }
 
-    const {
-      bookingId,
-    } =
-      (
-        await request.json()
-      ) as RequestBody;
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const bookingId =
+      typeof bodyResult.data
+        .bookingId ===
+        "string"
+        ? bodyResult.data
+            .bookingId.trim()
+        : "";
 
     if (
       !bookingId
@@ -66,6 +90,59 @@ export async function POST(
         }
       );
     }
+
+    if (
+      !isUuid(
+        bookingId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador de la reserva no es válido",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+        /*
+     * ==========================================================
+     * RATE LIMIT
+     * ==========================================================
+     */
+
+        const rateLimit =
+        await checkRateLimit({
+          identifier:
+            user.id,
+  
+          prefix:
+            "review-request",
+  
+          limit:
+            10,
+  
+          window:
+            "1 m",
+        });
+  
+      if (
+        !rateLimit.ok
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              rateLimit.error,
+          },
+          {
+            status:
+              rateLimit.status,
+          }
+        );
+      }
 
     const admin =
       createAdminClient();
@@ -116,14 +193,28 @@ export async function POST(
         .maybeSingle();
 
     if (
-      bookingError ||
-      !booking
+      bookingError
     ) {
       console.error(
         "Error loading completed booking:",
         bookingError
       );
 
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar la reserva",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      !booking
+    ) {
       return NextResponse.json(
         {
           error:
@@ -253,54 +344,6 @@ export async function POST(
           )
         : null;
 
-    /*
-     * Evitamos enviar varias solicitudes
-     * para la misma reserva.
-     */
-    const {
-      data:
-        existingNotification,
-    } =
-      await admin
-        .from(
-          "notifications"
-        )
-        .select(
-          "id,status"
-        )
-        .eq(
-          "booking_id",
-          booking.id
-        )
-        .eq(
-          "user_id",
-          booking.user_id
-        )
-        .eq(
-          "type",
-          "REVIEW_REQUEST"
-        )
-        .in(
-          "status",
-          [
-            "PENDING",
-            "SENT",
-          ]
-        )
-        .maybeSingle();
-
-    if (
-      existingNotification
-    ) {
-      return NextResponse.json({
-        success:
-          true,
-
-        duplicate:
-          true,
-      });
-    }
-
     const {
       data:
         notification,
@@ -348,9 +391,21 @@ export async function POST(
         .single();
 
     if (
-      notificationError ||
-      !notification
+      notificationError
     ) {
+      if (
+        notificationError.code ===
+        "23505"
+      ) {
+        return NextResponse.json({
+          success:
+            true,
+
+          duplicate:
+            true,
+        });
+      }
+
       console.error(
         "Error creating review notification:",
         notificationError
@@ -368,14 +423,82 @@ export async function POST(
       );
     }
 
+    if (
+      !notification
+    ) {
+      console.error(
+        "Review notification insert returned no row."
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo crear la notificación",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ??
+      process.env.NEXT_PUBLIC_APP_URL ??
       "https://slottye.com";
 
     const reviewUrl =
       `${siteUrl}/account/bookings?review=${encodeURIComponent(
         booking.id
       )}`;
+
+    const resendApiKey =
+      process.env
+        .RESEND_API_KEY;
+
+    if (
+      !resendApiKey
+    ) {
+      console.error(
+        "RESEND_API_KEY is not configured."
+      );
+
+      const {
+        error:
+          failedStatusError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .update({
+            status:
+              "FAILED",
+          })
+          .eq(
+            "id",
+            notification.id
+          );
+
+      if (
+        failedStatusError
+      ) {
+        console.error(
+          "Review request notification could not be marked FAILED:",
+          failedStatusError
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            "El servicio de correo no está configurado",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
 
     const resendResponse =
       await fetch(
@@ -386,7 +509,7 @@ export async function POST(
 
           headers: {
             Authorization:
-              `Bearer ${process.env.RESEND_API_KEY}`,
+              `Bearer ${resendApiKey}`,
 
             "Content-Type":
               "application/json",
@@ -493,26 +616,47 @@ export async function POST(
     if (
       !resendResponse.ok
     ) {
-      const resendError =
-        await resendResponse.text();
-
       console.error(
         "Resend review request error:",
-        resendError
+        {
+          status:
+            resendResponse.status,
+
+          statusText:
+            resendResponse
+              .statusText ||
+            null,
+
+          bookingId:
+            booking.id,
+        }
       );
 
-      await admin
-        .from(
-          "notifications"
-        )
-        .update({
-          status:
-            "FAILED",
-        })
-        .eq(
-          "id",
-          notification.id
+      const {
+        error:
+          failedStatusError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .update({
+            status:
+              "FAILED",
+          })
+          .eq(
+            "id",
+            notification.id
+          );
+
+      if (
+        failedStatusError
+      ) {
+        console.error(
+          "Review request email failed and notification could not be marked FAILED:",
+          failedStatusError
         );
+      }
 
       return NextResponse.json(
         {
@@ -521,27 +665,44 @@ export async function POST(
         },
         {
           status:
-            500,
+            502,
         }
       );
     }
 
-    await admin
-      .from(
-        "notifications"
-      )
-      .update({
-        status:
-          "SENT",
+    const {
+      error:
+        sentStatusError,
+    } =
+      await admin
+        .from(
+          "notifications"
+        )
+        .update({
+          status:
+            "SENT",
 
-        sent_at:
-          new Date()
-            .toISOString(),
-      })
-      .eq(
-        "id",
-        notification.id
+          sent_at:
+            new Date()
+              .toISOString(),
+        })
+        .eq(
+          "id",
+          notification.id
+        );
+
+    if (
+      sentStatusError
+    ) {
+      /*
+       * El email ya se ha enviado.
+       * No provocamos un reintento peligroso.
+       */
+      console.error(
+        "Review request email sent but notification could not be marked SENT:",
+        sentStatusError
       );
+    }
 
     return NextResponse.json({
       success:

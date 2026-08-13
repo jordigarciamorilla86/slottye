@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -40,10 +45,15 @@ async function requireAdmin() {
     data: {
       user,
     },
+    error:
+      userError,
   } =
     await supabase.auth.getUser();
 
-  if (!user) {
+  if (
+    userError ||
+    !user
+  ) {
     return {
       success:
         false as const,
@@ -89,8 +99,40 @@ async function requireAdmin() {
       .maybeSingle();
 
   if (
-    profileError ||
-    !profile?.is_admin
+    profileError
+  ) {
+    console.error(
+      "Error checking admin permissions for services:",
+      profileError
+    );
+
+    return {
+      success:
+        false as const,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "No se han podido comprobar los permisos.",
+          },
+          {
+            status:
+              500,
+          }
+        ),
+
+      admin:
+        null,
+
+      user:
+        null,
+    };
+  }
+
+  if (
+    !profile
+      ?.is_admin
   ) {
     return {
       success:
@@ -238,6 +280,23 @@ export async function POST(
     } =
       await params;
 
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const authorization =
       await requireAdmin();
 
@@ -247,9 +306,19 @@ export async function POST(
       return authorization.response;
     }
 
-    const body:
-      ServiceInput =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<ServiceInput>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const normalized =
       normalizeServiceData(
@@ -346,13 +415,31 @@ export async function POST(
         .single();
 
     if (
-      serviceError ||
+      serviceError
+    ) {
+      console.error(
+        "Error creating admin service:",
+        serviceError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido crear el servicio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !service
     ) {
       return NextResponse.json(
         {
           error:
-            serviceError?.message ??
             "No se ha podido crear el servicio.",
         },
         {
@@ -443,6 +530,23 @@ export async function PATCH(
     } =
       await params;
 
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const authorization =
       await requireAdmin();
 
@@ -452,14 +556,24 @@ export async function PATCH(
       return authorization.response;
     }
 
-    const body:
-      ServiceInput =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<ServiceInput>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const serviceId =
       typeof body.serviceId ===
-      "string"
-        ? body.serviceId
+        "string"
+        ? body.serviceId.trim()
         : "";
 
     if (!serviceId) {
@@ -467,6 +581,23 @@ export async function PATCH(
         {
           error:
             "Falta el identificador del servicio.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        serviceId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del servicio no es válido.",
         },
         {
           status:
@@ -487,7 +618,26 @@ export async function PATCH(
       );
 
     if (
-      businessError ||
+      businessError
+    ) {
+      console.error(
+        "Error checking business before admin service update:",
+        businessError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el negocio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !business
     ) {
       return NextResponse.json(
@@ -497,9 +647,7 @@ export async function PATCH(
         },
         {
           status:
-            businessError
-              ? 500
-              : 404,
+            404,
         }
       );
     }
@@ -532,7 +680,26 @@ export async function PATCH(
         .maybeSingle();
 
     if (
-      currentServiceError ||
+      currentServiceError
+    ) {
+      console.error(
+        "Error checking service before admin update:",
+        currentServiceError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el servicio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !currentService
     ) {
       return NextResponse.json(
@@ -542,9 +709,7 @@ export async function PATCH(
         },
         {
           status:
-            currentServiceError
-              ? 500
-              : 404,
+            404,
         }
       );
     }
@@ -588,13 +753,31 @@ export async function PATCH(
           .maybeSingle();
 
       if (
-        error ||
+        error
+      ) {
+        console.error(
+          "Error changing admin service status:",
+          error
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No se ha podido cambiar el estado.",
+          },
+          {
+            status:
+              500,
+          }
+        );
+      }
+
+      if (
         !service
       ) {
         return NextResponse.json(
           {
             error:
-              error?.message ??
               "No se ha podido cambiar el estado.",
           },
           {
@@ -704,13 +887,31 @@ export async function PATCH(
         .maybeSingle();
 
     if (
-      updateError ||
+      updateError
+    ) {
+      console.error(
+        "Error editing admin service:",
+        updateError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido editar el servicio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !service
     ) {
       return NextResponse.json(
         {
           error:
-            updateError?.message ??
             "No se ha podido editar el servicio.",
         },
         {
@@ -809,6 +1010,23 @@ export async function DELETE(
     } =
       await params;
 
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const authorization =
       await requireAdmin();
 
@@ -818,14 +1036,24 @@ export async function DELETE(
       return authorization.response;
     }
 
-    const body:
-      ServiceInput =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<ServiceInput>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const body =
+      bodyResult.data;
 
     const serviceId =
       typeof body.serviceId ===
-      "string"
-        ? body.serviceId
+        "string"
+        ? body.serviceId.trim()
         : "";
 
     if (!serviceId) {
@@ -841,14 +1069,53 @@ export async function DELETE(
       );
     }
 
+    if (
+      !isUuid(
+        serviceId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del servicio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const {
       data:
         business,
+      error:
+        businessError,
     } =
       await getBusiness(
         authorization.admin,
         businessId
       );
+
+    if (
+      businessError
+    ) {
+      console.error(
+        "Error checking business before admin service deletion:",
+        businessError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el negocio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
 
     if (!business) {
       return NextResponse.json(
@@ -866,6 +1133,8 @@ export async function DELETE(
     const {
       data:
         service,
+      error:
+        serviceError,
     } =
       await authorization.admin
         .from(
@@ -888,6 +1157,26 @@ export async function DELETE(
         )
         .maybeSingle();
 
+    if (
+      serviceError
+    ) {
+      console.error(
+        "Error checking service before admin deletion:",
+        serviceError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el servicio.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
     if (!service) {
       return NextResponse.json(
         {
@@ -903,217 +1192,75 @@ export async function DELETE(
 
     const {
       data:
-        serviceSlots,
+        deleteResultData,
       error:
-        slotsError,
+        deleteError,
     } =
-      await authorization.admin
-        .from(
-          "slots"
-        )
-        .select(
-          "id"
-        )
-        .eq(
-          "business_id",
-          business.id
-        )
-        .eq(
-          "service_id",
-          service.id
-        );
+      await authorization.admin.rpc(
+        "delete_business_service_transactional",
+        {
+          p_business_id:
+            business.id,
 
-    if (
-      slotsError
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "No se han podido comprobar las disponibilidades.",
-        },
-        {
-          status:
-            500,
+          p_service_id:
+            service.id,
         }
       );
-    }
-
-    const slotIds =
-      (
-        serviceSlots ??
-        []
-      ).map(
-        (
-          slot
-        ) =>
-          slot.id
-      );
-
-    const [
-      onlineResult,
-      manualResult,
-      slotResult,
-    ] =
-      await Promise.all([
-        authorization.admin
-          .from(
-            "bookings"
-          )
-          .select(
-            "id",
-            {
-              count:
-                "exact",
-
-              head:
-                true,
-            }
-          )
-          .eq(
-            "business_id",
-            business.id
-          )
-          .eq(
-            "service_id",
-            service.id
-          ),
-
-        authorization.admin
-          .from(
-            "manual_bookings"
-          )
-          .select(
-            "id",
-            {
-              count:
-                "exact",
-
-              head:
-                true,
-            }
-          )
-          .eq(
-            "business_id",
-            business.id
-          )
-          .eq(
-            "service_id",
-            service.id
-          ),
-
-        slotIds.length >
-          0
-          ? authorization.admin
-              .from(
-                "bookings"
-              )
-              .select(
-                "id",
-                {
-                  count:
-                    "exact",
-
-                  head:
-                    true,
-                }
-              )
-              .in(
-                "slot_id",
-                slotIds
-              )
-          : Promise.resolve({
-              count:
-                0,
-
-              error:
-                null,
-            }),
-      ]);
 
     if (
-      onlineResult.error ||
-      manualResult.error ||
-      slotResult.error
+      deleteError
     ) {
-      return NextResponse.json(
-        {
-          error:
-            "No se han podido comprobar las reservas asociadas.",
-        },
-        {
-          status:
-            500,
-        }
-      );
-    }
+      const message =
+        deleteError.message
+          ?.trim() ??
+        "";
 
-    const onlineBookings =
-      Math.max(
-        onlineResult.count ??
-          0,
-        slotResult.count ??
-          0
-      );
-
-    const manualBookings =
-      manualResult.count ??
-      0;
-
-    const totalBookings =
-      onlineBookings +
-      manualBookings;
-
-    if (
-      totalBookings >
-      0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            `Este servicio tiene ${totalBookings} reserva${totalBookings === 1 ? "" : "s"} asociada${totalBookings === 1 ? "" : "s"} y no puede eliminarse sin perder información del historial. Puedes desactivarlo.`,
-
-          code:
-            "SERVICE_HAS_BOOKINGS",
-
-          counts: {
-            onlineBookings,
-            manualBookings,
-            total:
-              totalBookings,
+      if (
+        message.includes(
+          "SERVICE_NOT_FOUND"
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El servicio no existe.",
           },
-        },
-        {
-          status:
-            409,
-        }
-      );
-    }
-
-    const {
-      error:
-        deleteSlotsError,
-    } =
-      await authorization.admin
-        .from(
-          "slots"
-        )
-        .delete()
-        .eq(
-          "business_id",
-          business.id
-        )
-        .eq(
-          "service_id",
-          service.id
+          {
+            status:
+              404,
+          }
         );
+      }
 
-    if (
-      deleteSlotsError
-    ) {
+      if (
+        message.includes(
+          "BUSINESS_ID_REQUIRED"
+        ) ||
+        message.includes(
+          "SERVICE_ID_REQUIRED"
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Los identificadores enviados no son válidos.",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      console.error(
+        "Error deleting admin service transactionally:",
+        deleteError
+      );
+
       return NextResponse.json(
         {
           error:
-            "No se han podido eliminar sus disponibilidades.",
+            "No se ha podido eliminar el servicio.",
         },
         {
           status:
@@ -1122,26 +1269,16 @@ export async function DELETE(
       );
     }
 
-    const {
-      error:
-        deleteServiceError,
-    } =
-      await authorization.admin
-        .from(
-          "services"
-        )
-        .delete()
-        .eq(
-          "id",
-          service.id
-        )
-        .eq(
-          "business_id",
-          business.id
-        );
+    const deleteResult =
+      Array.isArray(
+        deleteResultData
+      )
+        ? deleteResultData[0] ??
+          null
+        : deleteResultData;
 
     if (
-      deleteServiceError
+      !deleteResult
     ) {
       return NextResponse.json(
         {
@@ -1154,6 +1291,56 @@ export async function DELETE(
         }
       );
     }
+
+    const onlineBookings =
+      Number(
+        deleteResult.online_bookings ??
+        0
+      );
+
+    const manualBookings =
+      Number(
+        deleteResult.manual_bookings ??
+        0
+      );
+
+    const totalBookings =
+      onlineBookings +
+      manualBookings;
+
+    if (
+      deleteResult.deleted !==
+        true
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `Este servicio tiene ${totalBookings} reserva${totalBookings === 1 ? "" : "s"} asociada${totalBookings === 1 ? "" : "s"} y no puede eliminarse sin perder información del historial. Puedes desactivarlo.`,
+
+          code:
+            "SERVICE_HAS_BOOKINGS",
+
+          counts: {
+            onlineBookings,
+
+            manualBookings,
+
+            total:
+              totalBookings,
+          },
+        },
+        {
+          status:
+            409,
+        }
+      );
+    }
+
+    const deletedSlots =
+      Number(
+        deleteResult.deleted_slots ??
+        0
+      );
 
     await writeAdminAuditLog({
       adminUserId:
@@ -1198,7 +1385,7 @@ export async function DELETE(
 
       metadata: {
         deleted_slots:
-          slotIds.length,
+          deletedSlots,
       },
     });
 
@@ -1209,8 +1396,7 @@ export async function DELETE(
       deletedServiceId:
         service.id,
 
-      deletedSlots:
-        slotIds.length,
+      deletedSlots,
     });
   } catch (
     error

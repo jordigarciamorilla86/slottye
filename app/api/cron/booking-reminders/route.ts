@@ -1,5 +1,10 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import {
+  NextResponse,
+} from "next/server";
+
+import {
+  createAdminClient,
+} from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   try {
@@ -15,22 +20,27 @@ export async function GET(request: Request) {
       );
     }
 
-    const admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const admin =
+      createAdminClient();
 
     const now = new Date();
 
-    // Ventana de 1 hora alrededor de las 24 h.
-    // Como ejecutaremos el cron cada hora:
-    // desde dentro de 24 h hasta dentro de 25 h.
-    const from = new Date(
-        now.getTime() + 23 * 60 * 60 * 1000
+    /*
+     * Ventana exacta de una hora:
+     * desde dentro de 24 h hasta dentro de 25 h.
+     *
+     * El cron se ejecuta cada hora.
+     */
+    const from =
+      new Date(
+        now.getTime() +
+          24 * 60 * 60 * 1000
       );
-      
-      const to = new Date(
-        now.getTime() + 47 * 60 * 60 * 1000
+
+    const to =
+      new Date(
+        now.getTime() +
+          25 * 60 * 60 * 1000
       );
     const { data: bookings, error } = await admin
       .from("bookings")
@@ -62,8 +72,14 @@ export async function GET(request: Request) {
       console.error("Error loading reminders:", error);
 
       return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
+        {
+          error:
+            "No se han podido cargar los recordatorios.",
+        },
+        {
+          status:
+            500,
+        }
       );
     }
 
@@ -72,16 +88,57 @@ export async function GET(request: Request) {
     let skipped = 0;
 
     for (const booking of bookings ?? []) {
-      // Evitamos enviar el mismo recordatorio dos veces.
-      const { data: existing } = await admin
-        .from("notifications")
-        .select("id")
-        .eq("booking_id", booking.id)
-        .eq("type", "BOOKING_REMINDER")
-        .eq("status", "SENT")
-        .maybeSingle();
+      /*
+       * Comprobación rápida.
+       *
+       * La garantía real contra concurrencia la da el índice
+       * notifications_booking_reminder_unique_active.
+       */
+      const {
+        data:
+          existing,
+        error:
+          existingError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .select(
+            "id"
+          )
+          .eq(
+            "booking_id",
+            booking.id
+          )
+          .eq(
+            "type",
+            "BOOKING_REMINDER"
+          )
+          .in(
+            "status",
+            [
+              "PENDING",
+              "SENT",
+            ]
+          )
+          .maybeSingle();
 
-      if (existing) {
+      if (
+        existingError
+      ) {
+        console.error(
+          "Error checking existing booking reminder:",
+          existingError
+        );
+
+        failed++;
+        continue;
+      }
+
+      if (
+        existing
+      ) {
         skipped++;
         continue;
       }
@@ -120,10 +177,35 @@ export async function GET(request: Request) {
           .select("id")
           .single();
 
-      if (notificationError || !notification) {
+      if (
+        notificationError
+      ) {
+        if (
+          notificationError.code ===
+            "23505"
+        ) {
+          skipped++;
+          continue;
+        }
+
         console.error(
           "Error creating reminder:",
           notificationError
+        );
+
+        failed++;
+        continue;
+      }
+
+      if (
+        !notification
+      ) {
+        console.error(
+          "Reminder insert returned no notification:",
+          {
+            bookingId:
+              booking.id,
+          }
         );
 
         failed++;
@@ -295,7 +377,7 @@ export async function GET(request: Request) {
                     "
                   >
                     <a
-                      href="${process.env.NEXT_PUBLIC_SITE_URL ?? "https://slottye.com"}/account/bookings"
+                      href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://slottye.com"}/account/bookings"
                       style="
                         display:inline-block;
                         background:#6c55f7;
@@ -350,30 +432,86 @@ export async function GET(request: Request) {
         }
       );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         console.error(
           "Resend reminder error:",
-          await response.text()
+          {
+            status:
+              response.status,
+
+            statusText:
+              response.statusText ||
+              null,
+
+            bookingId:
+              booking.id,
+          }
         );
 
-        await admin
-          .from("notifications")
-          .update({
-            status: "FAILED",
-          })
-          .eq("id", notification.id);
+        const {
+          error:
+            failedStatusError,
+        } =
+          await admin
+            .from(
+              "notifications"
+            )
+            .update({
+              status:
+                "FAILED",
+            })
+            .eq(
+              "id",
+              notification.id
+            );
+
+        if (
+          failedStatusError
+        ) {
+          console.error(
+            "Reminder email failed and notification could not be marked FAILED:",
+            failedStatusError
+          );
+        }
 
         failed++;
         continue;
       }
 
-      await admin
-        .from("notifications")
-        .update({
-          status: "SENT",
-          sent_at: new Date().toISOString(),
-        })
-        .eq("id", notification.id);
+      const {
+        error:
+          sentStatusError,
+      } =
+        await admin
+          .from(
+            "notifications"
+          )
+          .update({
+            status:
+              "SENT",
+
+            sent_at:
+              new Date()
+                .toISOString(),
+          })
+          .eq(
+            "id",
+            notification.id
+          );
+
+      if (
+        sentStatusError
+      ) {
+        console.error(
+          "Reminder email sent but notification could not be marked SENT:",
+          sentStatusError
+        );
+
+        failed++;
+        continue;
+      }
 
       sent++;
     }

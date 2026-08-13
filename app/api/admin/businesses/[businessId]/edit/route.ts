@@ -4,6 +4,11 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -59,10 +64,15 @@ async function requireAdmin() {
     data: {
       user,
     },
+    error:
+      userError,
   } =
     await supabase.auth.getUser();
 
-  if (!user) {
+  if (
+    userError ||
+    !user
+  ) {
     return {
       admin:
         null,
@@ -105,8 +115,37 @@ async function requireAdmin() {
       .maybeSingle();
 
   if (
-    profileError ||
-    !profile?.is_admin
+    profileError
+  ) {
+    console.error(
+      "Error checking admin permissions for business edit:",
+      profileError
+    );
+
+    return {
+      admin:
+        null,
+
+      user:
+        null,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "No se han podido comprobar los permisos.",
+          },
+          {
+            status:
+              500,
+          }
+        ),
+    };
+  }
+
+  if (
+    !profile
+      ?.is_admin
   ) {
     return {
       admin:
@@ -230,6 +269,23 @@ export async function PUT(
     } =
       await params;
 
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     /*
      * ==========================================================
      * AUTORIZACIÓN
@@ -258,10 +314,19 @@ export async function PUT(
      * ==========================================================
      */
 
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
     const body =
-      (
-        await request.json()
-      ) as RequestBody;
+      bodyResult.data;
 
     /*
      * ==========================================================
@@ -700,7 +765,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error:
-            updateError.message,
+            "No se ha podido guardar el negocio.",
         },
         {
           status:

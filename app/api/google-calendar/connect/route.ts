@@ -8,6 +8,10 @@ import {
 } from "next/server";
 
 import {
+  isUuid,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -106,6 +110,23 @@ export async function GET(
       );
     }
 
+    if (
+      !isUuid(
+        businessId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El identificador del negocio no es válido.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
     const requestedReturnTo =
       request.nextUrl.searchParams
         .get(
@@ -135,10 +156,13 @@ export async function GET(
       data: {
         user,
       },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
     if (
+      userError ||
       !user
     ) {
       return NextResponse.redirect(
@@ -177,7 +201,26 @@ export async function GET(
         .maybeSingle();
 
     if (
-      profileError ||
+      profileError
+    ) {
+      console.error(
+        "Error checking Google Calendar profile:",
+        profileError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar tu cuenta.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !profile ||
       profile.role !==
         "business" ||
@@ -298,10 +341,6 @@ export async function GET(
         include_granted_scopes:
           "true",
 
-        /*
-         * Fuerza consentimiento para que una reconexión
-         * pueda volver a conceder acceso offline.
-         */
         prompt:
           "consent",
 

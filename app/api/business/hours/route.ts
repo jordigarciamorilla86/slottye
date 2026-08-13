@@ -4,6 +4,10 @@ import {
 } from "next/server";
 
 import {
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
   createClient,
 } from "@/lib/supabase/server";
 
@@ -57,10 +61,13 @@ export async function PUT(
       data: {
         user,
       },
+      error:
+        userError,
     } =
       await supabase.auth.getUser();
 
     if (
+      userError ||
       !user
     ) {
       return NextResponse.json(
@@ -103,16 +110,49 @@ export async function PUT(
         .maybeSingle();
 
     if (
-      profileError ||
+      profileError
+    ) {
+      console.error(
+        "Error checking business hours profile:",
+        profileError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar tu cuenta.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
       !profile ||
       profile.role !==
-        "business" ||
-      profile.is_blocked
+        "business"
     ) {
       return NextResponse.json(
         {
           error:
             "No autorizado.",
+        },
+        {
+          status:
+            403,
+        }
+      );
+    }
+
+    if (
+      profile.is_blocked
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Tu cuenta está bloqueada.",
         },
         {
           status:
@@ -188,13 +228,22 @@ export async function PUT(
      * ============================================================
      */
 
-    const body =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<{
+        days?: unknown;
+      }>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
 
     const submittedDays =
-      body.days as
-        | SubmittedDay[]
-        | undefined;
+      bodyResult.data
+        .days;
 
     if (
       !Array.isArray(
@@ -215,6 +264,10 @@ export async function PUT(
       );
     }
 
+    const days =
+      submittedDays as
+        SubmittedDay[];
+
     /*
      * ============================================================
      * VALIDACIÓN
@@ -226,7 +279,7 @@ export async function PUT(
 
     for (
       const day of
-      submittedDays
+      days
     ) {
       if (
         !Number.isInteger(
@@ -356,7 +409,7 @@ export async function PUT(
      */
 
     const rows =
-      [...submittedDays]
+      [...days]
         .sort(
           (
             first,
@@ -436,9 +489,14 @@ export async function PUT(
       let errorMessage =
         "No se ha podido guardar el horario.";
 
+      let status =
+        500;
+
       const message =
-        saveError.message ??
-        "";
+        typeof saveError.message ===
+          "string"
+          ? saveError.message
+          : "";
 
       if (
         message.includes(
@@ -450,6 +508,9 @@ export async function PUT(
       ) {
         errorMessage =
           "Debes configurar correctamente los siete días de la semana.";
+
+        status =
+          400;
       } else if (
         message.includes(
           "INVALID_FIRST_SHIFT"
@@ -457,6 +518,9 @@ export async function PUT(
       ) {
         errorMessage =
           "Uno de los primeros tramos horarios no es válido.";
+
+        status =
+          400;
       } else if (
         message.includes(
           "INVALID_SECOND_SHIFT"
@@ -464,6 +528,9 @@ export async function PUT(
       ) {
         errorMessage =
           "Uno de los segundos tramos horarios no es válido.";
+
+        status =
+          400;
       } else if (
         message.includes(
           "OVERLAPPING_SHIFTS"
@@ -471,6 +538,9 @@ export async function PUT(
       ) {
         errorMessage =
           "Hay horarios que se solapan.";
+
+        status =
+          400;
       } else if (
         message.includes(
           "BUSINESS_NOT_FOUND"
@@ -478,6 +548,9 @@ export async function PUT(
       ) {
         errorMessage =
           "No se ha encontrado tu negocio.";
+
+        status =
+          404;
       }
 
       return NextResponse.json(
@@ -486,8 +559,7 @@ export async function PUT(
             errorMessage,
         },
         {
-          status:
-            500,
+          status,
         }
       );
     }

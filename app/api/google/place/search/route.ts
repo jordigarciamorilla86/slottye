@@ -1,221 +1,447 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import {
+  NextResponse,
+} from "next/server";
 
-export async function POST(request: Request) {
+import {
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  createClient,
+} from "@/lib/supabase/server";
+
+type RequestBody = {
+  query?: unknown;
+};
+
+type GooglePlace = {
+  id?: string;
+
+  displayName?: {
+    text?: string;
+  };
+
+  formattedAddress?: string;
+
+  postalAddress?: {
+    addressLines?: string[];
+    locality?: string;
+    postalCode?: string;
+    administrativeArea?: string;
+  };
+
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+
+  websiteUri?: string;
+
+  rating?: number;
+  userRatingCount?: number;
+
+  googleMapsUri?: string;
+
+  types?: string[];
+};
+
+type GooglePlacesResponse = {
+  places?: GooglePlace[];
+};
+
+export async function POST(
+  request: Request
+) {
   try {
-    const supabase = await createClient();
+    const supabase =
+      await createClient();
+
+    /*
+     * ============================================================
+     * USUARIO
+     * ============================================================
+     */
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: {
+        user,
+      },
+      error:
+        userError,
+    } =
+      await supabase.auth.getUser();
 
-    if (!user) {
+    if (
+      userError ||
+      !user
+    ) {
       return NextResponse.json(
         {
-          error: "No autorizado",
+          error:
+            "No autorizado.",
         },
         {
-          status: 401,
+          status:
+            401,
         }
       );
     }
 
-    const { query } = await request.json();
+    /*
+     * ============================================================
+     * BODY
+     * ============================================================
+     */
 
-    if (!query || !query.trim()) {
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const query =
+      typeof bodyResult.data
+        .query ===
+        "string"
+        ? bodyResult.data
+            .query.trim()
+        : "";
+
+    if (
+      !query
+    ) {
       return NextResponse.json(
         {
           error:
             "Escribe el nombre o la dirección del negocio.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
+
+    /*
+     * Evitamos enviar búsquedas absurdamente grandes
+     * al servicio externo.
+     */
+
+    if (
+      query.length >
+      300
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La búsqueda es demasiado larga.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * API KEY
+     * ============================================================
+     */
 
     const apiKey =
-      process.env.GOOGLE_MAPS_API_KEY;
+      process.env
+        .GOOGLE_MAPS_API_KEY;
 
-    if (!apiKey) {
+    if (
+      !apiKey
+    ) {
+      console.error(
+        "GOOGLE_MAPS_API_KEY is not configured."
+      );
+
       return NextResponse.json(
         {
           error:
-            "GOOGLE_MAPS_API_KEY no está configurada",
+            "El servicio de Google Maps no está configurado.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
 
-    const googleResponse = await fetch(
-      "https://places.googleapis.com/v1/places:searchText",
-      {
-        method: "POST",
+    /*
+     * ============================================================
+     * GOOGLE PLACES
+     * ============================================================
+     */
 
-        headers: {
-          "Content-Type":
-            "application/json",
+    const googleResponse =
+      await fetch(
+        "https://places.googleapis.com/v1/places:searchText",
+        {
+          method:
+            "POST",
 
-          "X-Goog-Api-Key":
-            apiKey,
+          headers: {
+            "Content-Type":
+              "application/json",
 
-          "X-Goog-FieldMask":
-            [
-              "places.id",
-              "places.displayName",
-              "places.formattedAddress",
-              "places.location",
-              "places.rating",
-              "places.userRatingCount",
-              "places.googleMapsUri",
-              "places.nationalPhoneNumber",
-              "places.internationalPhoneNumber",
-              "places.websiteUri",
-              "places.postalAddress",
-              "places.types",
-            ].join(","),
-        },
+            "X-Goog-Api-Key":
+              apiKey,
 
-        body: JSON.stringify({
-          textQuery:
-            query.trim(),
+            "X-Goog-FieldMask":
+              [
+                "places.id",
+                "places.displayName",
+                "places.formattedAddress",
+                "places.location",
+                "places.rating",
+                "places.userRatingCount",
+                "places.googleMapsUri",
+                "places.nationalPhoneNumber",
+                "places.internationalPhoneNumber",
+                "places.websiteUri",
+                "places.postalAddress",
+                "places.types",
+              ].join(
+                ","
+              ),
+          },
 
-          pageSize: 5,
-        }),
+          body:
+            JSON.stringify({
+              textQuery:
+                query,
 
-        cache: "no-store",
-      }
-    );
+              pageSize:
+                5,
+            }),
 
-    if (!googleResponse.ok) {
-      const googleError =
-        await googleResponse.text();
+          cache:
+            "no-store",
+        }
+      );
+
+    if (
+      !googleResponse.ok
+    ) {
+      /*
+       * No devolvemos el cuerpo de error de Google
+       * al navegador.
+       */
 
       console.error(
-        "Google Places search error:",
-        googleError
+        "Google Places search request failed:",
+        {
+          status:
+            googleResponse.status,
+
+          statusText:
+            googleResponse.statusText ||
+            null,
+        }
       );
 
       return NextResponse.json(
         {
           error:
-            "Google Places no ha podido buscar el negocio",
-
-          details:
-            googleError,
+            "Google Places no ha podido buscar el negocio.",
         },
         {
-          status: 502,
+          status:
+            502,
         }
       );
     }
 
-    const result =
-      await googleResponse.json();
+    /*
+     * ============================================================
+     * RESPUESTA
+     * ============================================================
+     */
 
-    const candidates =
-      (result.places ?? []).map(
-        (place: {
-          id: string;
+    let result:
+      GooglePlacesResponse;
 
-          displayName?: {
-            text?: string;
-          };
-
-          formattedAddress?: string;
-
-          postalAddress?: {
-            addressLines?: string[];
-            locality?: string;
-            postalCode?: string;
-            administrativeArea?: string;
-          };
-
-          location?: {
-            latitude?: number;
-            longitude?: number;
-          };
-
-          nationalPhoneNumber?: string;
-          internationalPhoneNumber?: string;
-          websiteUri?: string;
-
-          rating?: number;
-          userRatingCount?: number;
-          googleMapsUri?: string;
-
-          types?: string[];
-        }) => ({
-          placeId:
-            place.id,
-
-          name:
-            place.displayName
-              ?.text ?? "",
-
-          formattedAddress:
-            place.formattedAddress ??
-            "",
-
-          address:
-            place.postalAddress
-              ?.addressLines
-              ?.join(", ") ??
-            "",
-
-          city:
-            place.postalAddress
-              ?.locality ??
-            "",
-
-          postalCode:
-            place.postalAddress
-              ?.postalCode ??
-            "",
-
-          phone:
-            place.nationalPhoneNumber ??
-            place.internationalPhoneNumber ??
-            "",
-
-          website:
-            place.websiteUri ??
-            "",
-
-          latitude:
-            place.location
-              ?.latitude ??
-            null,
-
-          longitude:
-            place.location
-              ?.longitude ??
-            null,
-
-          rating:
-            place.rating ??
-            null,
-
-          reviewCount:
-            place.userRatingCount ??
-            0,
-
-          googleMapsUrl:
-            place.googleMapsUri ??
-            null,
-
-          types:
-            place.types ?? [],
-        })
+    try {
+      result =
+        (
+          await googleResponse.json()
+        ) as GooglePlacesResponse;
+    } catch (
+      parseError
+    ) {
+      console.error(
+        "Could not parse Google Places search response:",
+        parseError
       );
 
+      return NextResponse.json(
+        {
+          error:
+            "Google Places ha devuelto una respuesta no válida.",
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
+
+    const places =
+      Array.isArray(
+        result.places
+      )
+        ? result.places
+        : [];
+
+    const candidates =
+      places
+        .filter(
+          (
+            place
+          ) =>
+            typeof place.id ===
+              "string" &&
+            place.id.trim()
+              .length >
+              0
+        )
+        .map(
+          (
+            place
+          ) => {
+            const latitude =
+              place.location
+                ?.latitude;
+
+            const longitude =
+              place.location
+                ?.longitude;
+
+            const rating =
+              place.rating;
+
+            const reviewCount =
+              place.userRatingCount;
+
+            return {
+              placeId:
+                place.id as string,
+
+              name:
+                place.displayName
+                  ?.text ??
+                "",
+
+              formattedAddress:
+                place.formattedAddress ??
+                "",
+
+              address:
+                Array.isArray(
+                  place.postalAddress
+                    ?.addressLines
+                )
+                  ? place.postalAddress
+                      ?.addressLines
+                      ?.join(
+                        ", "
+                      ) ??
+                    ""
+                  : "",
+
+              city:
+                place.postalAddress
+                  ?.locality ??
+                "",
+
+              postalCode:
+                place.postalAddress
+                  ?.postalCode ??
+                "",
+
+              phone:
+                place
+                  .nationalPhoneNumber ??
+                place
+                  .internationalPhoneNumber ??
+                "",
+
+              website:
+                place.websiteUri ??
+                "",
+
+              latitude:
+                typeof latitude ===
+                  "number" &&
+                Number.isFinite(
+                  latitude
+                )
+                  ? latitude
+                  : null,
+
+              longitude:
+                typeof longitude ===
+                  "number" &&
+                Number.isFinite(
+                  longitude
+                )
+                  ? longitude
+                  : null,
+
+              rating:
+                typeof rating ===
+                  "number" &&
+                Number.isFinite(
+                  rating
+                )
+                  ? rating
+                  : null,
+
+              reviewCount:
+                typeof reviewCount ===
+                  "number" &&
+                Number.isFinite(
+                  reviewCount
+                )
+                  ? reviewCount
+                  : 0,
+
+              googleMapsUrl:
+                place.googleMapsUri ??
+                null,
+
+              types:
+                Array.isArray(
+                  place.types
+                )
+                  ? place.types
+                  : [],
+            };
+          }
+        );
+
     return NextResponse.json({
-      success: true,
+      success:
+        true,
+
       candidates,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Google Places search error:",
       error
@@ -224,10 +450,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Error buscando el negocio en Google",
+          "Error buscando el negocio en Google.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }

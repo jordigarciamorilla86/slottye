@@ -2,10 +2,24 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isUuid,
+  readJsonBody,
+} from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 
 const resend = new Resend(
   process.env.RESEND_API_KEY
 );
+
+type RequestBody = {
+  bookingId?: unknown;
+  oldSlotId?: unknown;
+};
 
 export async function POST(
   request: Request
@@ -25,10 +39,14 @@ export async function POST(
 
     const {
       data: { user },
+      error: userError,
     } =
       await supabase.auth.getUser();
 
-    if (!user) {
+    if (
+      userError ||
+      !user
+    ) {
       return NextResponse.json(
         {
           error: "No autorizado",
@@ -45,14 +63,32 @@ export async function POST(
      * ==========================================================
      */
 
-    const {
-      bookingId,
-      oldSlotId,
-    }: {
-      bookingId: string;
-      oldSlotId: string;
-    } =
-      await request.json();
+    const bodyResult =
+      await readJsonBody<RequestBody>(
+        request
+      );
+
+    if (
+      !bodyResult.ok
+    ) {
+      return bodyResult.response;
+    }
+
+    const bookingId =
+      typeof bodyResult.data
+        .bookingId ===
+        "string"
+        ? bodyResult.data
+            .bookingId.trim()
+        : "";
+
+    const oldSlotId =
+      typeof bodyResult.data
+        .oldSlotId ===
+        "string"
+        ? bodyResult.data
+            .oldSlotId.trim()
+        : "";
 
     if (
       !bookingId ||
@@ -65,6 +101,61 @@ export async function POST(
         },
         {
           status: 400,
+        }
+      );
+    }
+
+    if (
+      !isUuid(
+        bookingId
+      ) ||
+      !isUuid(
+        oldSlotId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Los identificadores de la reserva o del hueco no son válidos.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * ==========================================================
+     * RATE LIMIT
+     * ==========================================================
+     */
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "rescheduled-slot-available",
+
+        limit:
+          10,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
         }
       );
     }
@@ -103,7 +194,25 @@ export async function POST(
         .maybeSingle();
 
     if (
-      bookingError ||
+      bookingError
+    ) {
+      console.error(
+        "Error loading booking for rescheduled slot notification:",
+        bookingError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar la reserva",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
       !booking
     ) {
       return NextResponse.json(
@@ -204,7 +313,25 @@ export async function POST(
         .maybeSingle();
 
     if (
-      slotError ||
+      slotError
+    ) {
+      console.error(
+        "Error loading previous slot for rescheduled slot notification:",
+        slotError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar el hueco anterior",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
       !oldSlot
     ) {
       return NextResponse.json(
@@ -495,12 +622,32 @@ export async function POST(
           .single();
 
       if (
-        notificationError ||
-        !notification
+        notificationError
       ) {
+        if (
+          notificationError.code ===
+          "23505"
+        ) {
+          /*
+           * Ya existe una notificación activa para
+           * esta misma liberación concreta.
+           */
+          continue;
+        }
+
         console.error(
           "Error creando notificación:",
           notificationError
+        );
+
+        continue;
+      }
+
+      if (
+        !notification
+      ) {
+        console.error(
+          "Notification insert returned no row."
         );
 
         continue;
@@ -732,38 +879,69 @@ export async function POST(
           result.error
         );
 
+        const {
+          error:
+            failedStatusError,
+        } =
+          await admin
+            .from(
+              "notifications"
+            )
+            .update({
+              status:
+                "FAILED",
+            })
+            .eq(
+              "id",
+              notification.id
+            );
+
+        if (
+          failedStatusError
+        ) {
+          console.error(
+            "Rescheduled slot email failed and notification could not be marked FAILED:",
+            failedStatusError
+          );
+        }
+
+        continue;
+      }
+
+      const {
+        error:
+          sentStatusError,
+      } =
         await admin
           .from(
             "notifications"
           )
           .update({
             status:
-              "FAILED",
+              "SENT",
+
+            sent_at:
+              new Date()
+                .toISOString(),
           })
           .eq(
             "id",
             notification.id
           );
 
-        continue;
-      }
-
-      await admin
-        .from(
-          "notifications"
-        )
-        .update({
-          status:
-            "SENT",
-
-          sent_at:
-            new Date()
-              .toISOString(),
-        })
-        .eq(
-          "id",
-          notification.id
+      if (
+        sentStatusError
+      ) {
+        /*
+         * El email ya se ha enviado.
+         * Registramos el fallo interno, pero no intentamos
+         * reenviarlo aquí.
+         */
+        console.error(
+          "Rescheduled slot email sent but notification could not be marked SENT:",
+          sentStatusError
         );
+      }
 
       sent++;
     }

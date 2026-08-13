@@ -11,6 +11,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  isUuid,
+} from "@/lib/api/request";
+
 const GOOGLE_TOKEN_URL =
   "https://oauth2.googleapis.com/token";
 
@@ -208,7 +212,10 @@ export async function GET(
       !expectedState ||
       returnedState !==
         expectedState ||
-      !businessId
+      !businessId ||
+      !isUuid(
+        businessId
+      )
     ) {
       return clearOAuthCookies(
         NextResponse.redirect(
@@ -232,16 +239,19 @@ export async function GET(
     const admin =
       createAdminClient();
 
-    const {
-      data: {
-        user,
-      },
-    } =
-      await supabase.auth.getUser();
-
-    if (
-      !user
-    ) {
+      const {
+        data: {
+          user,
+        },
+        error:
+          userError,
+      } =
+        await supabase.auth.getUser();
+      
+      if (
+        userError ||
+        !user
+      ) {
       return clearOAuthCookies(
         NextResponse.redirect(
           new URL(
@@ -280,7 +290,24 @@ export async function GET(
         .maybeSingle();
 
     if (
-      profileError ||
+      profileError
+    ) {
+      console.error(
+        "Error checking Google Calendar callback profile:",
+        profileError
+      );
+
+      return clearOAuthCookies(
+        NextResponse.redirect(
+          returnUrl(
+            request,
+            "profile-error"
+          )
+        )
+      );
+    }
+
+    if (
       !profile ||
       profile.role !==
         "business" ||
@@ -327,18 +354,26 @@ export async function GET(
         .maybeSingle();
 
     if (
-      businessError ||
+      businessError
+    ) {
+      console.error(
+        "Error checking Google Calendar callback business ownership:",
+        businessError
+      );
+
+      return clearOAuthCookies(
+        NextResponse.redirect(
+          returnUrl(
+            request,
+            "business-error"
+          )
+        )
+      );
+    }
+
+    if (
       !business
     ) {
-      if (
-        businessError
-      ) {
-        console.error(
-          "Error checking Google Calendar callback business ownership:",
-          businessError
-        );
-      }
-
       return clearOAuthCookies(
         NextResponse.redirect(
           returnUrl(
@@ -391,10 +426,31 @@ export async function GET(
         }
       );
 
-    const tokenData =
-      (
-        await tokenResponse.json()
-      ) as GoogleTokenResponse;
+    let tokenData:
+      GoogleTokenResponse;
+
+    try {
+      tokenData =
+        (
+          await tokenResponse.json()
+        ) as GoogleTokenResponse;
+    } catch (
+      tokenParseError
+    ) {
+      console.error(
+        "Google Calendar token response was not valid JSON:",
+        tokenParseError
+      );
+
+      return clearOAuthCookies(
+        NextResponse.redirect(
+          returnUrl(
+            request,
+            "token-error"
+          )
+        )
+      );
+    }
 
     if (
       !tokenResponse.ok ||
@@ -402,7 +458,18 @@ export async function GET(
     ) {
       console.error(
         "Google Calendar token exchange error:",
-        tokenData
+        {
+          status:
+            tokenResponse.status,
+
+          error:
+            tokenData.error ??
+            null,
+
+          errorDescription:
+            tokenData.error_description ??
+            null,
+        }
       );
 
       return clearOAuthCookies(

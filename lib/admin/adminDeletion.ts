@@ -31,6 +31,55 @@ type DeletionResult =
       error: string;
     };
 
+
+type CustomerDeletionPreparation =
+  | {
+      success: true;
+      releasedSlots: ReleasedSlot[];
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+type OwnerBusiness = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type OwnerBusinessesDeletionPreparation =
+  | {
+      success: true;
+      businesses: OwnerBusiness[];
+      notifications: PreparedBusinessDeletionNotification[];
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+
+type PreparedBusinessDeletionNotification = {
+  bookingId: string;
+  email: string;
+  clientName: string | null;
+  businessName: string;
+  serviceName: string | null;
+  startAt: string;
+};
+
+type SingleBusinessDeletionPreparation =
+  | {
+      success: true;
+      notifications:
+        PreparedBusinessDeletionNotification[];
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 function appUrl() {
   return (
     process.env
@@ -167,7 +216,7 @@ export async function prepareCustomerDeletion({
   userId:
     string;
 }): Promise<
-  DeletionResult
+  CustomerDeletionPreparation
 > {
   const {
     data:
@@ -205,7 +254,7 @@ export async function prepareCustomerDeletion({
     bookingsError
   ) {
     console.error(
-      "Error loading customer bookings:",
+      "Error loading customer bookings before account deletion:",
       bookingsError
     );
 
@@ -227,8 +276,8 @@ export async function prepareCustomerDeletion({
 
   for (
     const booking of
-    bookings ??
-    []
+      bookings ??
+      []
   ) {
     const slot =
       Array.isArray(
@@ -251,91 +300,71 @@ export async function prepareCustomerDeletion({
       continue;
     }
 
-    const {
-        data:
-          cancellationData,
-        error:
-          cancellationError,
-      } =
-        await admin.rpc(
-          "admin_cancel_booking_for_account_deletion",
-          {
-            p_booking_id:
-              booking.id,
-          }
-        );
-      
-      if (
-        cancellationError
-      ) {
-        console.error(
-          "Error cancelling booking for account deletion:",
-          booking.id,
-          cancellationError
-        );
-      
-        return {
-          success:
-            false,
-      
-          error:
-            "No se han podido cancelar y liberar todas las reservas futuras del usuario.",
-        };
-      }
-      
-      const cancellation =
-        Array.isArray(
-          cancellationData
-        )
-          ? cancellationData[0] ??
-            null
-          : cancellationData;
-      
-      if (
-        !cancellation
-      ) {
-        continue;
-      }
-      
-      releasedSlots.push({
-        bookingId:
-          cancellation.booking_id,
-      
-        slotId:
-          cancellation.slot_id,
-      
-        businessId:
-          cancellation.business_id,
-      
-        serviceId:
-          cancellation.service_id,
-      
-        startAt:
-          cancellation.start_at,
-      });
+    releasedSlots.push({
+      bookingId:
+        booking.id,
+
+      slotId:
+        slot.id,
+
+      businessId:
+        booking.business_id,
+
+      serviceId:
+        booking.service_id,
+
+      startAt:
+        slot.start_at,
+    });
   }
 
-  /*
-   * El aviso a suscriptores es best-effort:
-   * no debe impedir una eliminación administrativa.
-   */
+  return {
+    success:
+      true,
+
+    releasedSlots,
+  };
+}
+
+export async function sendPreparedCustomerDeletionNotifications({
+  admin,
+  releasedSlots,
+  deletedUserId,
+}: {
+  admin:
+    AdminClient;
+
+  releasedSlots:
+    ReleasedSlot[];
+
+  deletedUserId:
+    string;
+}) {
+  let processed =
+    0;
+
+  let failed =
+    0;
 
   for (
     const released of
-    releasedSlots
+      releasedSlots
   ) {
     try {
       await notifyReleasedSlot({
         admin,
         released,
-        deletedUserId:
-          userId,
+        deletedUserId,
       });
+
+      processed++;
     } catch (
       error
     ) {
+      failed++;
+
       console.error(
-        "Error notifying released slot:",
+        "Error notifying released slot after account deletion:",
         released.slotId,
         error
       );
@@ -343,8 +372,8 @@ export async function prepareCustomerDeletion({
   }
 
   return {
-    success:
-      true,
+    processed,
+    failed,
   };
 }
 
@@ -364,7 +393,7 @@ export async function prepareOwnerBusinessesDeletion({
   ownerId:
     string;
 }): Promise<
-  DeletionResult
+  OwnerBusinessesDeletionPreparation
 > {
   const {
     data:
@@ -402,19 +431,45 @@ export async function prepareOwnerBusinessesDeletion({
     };
   }
 
-  if (
-    !businesses?.length
+  const ownerBusinesses =
+    businesses ??
+    [];
+
+  const notifications:
+    PreparedBusinessDeletionNotification[] =
+    [];
+
+  for (
+    const business of
+      ownerBusinesses
   ) {
-    return {
-      success:
-        true,
-    };
+    const preparation =
+      await prepareSingleBusinessDeletion({
+        admin,
+        businessId:
+          business.id,
+      });
+
+    if (
+      !preparation.success
+    ) {
+      return preparation;
+    }
+
+    notifications.push(
+      ...preparation.notifications
+    );
   }
 
-  return notifyFutureBusinessBookings({
-    admin,
-    businesses,
-  });
+  return {
+    success:
+      true,
+
+    businesses:
+      ownerBusinesses,
+
+    notifications,
+  };
 }
 
 /*
@@ -433,12 +488,13 @@ export async function prepareSingleBusinessDeletion({
   businessId:
     string;
 }): Promise<
-  DeletionResult
+  SingleBusinessDeletionPreparation
 > {
   const {
     data:
       business,
-    error,
+    error:
+      businessError,
   } =
     await admin
       .from(
@@ -456,11 +512,11 @@ export async function prepareSingleBusinessDeletion({
       .maybeSingle();
 
   if (
-    error
+    businessError
   ) {
     console.error(
       "Error loading business for deletion:",
-      error
+      businessError
     );
 
     return {
@@ -484,12 +540,321 @@ export async function prepareSingleBusinessDeletion({
     };
   }
 
-  return notifyFutureBusinessBookings({
-    admin,
-    businesses: [
-      business,
-    ],
-  });
+  const {
+    data:
+      bookings,
+    error:
+      bookingsError,
+  } =
+    await admin
+      .from(
+        "bookings"
+      )
+      .select(`
+        id,
+        user_id,
+        business_id,
+        service_id,
+        status,
+
+        profiles (
+          email,
+          name
+        ),
+
+        services (
+          name
+        ),
+
+        slots (
+          start_at
+        )
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .eq(
+        "status",
+        "CONFIRMED"
+      );
+
+  if (
+    bookingsError
+  ) {
+    console.error(
+      "Error loading future bookings before business deletion:",
+      bookingsError
+    );
+
+    return {
+      success:
+        false,
+
+      error:
+        "No se han podido comprobar las reservas del negocio.",
+    };
+  }
+
+  const now =
+    new Date();
+
+  const notifications:
+    PreparedBusinessDeletionNotification[] =
+    [];
+
+  for (
+    const booking of
+      bookings ??
+      []
+  ) {
+    const profile =
+      Array.isArray(
+        booking.profiles
+      )
+        ? booking
+            .profiles[0] ??
+          null
+        : booking.profiles;
+
+    const service =
+      Array.isArray(
+        booking.services
+      )
+        ? booking
+            .services[0] ??
+          null
+        : booking.services;
+
+    const slot =
+      Array.isArray(
+        booking.slots
+      )
+        ? booking
+            .slots[0] ??
+          null
+        : booking.slots;
+
+    if (
+      !slot ||
+      new Date(
+        slot.start_at
+      ) <=
+        now ||
+      !profile?.email
+    ) {
+      continue;
+    }
+
+    notifications.push({
+      bookingId:
+        booking.id,
+
+      email:
+        profile.email,
+
+      clientName:
+        profile.name ??
+        null,
+
+      businessName:
+        business.name,
+
+      serviceName:
+        service?.name ??
+        null,
+
+      startAt:
+        slot.start_at,
+    });
+  }
+
+  return {
+    success:
+      true,
+
+    notifications,
+  };
+}
+
+export async function sendPreparedBusinessDeletionNotifications({
+  notifications,
+}: {
+  notifications:
+    PreparedBusinessDeletionNotification[];
+}) {
+  let sent =
+    0;
+
+  let failed =
+    0;
+
+  for (
+    const notification of
+      notifications
+  ) {
+    try {
+      const formattedDate =
+        new Intl.DateTimeFormat(
+          "es-ES",
+          {
+            weekday:
+              "long",
+
+            day:
+              "numeric",
+
+            month:
+              "long",
+
+            year:
+              "numeric",
+
+            hour:
+              "2-digit",
+
+            minute:
+              "2-digit",
+
+            timeZone:
+              "Europe/Madrid",
+          }
+        ).format(
+          new Date(
+            notification.startAt
+          )
+        );
+
+      const safeBusinessName =
+        escapeHtml(
+          notification.businessName
+        );
+
+      const safeClientName =
+        notification.clientName
+          ? escapeHtml(
+              notification.clientName
+            )
+          : "";
+
+      const safeServiceName =
+        notification.serviceName
+          ? escapeHtml(
+              notification.serviceName
+            )
+          : null;
+
+      const result =
+        await resend.emails.send(
+          {
+            from:
+              "Slottye <noreply@slottye.com>",
+
+            to:
+              notification.email,
+
+            subject:
+              `Tu cita en ${notification.businessName} ha sido cancelada`,
+
+            html: `
+              <div style="margin:0;padding:40px 20px;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#17171c;">
+                <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:40px;">
+
+                  <div style="text-align:center;margin-bottom:30px;">
+                    <div style="font-size:32px;font-weight:800;letter-spacing:0.5px;">
+                      <span style="color:#6c55f7;">Slotty</span><span style="color:#22c55e;">e</span>
+                    </div>
+                  </div>
+
+                  <h1 style="margin:0 0 16px;text-align:center;font-size:24px;line-height:1.3;color:#17171c;">
+                    Tu cita ha sido cancelada
+                  </h1>
+
+                  <p style="margin:0 0 12px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                    Hola${safeClientName ? " " + safeClientName : ""},
+                  </p>
+
+                  <p style="margin:0 0 24px;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                    Tu cita en <strong>${safeBusinessName}</strong> ha sido cancelada porque este negocio ya no está disponible en Slottye.
+                  </p>
+
+                  <div style="margin:24px 0;padding:18px;border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;text-align:center;color:#444854;">
+                    ${safeServiceName
+                      ? '<div style="font-size:17px;font-weight:700;color:#17171c;margin-bottom:8px;">' +
+                        safeServiceName +
+                        "</div>"
+                      : ""}
+                    <div style="font-size:14px;line-height:1.6;">
+                      📅 ${formattedDate}
+                    </div>
+                  </div>
+
+                  <p style="margin:0;text-align:center;font-size:15px;line-height:1.6;color:#60646f;">
+                    Puedes consultar otros negocios y citas disponibles en Slottye.
+                  </p>
+
+                  <div style="text-align:center;margin:30px 0;">
+                    <a
+                      href="${appUrl()}"
+                      style="display:inline-block;background:#6c55f7;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 26px;border-radius:10px;"
+                    >
+                      Buscar otras citas
+                    </a>
+                  </div>
+
+                  <p style="margin:28px 0 0;text-align:center;font-size:13px;line-height:1.6;color:#8a8f9c;">
+                    Este correo se ha enviado porque tenías una reserva activa en el negocio eliminado.
+                  </p>
+
+                  <div style="margin-top:32px;padding-top:22px;border-top:1px solid #eeeeee;text-align:center;">
+                    <p style="margin:0;font-size:12px;color:#9a9da6;">
+                      © 2026 <span style="color:#6c55f7;font-weight:700;">Slotty</span><span style="color:#22c55e;font-weight:700;">e</span>
+                      · Reserva. Confirma. Listo.
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            `,
+          },
+          {
+            idempotencyKey:
+              `admin-business-deletion-booking/${notification.bookingId}`,
+          }
+        );
+
+      if (
+        result.error
+      ) {
+        failed++;
+
+        console.error(
+          "Error sending prepared business deletion email:",
+          notification.bookingId,
+          result.error
+        );
+
+        continue;
+      }
+
+      sent++;
+    } catch (
+      error
+    ) {
+      failed++;
+
+      console.error(
+        "Unexpected prepared business deletion email error:",
+        notification.bookingId,
+        error
+      );
+    }
+  }
+
+  return {
+    sent,
+    failed,
+  };
 }
 
 /*
