@@ -1,0 +1,28 @@
+.card { margin-top: 16px; padding: clamp(16px, 3vw, 20px); border: 1px solid var(--border); border-radius: 18px; background: color-mix(in srgb, var(--card) 97%, var(--bg)); }
+.title { display: block; font-size: 16px; line-height: 1.35; }
+.publishedHeader { display: flex; align-items: center; gap: 8px; }
+.successIcon { display: grid; place-items: center; color: var(--accent); }
+.readonlyStars, .starButtons { display: flex; align-items: center; gap: 4px; }
+.readonlyStars { margin-top: 12px; }
+.starSelected { color: #d97706; fill: currentColor; }
+.starEmpty { color: color-mix(in srgb, var(--muted) 35%, transparent); fill: transparent; }
+.publishedComment { margin: 12px 0 0; line-height: 1.65; overflow-wrap: anywhere; }
+.editButton { display: inline-flex; align-items: center; gap: 7px; margin-top: 16px; }
+.ratingFieldset { min-width: 0; margin: 18px 0 0; padding: 0; border: 0; }
+.label { color: var(--text); font-size: 13px; font-weight: 750; }
+.starButtons { margin-top: 8px; }
+.starButton { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; transition: background .16s, color .16s, transform .16s; }
+.starButton:hover { background: color-mix(in srgb, #d97706 10%, transparent); transform: translateY(-1px); }
+.starButton:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 1px; }
+.ratingStatus { min-height: 20px; margin-top: 5px; color: var(--muted); font-size: 13px; }
+.commentField { display: grid; gap: 8px; margin-top: 16px; }
+.optional { color: var(--muted); font-weight: 500; }
+.textarea { width: 100%; min-height: 112px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); color: var(--text); font: inherit; line-height: 1.55; resize: vertical; outline: none; }
+.textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent); }
+.textarea:disabled { opacity: .65; cursor: wait; }
+.counter { justify-self: end; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.feedback { margin-top: 14px; padding: 12px 14px; border: 1px solid; border-radius: 12px; font-size: 14px; font-weight: 650; line-height: 1.5; }
+.success { border-color: color-mix(in srgb, var(--accent) 28%, transparent); background: color-mix(in srgb, var(--accent) 9%, var(--card)); color: color-mix(in srgb, var(--accent) 72%, var(--text)); }
+.error { border-color: color-mix(in srgb, #dc2626 26%, transparent); background: color-mix(in srgb, #dc2626 8%, var(--card)); color: #b91c1c; }
+@media (max-width: 420px) { .card { padding: 15px; border-radius: 16px; } .starButtons { justify-content: space-between; } .starButton { width: 42px; height: 42px; } .actions { display: grid; grid-template-columns: 1fr; } .actions :global(.btn) { width: 100%; justify-content: center; } }

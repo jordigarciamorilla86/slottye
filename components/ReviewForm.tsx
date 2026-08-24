@@ -1,720 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { CheckCircle2, Edit3, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import styles from "./ReviewForm.module.css";
 
-type Review = {
-  id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-  updated_at: string;
-};
+type Review = { id: string; rating: number; comment: string | null; created_at: string; updated_at: string };
+type Props = { bookingId: string; businessId: string; userId: string; initialReview: Review | null; onSaved?: (review: Review) => void };
 
-type Props = {
-  bookingId: string;
-  businessId: string;
-  userId: string;
-  initialReview: Review | null;
-};
-
-export function ReviewForm({
-  bookingId,
-  businessId,
-  userId,
-  initialReview,
-}: Props) {
-  const supabase =
-    createClient();
-
-  const [
-    review,
-    setReview,
-  ] =
-    useState<Review | null>(
-      initialReview
-    );
-
-  const [
-    rating,
-    setRating,
-  ] =
-    useState(
-      initialReview?.rating ??
-        0
-    );
-
-  const [
-    comment,
-    setComment,
-  ] =
-    useState(
-      initialReview?.comment ??
-        ""
-    );
-
-  const [
-    editing,
-    setEditing,
-  ] =
-    useState(
-      !initialReview
-    );
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(false);
-
-  const [
-    message,
-    setMessage,
-  ] =
-    useState("");
-
-  const [
-    isError,
-    setIsError,
-  ] =
-    useState(false);
-
-  /*
-   * ============================================================
-   * GUARDAR
-   * ============================================================
-   */
+export function ReviewForm({ bookingId, businessId, userId, initialReview, onSaved }: Props) {
+  const supabase = useMemo(() => createClient(), []);
+  const [review, setReview] = useState<Review | null>(initialReview);
+  const [rating, setRating] = useState(initialReview?.rating ?? 0);
+  const [comment, setComment] = useState(initialReview?.comment ?? "");
+  const [editing, setEditing] = useState(!initialReview);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   async function saveReview() {
-    setMessage("");
-    setIsError(false);
-
-    /*
-     * Validación frontend.
-     */
-    if (
-      rating < 1 ||
-      rating > 5
-    ) {
-      setMessage(
-        "Selecciona una valoración de 1 a 5 estrellas."
-      );
-
-      setIsError(true);
-
-      return;
-    }
-
-    if (
-      comment.length >
-      1000
-    ) {
-      setMessage(
-        "El comentario no puede superar los 1000 caracteres."
-      );
-
-      setIsError(true);
-
-      return;
-    }
-
+    setMessage(""); setIsError(false);
+    if (rating < 1 || rating > 5) { setMessage("Selecciona una valoración de 1 a 5 estrellas."); setIsError(true); return; }
+    if (comment.length > 1000) { setMessage("El comentario no puede superar los 1000 caracteres."); setIsError(true); return; }
     setLoading(true);
 
-    /*
-     * ==========================================================
-     * EDITAR
-     * ==========================================================
-     *
-     * Ya NO hacemos:
-     *
-     * .from("reviews").update(...)
-     *
-     * Toda la edición pasa por
-     * nuestra RPC segura.
-     */
-
     if (review) {
-      const {
-        data,
-        error,
-      } =
-        await supabase.rpc(
-          "update_review",
-          {
-            p_review_id:
-              review.id,
-
-            p_rating:
-              rating,
-
-            p_comment:
-              comment.trim(),
-          }
-        );
-
-      if (error) {
-        setMessage(
-          error.message
-        );
-
-        setIsError(
-          true
-        );
-
-        setLoading(
-          false
-        );
-
-        return;
-      }
-
-      /*
-       * PostgreSQL devuelve
-       * la fila actualizada.
-       *
-       * Según los tipos generados
-       * de Supabase podría llegar
-       * directamente como objeto.
-       */
-      const updatedReview =
-        Array.isArray(data)
-          ? data[0]
-          : data;
-
-      if (!updatedReview) {
-        setMessage(
-          "No se ha podido recuperar la reseña actualizada."
-        );
-
-        setIsError(
-          true
-        );
-
-        setLoading(
-          false
-        );
-
-        return;
-      }
-
-      setReview({
-        id:
-          updatedReview.id,
-
-        rating:
-          updatedReview.rating,
-
-        comment:
-          updatedReview.comment,
-
-        created_at:
-          updatedReview.created_at,
-
-        updated_at:
-          updatedReview.updated_at,
-      });
-
-      setEditing(
-        false
-      );
-
-      setMessage(
-        "Reseña actualizada correctamente."
-      );
-
-      setLoading(
-        false
-      );
-
-      return;
+      const { data, error } = await supabase.rpc("update_review", { p_review_id: review.id, p_rating: rating, p_comment: comment.trim() });
+      if (error) { setMessage(error.message); setIsError(true); setLoading(false); return; }
+      const updated = Array.isArray(data) ? data[0] : data;
+      if (!updated) { setMessage("No se ha podido recuperar la reseña actualizada."); setIsError(true); setLoading(false); return; }
+      const saved: Review = { id: updated.id, rating: updated.rating, comment: updated.comment, created_at: updated.created_at, updated_at: updated.updated_at };
+      setReview(saved); onSaved?.(saved); setEditing(false); setMessage("Reseña actualizada correctamente."); setLoading(false); return;
     }
 
-    /*
-     * ==========================================================
-     * CREAR
-     * ==========================================================
-     *
-     * La creación puede continuar
-     * usando INSERT porque la RLS
-     * ya valida:
-     *
-     * - user_id = auth.uid()
-     * - booking pertenece al usuario
-     * - booking pertenece al negocio
-     * - booking está COMPLETED
-     */
-
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from("reviews")
-        .insert({
-          booking_id:
-            bookingId,
-
-          business_id:
-            businessId,
-
-          user_id:
-            userId,
-
-          rating,
-
-          comment:
-            comment.trim() ||
-            null,
-        })
-        .select(`
-          id,
-          rating,
-          comment,
-          created_at,
-          updated_at
-        `)
-        .single();
-
-    if (error) {
-      setMessage(
-        error.message
-      );
-
-      setIsError(
-        true
-      );
-
-      setLoading(
-        false
-      );
-
-      return;
-    }
-
-    setReview(
-      data
-    );
-
-    setEditing(
-      false
-    );
-
-    setMessage(
-      "Reseña publicada correctamente."
-    );
-
-    setLoading(
-      false
-    );
+    const { data, error } = await supabase.from("reviews").insert({ booking_id: bookingId, business_id: businessId, user_id: userId, rating, comment: comment.trim() || null }).select("id, rating, comment, created_at, updated_at").single();
+    if (error) { setMessage(error.message); setIsError(true); setLoading(false); return; }
+    setReview(data); onSaved?.(data); setEditing(false); setMessage("Reseña publicada correctamente."); setLoading(false);
   }
 
-  /*
-   * ============================================================
-   * RESEÑA PUBLICADA
-   * ============================================================
-   */
+  function beginEditing() { if (!review) return; setRating(review.rating); setComment(review.comment ?? ""); setEditing(true); setMessage(""); setIsError(false); }
+  function cancelEditing() { if (!review) return; setRating(review.rating); setComment(review.comment ?? ""); setEditing(false); setMessage(""); setIsError(false); }
 
-  if (
-    review &&
-    !editing
-  ) {
-    return (
-      <div
-        style={{
-          marginTop: 16,
-
-          padding: 16,
-
-          border:
-            "1px solid var(--border)",
-
-          borderRadius: 14,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 24,
-
-            letterSpacing: 2,
-          }}
-        >
-          {[1, 2, 3, 4, 5].map(
-            (star) => (
-              <span
-                key={
-                  star
-                }
-
-                style={{
-                  color:
-                    star <=
-                    review.rating
-                      ? "#f59e0b"
-                      : "#d1d5db",
-                }}
-              >
-                ★
-              </span>
-            )
-          )}
-        </div>
-
-        {review.comment && (
-          <p
-            style={{
-              marginTop:
-                10,
-
-              marginBottom:
-                0,
-            }}
-          >
-            {
-              review.comment
-            }
-          </p>
-        )}
-
-        <button
-          type="button"
-
-          className="btn"
-
-          style={{
-            marginTop:
-              14,
-          }}
-
-          onClick={() => {
-            setRating(
-              review.rating
-            );
-
-            setComment(
-              review.comment ??
-                ""
-            );
-
-            setEditing(
-              true
-            );
-
-            setMessage(
-              ""
-            );
-
-            setIsError(
-              false
-            );
-          }}
-        >
-          Editar reseña
-        </button>
-
-        {message && (
-          <div
-            style={{
-              marginTop:
-                12,
-
-              color:
-                isError
-                  ? "#b91c1c"
-                  : "#166534",
-
-              fontWeight:
-                600,
-            }}
-          >
-            {isError
-              ? "⚠️ "
-              : "✓ "}
-
-            {message}
-          </div>
-        )}
+  if (review && !editing) return (
+    <section className={styles.card} aria-label="Tu reseña">
+      <div className={styles.publishedHeader}><span className={styles.successIcon} aria-hidden="true"><CheckCircle2 size={19} /></span><strong>Tu reseña</strong></div>
+      <div className={styles.readonlyStars} aria-label={`${review.rating} de 5 estrellas`}>
+        {[1, 2, 3, 4, 5].map((value) => <Star key={value} size={23} aria-hidden="true" className={value <= review.rating ? styles.starSelected : styles.starEmpty} />)}
       </div>
-    );
-  }
-
-  /*
-   * ============================================================
-   * CREAR / EDITAR
-   * ============================================================
-   */
+      {review.comment ? <p className={styles.publishedComment}>{review.comment}</p> : null}
+      <button type="button" className={`btn ${styles.editButton}`} onClick={beginEditing}><Edit3 size={16} aria-hidden="true" /> Editar reseña</button>
+      {message ? <div className={`${styles.feedback} ${isError ? styles.error : styles.success}`} role="status">{message}</div> : null}
+    </section>
+  );
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-
-        padding: 16,
-
-        border:
-          "1px solid var(--border)",
-
-        borderRadius: 14,
-      }}
-    >
-      <strong>
-        {review
-          ? "Editar tu reseña"
-          : "Valora tu experiencia"}
-      </strong>
-
-      {/* ESTRELLAS */}
-
-      <div
-        style={{
-          display: "flex",
-
-          gap: 4,
-
-          marginTop: 12,
-        }}
-      >
-        {[1, 2, 3, 4, 5].map(
-          (star) => (
-            <button
-              key={
-                star
-              }
-
-              type="button"
-
-              onClick={() =>
-                setRating(
-                  star
-                )
-              }
-
-              aria-label={`${star} estrella${
-                star === 1
-                  ? ""
-                  : "s"
-              }`}
-
-              style={{
-                border: 0,
-
-                padding: 0,
-
-                background:
-                  "transparent",
-
-                cursor:
-                  "pointer",
-
-                fontSize:
-                  32,
-
-                color:
-                  star <=
-                  rating
-                    ? "#f59e0b"
-                    : "#d1d5db",
-              }}
-            >
-              ★
-            </button>
-          )
-        )}
+    <section className={styles.card} aria-labelledby={`review-title-${bookingId}`}>
+      <strong id={`review-title-${bookingId}`} className={styles.title}>{review ? "Editar tu reseña" : "Valora tu experiencia"}</strong>
+      <fieldset className={styles.ratingFieldset} disabled={loading}>
+        <legend className={styles.label}>Valoración</legend>
+        <div className={styles.starButtons}>{[1, 2, 3, 4, 5].map((value) => (
+          <button key={value} type="button" onClick={() => setRating(value)} aria-label={`${value} estrella${value === 1 ? "" : "s"}`} aria-pressed={rating === value} className={`${styles.starButton} ${value <= rating ? styles.starSelected : styles.starEmpty}`}><Star size={30} aria-hidden="true" /></button>
+        ))}</div>
+        <div className={styles.ratingStatus} aria-live="polite">{rating === 0 ? "Selecciona de 1 a 5 estrellas" : `${rating} de 5 estrellas`}</div>
+      </fieldset>
+      <label className={styles.commentField}>
+        <span className={styles.label}>Comentario <span className={styles.optional}>(opcional)</span></span>
+        <textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={4} maxLength={1000} placeholder="Cuéntanos cómo ha sido tu experiencia..." className={styles.textarea} disabled={loading} />
+        <span className={styles.counter}>{comment.length}/1000</span>
+      </label>
+      <div className={styles.actions}>
+        <button type="button" className="btn primary" disabled={loading || rating === 0} onClick={saveReview}>{loading ? "Guardando…" : review ? "Guardar cambios" : "Publicar reseña"}</button>
+        {review ? <button type="button" className="btn" disabled={loading} onClick={cancelEditing}>Cancelar</button> : null}
       </div>
-
-      <div
-        className="muted"
-
-        style={{
-          marginTop: 5,
-        }}
-      >
-        {rating === 0
-          ? "Selecciona de 1 a 5 estrellas"
-          : `${rating} de 5 estrellas`}
-      </div>
-
-      {/* COMENTARIO */}
-
-      <textarea
-        value={
-          comment
-        }
-
-        onChange={(
-          event
-        ) =>
-          setComment(
-            event.target
-              .value
-          )
-        }
-
-        rows={4}
-
-        maxLength={
-          1000
-        }
-
-        placeholder="Cuéntanos cómo ha sido tu experiencia..."
-
-        style={{
-          width:
-            "100%",
-
-          padding: 14,
-
-          marginTop: 14,
-
-          border:
-            "1px solid var(--border)",
-
-          borderRadius:
-            14,
-
-          background:
-            "var(--card)",
-
-          color:
-            "var(--text)",
-
-          font:
-            "inherit",
-
-          resize:
-            "vertical",
-        }}
-      />
-
-      <div
-        className="muted"
-
-        style={{
-          marginTop: 5,
-
-          fontSize: 13,
-        }}
-      >
-        {
-          comment.length
-        }
-        /1000
-      </div>
-
-      {/* BOTONES */}
-
-      <div
-        style={{
-          display:
-            "flex",
-
-          gap: 10,
-
-          flexWrap:
-            "wrap",
-
-          marginTop: 14,
-        }}
-      >
-        <button
-          type="button"
-
-          className="btn primary"
-
-          disabled={
-            loading ||
-            rating === 0
-          }
-
-          onClick={
-            saveReview
-          }
-        >
-          {loading
-            ? "Guardando..."
-            : review
-              ? "Guardar cambios"
-              : "Publicar reseña"}
-        </button>
-
-        {review && (
-          <button
-            type="button"
-
-            className="btn"
-
-            disabled={
-              loading
-            }
-
-            onClick={() => {
-              setRating(
-                review.rating
-              );
-
-              setComment(
-                review.comment ??
-                  ""
-              );
-
-              setEditing(
-                false
-              );
-
-              setMessage(
-                ""
-              );
-
-              setIsError(
-                false
-              );
-            }}
-          >
-            Cancelar
-          </button>
-        )}
-      </div>
-
-      {/* MENSAJE */}
-
-      {message && (
-        <div
-          role="alert"
-
-          style={{
-            marginTop: 14,
-
-            padding:
-              "12px 14px",
-
-            borderRadius:
-              12,
-
-            background:
-              isError
-                ? "#fef2f2"
-                : "#f0fdf4",
-
-            color:
-              isError
-                ? "#b91c1c"
-                : "#166534",
-
-            border:
-              isError
-                ? "1px solid #fecaca"
-                : "1px solid #bbf7d0",
-
-            fontWeight:
-              600,
-          }}
-        >
-          {isError
-            ? "⚠️ "
-            : "✓ "}
-
-          {message}
-        </div>
-      )}
-    </div>
+      {message ? <div role="alert" className={`${styles.feedback} ${isError ? styles.error : styles.success}`}>{message}</div> : null}
+    </section>
   );
 }

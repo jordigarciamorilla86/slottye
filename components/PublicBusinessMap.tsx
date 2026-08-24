@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+} from "react";
+
+import {
+  Navigation,
+} from "lucide-react";
 
 type Props = {
   latitude: number;
@@ -10,7 +17,28 @@ type Props = {
 
 declare global {
   interface Window {
-    google: any;
+    google: {
+      maps: {
+        Map: new (
+          element: HTMLElement,
+          options: Record<string, unknown>
+        ) => unknown;
+        Marker: new (
+          options: Record<string, unknown>
+        ) => {
+          addListener: (
+            eventName: string,
+            listener: () => void
+          ) => void;
+          getPosition: () =>
+            | {
+                lat: () => number;
+                lng: () => number;
+              }
+            | null;
+        };
+      };
+    };
   }
 }
 
@@ -19,44 +47,73 @@ export default function PublicBusinessMap({
   longitude,
   businessName,
 }: Props) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
 
   useEffect(() => {
     const key =
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      process.env
+        .NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-    if (!key || !mapRef.current) {
+    if (
+      !key ||
+      !mapRef.current
+    ) {
       return;
     }
 
     function createMap() {
-      if (!mapRef.current) return;
+      if (
+        !mapRef.current
+      ) {
+        return;
+      }
 
       const position = {
-        lat: latitude,
-        lng: longitude,
+        lat:
+          latitude,
+
+        lng:
+          longitude,
       };
 
-      const map = new window.google.maps.Map(
-        mapRef.current,
-        {
-          center: position,
-          zoom: 16,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        }
-      );
+      const map =
+        new window.google.maps.Map(
+          mapRef.current,
+          {
+            center:
+              position,
+
+            zoom:
+              16,
+
+            mapTypeControl:
+              false,
+
+            streetViewControl:
+              false,
+
+            fullscreenControl:
+              false,
+          }
+        );
 
       new window.google.maps.Marker({
         position,
         map,
-        title: businessName,
+        title:
+          businessName,
       });
     }
 
-    if (window.google?.maps) {
+    if (
+      window.google
+        ?.maps
+    ) {
       createMap();
+
       return;
     }
 
@@ -65,7 +122,9 @@ export default function PublicBusinessMap({
         'script[data-slottye-google-maps="true"]'
       );
 
-    if (existing) {
+    if (
+      existing
+    ) {
       existing.addEventListener(
         "load",
         createMap
@@ -75,20 +134,30 @@ export default function PublicBusinessMap({
     }
 
     const script =
-      document.createElement("script");
+      document.createElement(
+        "script"
+      );
 
     script.src =
       `https://maps.googleapis.com/maps/api/js?key=${key}`;
 
-    script.async = true;
-    script.defer = true;
+    script.async =
+      true;
 
-    script.dataset.slottyeGoogleMaps =
+    script.defer =
+      true;
+
+    script.dataset
+      .slottyeGoogleMaps =
       "true";
 
-    script.onload = createMap;
+    script.onload =
+      createMap;
 
-    document.head.appendChild(script);
+    document.head
+      .appendChild(
+        script
+      );
   }, [
     latitude,
     longitude,
@@ -111,24 +180,46 @@ export default function PublicBusinessMap({
   return (
     <div>
       <div
-        ref={mapRef}
+        ref={
+          mapRef
+        }
         style={{
-          width: "100%",
-          height: 360,
-          borderRadius: 20,
-          overflow: "hidden",
+          width:
+            "100%",
+
+          height:
+            360,
+
+          borderRadius:
+            20,
+
+          overflow:
+            "hidden",
         }}
       />
 
       <button
         type="button"
         className="btn primary"
-        onClick={openDirections}
+        onClick={
+          openDirections
+        }
         style={{
-          marginTop: 14,
+          marginTop:
+            14,
         }}
       >
-        🧭 Cómo llegar
+        <Navigation
+          size={
+            16
+          }
+          strokeWidth={
+            2.2
+          }
+          aria-hidden="true"
+        />
+
+        Cómo llegar
       </button>
     </div>
   );

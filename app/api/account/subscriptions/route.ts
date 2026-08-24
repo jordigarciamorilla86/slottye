@@ -16,6 +16,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   subscriptionId?: unknown;
 };
@@ -262,6 +266,20 @@ export async function DELETE(
           status:
             404,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "account-subscriptions-delete",
+      limit: 30,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

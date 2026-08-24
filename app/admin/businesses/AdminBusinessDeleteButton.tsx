@@ -7,6 +7,7 @@ import {
 import {
   useRouter,
 } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   businessId: string;
@@ -25,22 +26,12 @@ export default function AdminBusinessDeleteButton({
     setLoading,
   ] =
     useState(false);
+  const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function deleteBusiness() {
     if (
       loading
-    ) {
-      return;
-    }
-
-    const confirmation =
-      window.prompt(
-        `Vas a eliminar definitivamente el negocio "${businessName}".\n\nSe borrarán sus servicios, horarios, imágenes, disponibilidades, reservas y demás datos asociados. La cuenta del propietario seguirá activa.\n\nEscribe ELIMINAR para continuar.`
-      );
-
-    if (
-      confirmation !==
-      "ELIMINAR"
     ) {
       return;
     }
@@ -65,19 +56,14 @@ export default function AdminBusinessDeleteButton({
       if (
         !response.ok
       ) {
-        window.alert(
-          result.error ??
-            "No se ha podido eliminar el negocio."
-        );
+        setFeedback({ type: "error", text: result.error ?? "No se ha podido eliminar el negocio." });
 
         return;
       }
 
-      window.alert(
-        result.emailSent
+      setFeedback({ type: "success", text: result.emailSent
           ? "Negocio eliminado correctamente. Se ha avisado al propietario."
-          : "Negocio eliminado correctamente. No se ha podido avisar al propietario."
-      );
+          : "Negocio eliminado correctamente. No se ha podido avisar al propietario." });
 
       router.refresh();
     } catch (
@@ -88,9 +74,7 @@ export default function AdminBusinessDeleteButton({
         error
       );
 
-      window.alert(
-        "No se ha podido completar la eliminación."
-      );
+      setFeedback({ type: "error", text: "No se ha podido completar la eliminación." });
     } finally {
       setLoading(
         false
@@ -98,16 +82,14 @@ export default function AdminBusinessDeleteButton({
     }
   }
 
-  return (
+  return (<>
     <button
       type="button"
       className="btn"
       disabled={
         loading
       }
-      onClick={
-        deleteBusiness
-      }
+      onClick={() => { setFeedback(null); setOpen(true); }}
       style={{
         color:
           "#ffffff",
@@ -123,5 +105,7 @@ export default function AdminBusinessDeleteButton({
         ? "Eliminando..."
         : "Eliminar negocio"}
     </button>
-  );
+    {feedback && <p role="status" aria-live="polite" style={{ color: feedback.type === "error" ? "#b91c1c" : "#166534", margin: "8px 0 0", fontSize: 13 }}>{feedback.text}</p>}
+    <ConfirmDialog open={open} onOpenChange={setOpen} title="Eliminar negocio definitivamente" description={`Se eliminarán servicios, horarios, imágenes, disponibilidades, reservas y datos asociados de “${businessName}”. La cuenta del propietario seguirá activa.`} variant="danger" confirmText="ELIMINAR" pending={loading} onConfirm={async () => { await deleteBusiness(); setOpen(false); }} />
+  </>);
 }

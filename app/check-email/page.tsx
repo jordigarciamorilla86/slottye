@@ -25,7 +25,7 @@ export default async function CheckEmailPage({
       <Header />
 
       <main
-        className="shell detail"
+        className="auth-page"
         style={{
           maxWidth:
             600,

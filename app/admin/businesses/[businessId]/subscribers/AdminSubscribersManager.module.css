@@ -1,0 +1,8 @@
+.manager { display: grid; gap: 16px; margin-top: 0 !important; }
+.manager :global(.panel) { padding: 18px !important; border: 1px solid var(--border) !important; border-radius: 18px !important; background: #fff !important; box-shadow: 0 8px 25px rgba(31,27,48,.04); }
+.manager :global(.card) { border-radius: 17px !important; box-shadow: 0 6px 20px rgba(31,27,48,.035); }
+.manager :global(.card-body) { padding: 18px !important; }
+.manager :global(.muted) { font-size: 13px !important; line-height: 1.45; }
+.manager :global(.btn) { min-height: 42px; font-size: 13px !important; }
+.manager input,.manager select { min-height: 44px; border-radius: 12px !important; font-size: 14px !important; }
+@media (max-width: 620px) { .manager { gap: 12px; }.manager :global(.panel),.manager :global(.card-body) { padding: 14px !important; } }

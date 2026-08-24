@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
-import GoogleCalendarIntegration from "@/components/GoogleCalendarIntegration";
 
 export default async function BusinessDashboardPage() {
   const {
@@ -46,30 +45,21 @@ export default async function BusinessDashboardPage() {
       <>
         <Header />
 
-        <main
-          className="shell detail"
-          style={{
-            maxWidth: 900,
-          }}
-        >
-          <section className="panel">
-            <div className="kicker">
+        <main className="business-empty12">
+          <section className="business-empty12-card">
+            <div className="business-empty12-kicker">
               Slottye Business
             </div>
 
-            <h1 className="business-title">
+            <h1>
               Configura tu negocio
             </h1>
 
-            <p className="muted">
+            <p>
               Todavía no has creado la ficha de tu negocio.
             </p>
 
-            <div
-              style={{
-                marginTop: 24,
-              }}
-            >
+            <div className="business-empty12-actions">
               <Link
                 href="/business-dashboard/create"
                 className="btn primary"
@@ -78,6 +68,54 @@ export default async function BusinessDashboardPage() {
               </Link>
             </div>
           </section>
+
+          <style>{`
+            .business-empty12 {
+              min-height: calc(100vh - 72px);
+              display: grid;
+              place-items: center;
+              padding: 28px 20px 64px;
+              background: #f8f8fb;
+            }
+            .business-empty12-card {
+              width: min(760px, 100%);
+              padding: clamp(28px, 5vw, 52px);
+              border: 1px solid var(--border);
+              border-radius: 24px;
+              background: radial-gradient(circle at 88% 8%, rgba(112,87,245,.12), transparent 34%), #fff;
+              box-shadow: 0 22px 56px rgba(31,27,48,.07);
+              text-align: center;
+            }
+            .business-empty12-kicker {
+              color: var(--accent-dark);
+              font-size: 11px;
+              font-weight: 850;
+              text-transform: uppercase;
+              letter-spacing: .06em;
+            }
+            .business-empty12-card h1 {
+              margin: 9px 0 8px;
+              font-size: clamp(30px, 5vw, 46px);
+              line-height: 1.05;
+              letter-spacing: -.045em;
+            }
+            .business-empty12-card p {
+              margin: 0;
+              color: var(--muted);
+              font-size: 14px;
+              line-height: 1.6;
+            }
+            .business-empty12-actions {
+              display: flex;
+              justify-content: center;
+              margin-top: 24px;
+            }
+            @media (max-width: 520px) {
+              .business-empty12 { padding: 18px 12px 46px; }
+              .business-empty12-card { padding: 28px 18px; border-radius: 20px; }
+              .business-empty12-actions .btn { width: 100%; }
+            }
+          `}</style>
         </main>
       </>
     );
@@ -190,6 +228,24 @@ if (
       999
     );
 
+  const startOfPreviousMonth =
+    new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1
+    );
+
+  const endOfPreviousMonth =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      0,
+      23,
+      59,
+      59,
+      999
+    );
+
   /*
    * Últimos 7 días incluyendo hoy
    */
@@ -229,10 +285,6 @@ if (
 
       services (
         id,
-        name
-      ),
-
-      profiles (
         name
       )
     `)
@@ -310,20 +362,10 @@ if (
               null
             : booking.services;
 
-        const profileData =
-          Array.isArray(
-            booking.profiles
-          )
-            ? booking.profiles[0] ??
-              null
-            : booking.profiles;
-
         return {
           ...booking,
           slot,
           service,
-          profile:
-            profileData,
         };
       }
     );
@@ -404,6 +446,27 @@ if (
       }
     );
 
+  const bookingsPreviousMonth =
+    confirmedBookings.filter(
+      (booking) => {
+        if (!booking.slot) {
+          return false;
+        }
+
+        const date =
+          new Date(
+            booking.slot.start_at
+          );
+
+        return (
+          date >=
+            startOfPreviousMonth &&
+          date <=
+            endOfPreviousMonth
+        );
+      }
+    );
+
   /*
    * ============================================================
    * CANCELACIONES
@@ -471,6 +534,31 @@ if (
           booking.user_id
       )
     ).size;
+
+  const uniqueClientsPreviousMonth =
+    new Set(
+      bookingsPreviousMonth.map(
+        (booking) =>
+          booking.user_id
+      )
+    ).size;
+
+  const bookingsMonthDifference =
+    bookingsThisMonth.length -
+    bookingsPreviousMonth.length;
+
+  const bookingsMonthChangeRate =
+    bookingsPreviousMonth.length > 0
+      ? Math.round(
+          (bookingsMonthDifference /
+            bookingsPreviousMonth.length) *
+            100
+        )
+      : null;
+
+  const clientsMonthDifference =
+    uniqueClients -
+    uniqueClientsPreviousMonth;
 
   /*
    * ============================================================
@@ -636,9 +724,19 @@ if (
             .format(date)
             .replace(".", "");
 
+        const dayNumber =
+          new Intl.DateTimeFormat(
+            "es-ES",
+            {
+              day:
+                "numeric",
+            }
+          ).format(date);
+
         return {
           date,
           label,
+          dayNumber,
           count,
         };
       }
@@ -655,372 +753,157 @@ if (
 
   /*
    * ============================================================
-   * PRÓXIMAS CITAS
-   * ============================================================
-   */
-
-  const upcomingBookings =
-    confirmedBookings
-      .filter(
-        (booking) =>
-          booking.slot &&
-          new Date(
-            booking.slot.start_at
-          ) > now
-      )
-      .sort(
-        (a, b) =>
-          new Date(
-            a.slot!.start_at
-          ).getTime() -
-          new Date(
-            b.slot!.start_at
-          ).getTime()
-      )
-      .slice(
-        0,
-        5
-      );
-
-  function formatDateTime(
-    value: string
-  ) {
-    return new Intl.DateTimeFormat(
-      "es-ES",
-      {
-        weekday:
-          "short",
-
-        day:
-          "numeric",
-
-        month:
-          "short",
-
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-      }
-    ).format(
-      new Date(value)
-    );
-  }
-
-  /*
-   * ============================================================
-   * ESTILO DE LAS MINI CARDS
-   * ============================================================
-   */
-
-  const statCardStyle = {
-    padding: 14,
-    minHeight: 92,
-  };
-
-  const statNumberStyle = {
-    fontSize: 26,
-    fontWeight: 800,
-    marginTop: 4,
-    lineHeight: 1.1,
-  };
-
-  /*
-   * ============================================================
    * UI
    * ============================================================
    */
+
 
   return (
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth: 1000,
-        }}
-      >
-        {/* CABECERA */}
-        <section className="section">
-          <Link
-            href="/"
-            className="btn"
+      <main className="stats8">
+        <div className="stats8-shell">
+          {/* ====================================================
+              CABECERA
+              ==================================================== */}
+
+          <section className="stats8-hero">
+            <div>
+              <span className="stats8-eyebrow">
+                Estadísticas
+              </span>
+
+              <h1>
+                {business.name}
+              </h1>
+
+              <p>
+                Resumen del rendimiento de tu negocio.
+              </p>
+            </div>
+
+            <Link
+              href={`/business/${business.slug}`}
+              className="btn stats8-public-link"
+            >
+              Ver ficha pública →
+            </Link>
+          </section>
+
+          {/* ====================================================
+              MÉTRICAS
+              ==================================================== */}
+
+          <section
+            className="stats8-kpis"
+            aria-label="Resumen de estadísticas"
           >
-            ← Volver a Slottye
-          </Link>
-        </section>
-        <section className="panel">
-          <div className="kicker">
-            Slottye Business
-          </div>
+            <article>
+              <span>Citas hoy</span>
+              <strong>
+                {bookingsToday.length}
+              </strong>
+              <small>
+                Confirmadas para hoy
+              </small>
+            </article>
 
-          <h1 className="business-title">
-            {business.name}
-          </h1>
+            <article>
+              <span>Esta semana</span>
+              <strong>
+                {bookingsThisWeek.length}
+              </strong>
+              <small>
+                Lunes a domingo
+              </small>
+            </article>
 
-          <p className="muted">
-            {business.address}
+            <article>
+              <span>Este mes</span>
+              <strong>
+                {bookingsThisMonth.length}
+              </strong>
+              <small>
+                Reservas confirmadas
+              </small>
+            </article>
 
-            {business.city
-              ? ` · ${business.city}`
-              : ""}
-          </p>
-        </section>
+            <article>
+              <span>Clientes</span>
+              <strong>
+                {uniqueClients}
+              </strong>
+              <small>
+                Clientes únicos este mes
+              </small>
+            </article>
 
-        {/* ======================================================
-            ANALÍTICA PLEGABLE
-            ====================================================== */}
+            <article>
+              <span>Ocupación</span>
+              <strong>
+                {occupancyRate}%
+              </strong>
+              <small>
+                Huecos reservados del mes
+              </small>
+            </article>
 
-        <section className="section">
-          <details open>
-            <summary
-              style={{
-                cursor:
-                  "pointer",
-
-                fontSize: 20,
-
-                fontWeight:
-                  800,
-
-                padding:
-                  "14px 0",
-
-                userSelect:
-                  "none",
-              }}
+            <article
+              className={
+                cancellationRate >= 40
+                  ? "is-warning"
+                  : undefined
+              }
             >
-              📊 Estadísticas del negocio
-            </summary>
+              <span>Cancelación</span>
+              <strong>
+                {cancellationRate}%
+              </strong>
+              <small>
+                Sobre reservas del mes
+              </small>
+            </article>
+          </section>
 
-            <div
-              className="muted"
-              style={{
-                marginTop: -5,
-                marginBottom: 16,
-              }}
-            >
-              Pulsa en el título para
-              ocultar o mostrar las
-              estadísticas.
-            </div>
+          {/* ====================================================
+              RENDIMIENTO
+              ==================================================== */}
 
-            {/* MINI CARDS */}
-
-            <div
-              style={{
-                display: "grid",
-
-                gridTemplateColumns:
-                  "repeat(auto-fit,minmax(135px,1fr))",
-
-                gap: 10,
-              }}
-            >
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Citas hoy
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    bookingsToday.length
-                  }
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Esta semana
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    bookingsThisWeek.length
-                  }
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Este mes
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    bookingsThisMonth.length
-                  }
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Canceladas
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    cancelledThisMonth.length
-                  }
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Clientes
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    uniqueClients
-                  }
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Ocupación
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    occupancyRate
-                  }
-                  %
-                </div>
-              </div>
-
-              <div
-                className="panel"
-                style={
-                  statCardStyle
-                }
-              >
-                <div className="muted">
-                  Cancelación
-                </div>
-
-                <div
-                  style={
-                    statNumberStyle
-                  }
-                >
-                  {
-                    cancellationRate
-                  }
-                  %
-                </div>
-              </div>
-            </div>
-
-            {/* ==================================================
-                ACTIVIDAD 7 DÍAS
-                ================================================== */}
-
-            <div
-              className="panel"
-              style={{
-                marginTop: 16,
-              }}
-            >
-              <div className="section-head">
+          <section className="stats8-grid">
+            <article className="stats8-card stats8-chart-card">
+              <div className="stats8-card-head">
                 <div>
-                  <h3>
-                    Reservas · últimos 7 días
-                  </h3>
+                  <span className="stats8-section-label">
+                    Actividad
+                  </span>
 
-                  <p className="muted">
-                    Número de citas confirmadas por día.
+                  <h2>
+                    Reservas confirmadas · últimos 7 días
+                  </h2>
+
+                  <p>
+                    Cada barra representa cuántas citas confirmadas
+                    estaban programadas para ese día.
                   </p>
                 </div>
               </div>
 
               <div
-                style={{
-                  display: "grid",
-
-                  gridTemplateColumns:
-                    "repeat(7,minmax(0,1fr))",
-
-                  gap: 8,
-
-                  alignItems:
-                    "end",
-
-                  height: 190,
-
-                  marginTop: 20,
-                }}
+                className="stats8-chart"
+                aria-label="Reservas confirmadas por día"
               >
                 {lastSevenDays.map(
                   (item) => {
-                    const barHeight =
-                      item.count ===
-                      0
+                    const height =
+                      item.count === 0
                         ? 4
                         : Math.max(
-                            12,
-
+                            18,
                             Math.round(
                               (item.count /
                                 maxDailyBookings) *
-                                120
+                                112
                             )
                           );
 
@@ -1029,499 +912,739 @@ if (
                         key={
                           item.date.toISOString()
                         }
-                        style={{
-                          display:
-                            "flex",
-
-                          flexDirection:
-                            "column",
-
-                          alignItems:
-                            "center",
-
-                          justifyContent:
-                            "flex-end",
-
-                          height:
-                            "100%",
-                        }}
+                        className="stats8-chart-day"
                       >
-                        <strong
-                          style={{
-                            fontSize:
-                              13,
-
-                            marginBottom:
-                              6,
-                          }}
-                        >
-                          {
-                            item.count
-                          }
+                        <strong>
+                          {item.count}
                         </strong>
 
-                        <div
-                          style={{
-                            width:
-                              "70%",
+                        <div className="stats8-chart-track">
+                          <span
+                            style={{
+                              height,
+                              opacity:
+                                item.count === 0
+                                  ? 0.12
+                                  : 0.88,
+                            }}
+                          />
+                        </div>
 
-                            maxWidth:
-                              42,
-
-                            height:
-                              barHeight,
-
-                            borderRadius:
-                              "8px 8px 3px 3px",
-
-                            background:
-                              "var(--accent, currentColor)",
-
-                            opacity:
-                              item.count ===
-                              0
-                                ? 0.15
-                                : 0.75,
-                          }}
-                        />
-
-                        <span
-                          className="muted"
-                          style={{
-                            marginTop:
-                              7,
-
-                            fontSize:
-                              12,
-
-                            textTransform:
-                              "capitalize",
-                          }}
-                        >
-                          {
-                            item.label
-                          }
-                        </span>
+                        <small>
+                          {item.label} {item.dayNumber}
+                        </small>
                       </div>
                     );
                   }
                 )}
               </div>
-            </div>
+            </article>
 
-            {/* ==================================================
-                SERVICIOS
-                ================================================== */}
+            <article className="stats8-card stats8-services-card">
+              <div className="stats8-card-head">
+                <div>
+                  <span className="stats8-section-label">
+                    Servicios
+                  </span>
 
-            <div
-              style={{
-                display: "grid",
+                  <h2>
+                    Más reservados
+                  </h2>
 
-                gridTemplateColumns:
-                  "repeat(auto-fit,minmax(280px,1fr))",
-
-                gap: 14,
-
-                marginTop: 16,
-              }}
-            >
-              {/* TOP SERVICE */}
-
-              <div className="panel">
-                <div className="kicker">
-                  Servicio más reservado
-                </div>
-
-                {topService ? (
-                  <>
-                    <h3
-                      style={{
-                        marginTop: 8,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {
-                        topService.name
-                      }
-                    </h3>
-
-                    <div className="muted">
-                      {
-                        topService.count
-                      }{" "}
-                      {topService.count ===
-                      1
-                        ? "reserva"
-                        : "reservas"}{" "}
-                      este mes
-                    </div>
-                  </>
-                ) : (
-                  <p className="muted">
-                    Todavía no hay reservas este mes.
+                  <p>
+                    Reservas confirmadas durante este mes.
                   </p>
-                )}
+                </div>
               </div>
 
-              {/* TOP 5 */}
+              {topService ? (
+                <>
+                  <div className="stats8-top-service">
+                    <span>
+                      Más reservado
+                    </span>
 
-              <div className="panel">
-                <h3>
-                  Top servicios
-                </h3>
+                    <strong>
+                      {topService.name}
+                    </strong>
 
-                {serviceRanking.length >
-                0 ? (
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 10,
-                      marginTop: 14,
-                    }}
-                  >
+                    <small>
+                      {topService.count}{" "}
+                      {topService.count === 1
+                        ? "reserva"
+                        : "reservas"}
+                    </small>
+                  </div>
+
+                  <div className="stats8-ranking">
                     {serviceRanking.map(
                       (
                         service,
                         index
-                      ) => (
-                        <div
-                          key={
-                            service.name
-                          }
-                          style={{
-                            display:
-                              "grid",
+                      ) => {
+                        const percentage =
+                          bookingsThisMonth.length >
+                          0
+                            ? Math.round(
+                                (service.count /
+                                  bookingsThisMonth.length) *
+                                  100
+                              )
+                            : 0;
 
-                            gridTemplateColumns:
-                              "28px minmax(0,1fr) auto",
-
-                            alignItems:
-                              "center",
-
-                            gap: 8,
-                          }}
-                        >
-                          <strong>
-                            {index +
-                              1}
-                          </strong>
-
-                          <span>
-                            {
+                        return (
+                          <div
+                            key={
                               service.name
                             }
-                          </span>
+                            className="stats8-ranking-row"
+                          >
+                            <div className="stats8-ranking-main">
+                              <span>
+                                {index + 1}
+                              </span>
 
-                          <span className="muted">
-                            {
-                              service.count
-                            }
-                          </span>
-                        </div>
-                      )
+                              <strong>
+                                {
+                                  service.name
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  service.count
+                                }
+                              </small>
+                            </div>
+
+                            <div className="stats8-ranking-track">
+                              <span
+                                style={{
+                                  width:
+                                    `${Math.max(
+                                      percentage,
+                                      4
+                                    )}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
                     )}
                   </div>
-                ) : (
-                  <p className="muted">
-                    Sin datos todavía.
-                  </p>
-                )}
+                </>
+              ) : (
+                <div className="stats8-empty">
+                  Todavía no hay reservas confirmadas este mes.
+                </div>
+              )}
+            </article>
+          </section>
+
+          {/* ====================================================
+              EVOLUCIÓN MENSUAL
+              ==================================================== */}
+
+          <section className="stats8-month">
+            <div className="stats8-month-copy">
+              <span className="stats8-section-label">
+                Comparativa
+              </span>
+
+              <h2>
+                Evolución mensual
+              </h2>
+
+              <p>
+                Compara las reservas y los clientes del mes actual
+                con el mes anterior.
+              </p>
+            </div>
+
+            <div className="stats8-month-values">
+              <div>
+                <span>
+                  Este mes
+                </span>
+
+                <strong>
+                  {bookingsThisMonth.length}
+                </strong>
+
+                <small>
+                  reservas confirmadas
+                </small>
+              </div>
+
+              <div>
+                <span>
+                  Mes anterior
+                </span>
+
+                <strong>
+                  {bookingsPreviousMonth.length}
+                </strong>
+
+                <small>
+                  reservas confirmadas
+                </small>
+              </div>
+
+              <div
+                className={
+                  bookingsMonthDifference > 0
+                    ? "is-positive"
+                    : bookingsMonthDifference < 0
+                      ? "is-negative"
+                      : undefined
+                }
+              >
+                <span>
+                  Variación
+                </span>
+
+                <strong>
+                  {bookingsMonthChangeRate === null
+                    ? "—"
+                    : `${
+                        bookingsMonthDifference > 0
+                          ? "+"
+                          : ""
+                      }${bookingsMonthChangeRate}%`}
+                </strong>
+
+                <small>
+                  {bookingsMonthDifference === 0
+                    ? "sin cambios"
+                    : `${Math.abs(
+                        bookingsMonthDifference
+                      )} ${
+                        Math.abs(
+                          bookingsMonthDifference
+                        ) === 1
+                          ? "reserva"
+                          : "reservas"
+                      } ${
+                        bookingsMonthDifference > 0
+                          ? "más"
+                          : "menos"
+                      }`}
+                </small>
+              </div>
+
+              <div
+                className={
+                  clientsMonthDifference > 0
+                    ? "is-positive"
+                    : clientsMonthDifference < 0
+                      ? "is-negative"
+                      : undefined
+                }
+              >
+                <span>
+                  Clientes
+                </span>
+
+                <strong>
+                  {uniqueClients}
+                </strong>
+
+                <small>
+                  {clientsMonthDifference === 0
+                    ? "igual que el mes anterior"
+                    : `${clientsMonthDifference > 0 ? "+" : ""}${
+                        clientsMonthDifference
+                      } vs. mes anterior`}
+                </small>
               </div>
             </div>
-          </details>
-        </section>
+          </section>
+        </div>
 
-        {/* ======================================================
-            PRÓXIMAS CITAS
-            ====================================================== */}
+        <style>{`
+          .stats8 {
+            min-height: 100vh;
+            padding: 30px 20px 64px;
+            background: #f8f8fb;
+          }
 
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <h2>
-                Próximas citas
-              </h2>
+          .stats8-shell {
+            width: min(1180px, 100%);
+            margin: 0 auto;
+          }
 
-              <p className="muted">
-                Las siguientes reservas confirmadas.
-              </p>
-            </div>
+          .stats8-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+            padding: 24px 26px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+              radial-gradient(
+                circle at 88% 12%,
+                rgba(112,87,245,.09),
+                transparent 30%
+              ),
+              #fff;
+            box-shadow:
+              0 16px 42px
+              rgba(31,27,48,.035);
+          }
 
-            <Link
-              href="/business-dashboard/bookings"
-              className="btn"
-            >
-              Ver todas
-            </Link>
-          </div>
+          .stats8-eyebrow,
+          .stats8-section-label {
+            color: var(--accent-dark);
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: .01em;
+          }
 
-          {upcomingBookings.length >
-          0 ? (
-            <div
-              style={{
-                display: "grid",
-                gap: 10,
-              }}
-            >
-              {upcomingBookings.map(
-                (booking) => (
-                  <div
-                    className="card"
-                    key={
-                      booking.id
-                    }
-                  >
-                    <div
-                      className="card-body"
-                      style={{
-                        padding: 14,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display:
-                            "flex",
+          .stats8-hero h1 {
+            max-width: 850px;
+            margin: 6px 0 5px;
+            font-size: clamp(
+              27px,
+              3vw,
+              37px
+            );
+            line-height: 1.08;
+            letter-spacing: -.04em;
+          }
 
-                          justifyContent:
-                            "space-between",
+          .stats8-hero p,
+          .stats8-card-head p,
+          .stats8-month-copy p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+          }
 
-                          gap: 12,
+          .stats8-public-link {
+            flex-shrink: 0;
+            font-weight: 800;
+          }
 
-                          alignItems:
-                            "center",
+          .stats8-kpis {
+            display: grid;
+            grid-template-columns:
+              repeat(
+                6,
+                minmax(0,1fr)
+              );
+            gap: 10px;
+            margin-top: 14px;
+          }
 
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <div>
-                          <strong>
-                            {
-                              booking.profile
-                                ?.name ??
-                              "Cliente"
-                            }
-                          </strong>
+          .stats8-kpis article {
+            min-width: 0;
+            padding: 14px 15px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: #fff;
+          }
 
-                          {booking.service && (
-                            <div
-                              className="muted"
-                              style={{
-                                marginTop:
-                                  4,
-                              }}
-                            >
-                              {
-                                booking.service
-                                  .name
-                              }
-                            </div>
-                          )}
-                        </div>
+          .stats8-kpis article > span,
+          .stats8-kpis article > small {
+            display: block;
+          }
 
-                        {booking.slot && (
-                          <strong>
-                            📅{" "}
-                            {formatDateTime(
-                              booking.slot
-                                .start_at
-                            )}
-                          </strong>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          ) : (
-            <div className="panel">
-              <p className="muted">
-                No hay próximas citas confirmadas.
-              </p>
-            </div>
-          )}
-        </section>
+          .stats8-kpis article > span {
+            color: var(--muted);
+            font-size: 11px;
+          }
 
-          {/* ======================================================
-    GOOGLE CALENDAR
-    ====================================================== */}
+          .stats8-kpis article > strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 22px;
+            line-height: 1;
+            letter-spacing: -.025em;
+          }
 
-<section className="section">
-  <div className="section-head">
-    <div>
-      <h2>
-        Integraciones
-      </h2>
+          .stats8-kpis article > small {
+            margin-top: 5px;
+            color: #8b8896;
+            font-size: 9.5px;
+            line-height: 1.25;
+          }
 
-      <p className="muted">
-        Conecta servicios externos con tu negocio.
-      </p>
-    </div>
-  </div>
+          .stats8-kpis article.is-warning strong {
+            color: #b42318;
+          }
 
-  <GoogleCalendarIntegration
-    businessId={
-      business.id
-    }
-  />
-</section>
+          .stats8-grid {
+            display: grid;
+            grid-template-columns:
+              minmax(0,1.62fr)
+              minmax(320px,.72fr);
+            gap: 16px;
+            margin-top: 24px;
+            align-items: stretch;
+          }
 
-        {/* ======================================================
-            GESTIÓN
-            ====================================================== */}
+          .stats8-card {
+            min-width: 0;
+            padding: 19px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow:
+              0 14px 34px
+              rgba(31,27,48,.03);
+          }
 
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <h2>
-                Gestionar negocio
-              </h2>
+          .stats8-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+          }
 
-              <p className="muted">
-                Configuración y herramientas de tu negocio.
-              </p>
-            </div>
-          </div>
+          .stats8-card-head h2,
+          .stats8-month h2 {
+            margin: 4px 0 5px;
+            font-size: 21px;
+            letter-spacing: -.025em;
+          }
 
-          <div
-            style={{
-              display: "grid",
+          .stats8-card-head p,
+          .stats8-month-copy p {
+            font-size: 12px;
+          }
 
-              gridTemplateColumns:
-                "repeat(auto-fit,minmax(210px,1fr))",
+          .stats8-total strong {
+            color: var(--accent-dark);
+            font-size: 20px;
+          }
 
-              gap: 10,
-            }}
-          >
-            <Link
-              href="/business-dashboard/edit"
-              className="btn"
-            >
-              ✏️ Editar mi negocio
-            </Link>
+          .stats8-total span {
+            margin-top: 1px;
+            color: var(--muted);
+            font-size: 9.5px;
+          }
 
-            <Link
-              href="/business-dashboard/images"
-              className="btn"
-            >
-              📷 Imágenes
-            </Link>
+          .stats8-chart {
+            height: 170px;
+            display: grid;
+            grid-template-columns:
+              repeat(
+                7,
+                minmax(0,1fr)
+              );
+            gap: 8px;
+            align-items: end;
+            margin-top: 14px;
+          }
 
-            <Link
-              href="/business-dashboard/hours"
-              className="btn"
-            >
-              🕒 Horarios
-            </Link>
+          .stats8-chart-day {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+          }
 
-            <Link
-              href="/business-dashboard/services"
-              className="btn"
-            >
-              🛠️ Servicios
-            </Link>
+          .stats8-chart-day > strong {
+            margin-bottom: 5px;
+            font-size: 11px;
+          }
 
-            <Link
-              href="/business-dashboard/calendar"
-              className="btn"
-            >
-              📅 Calendario y citas
-            </Link>
+          .stats8-chart-track {
+            width: min(
+              42px,
+              68%
+            );
+            height: 116px;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+            border-radius: 9px;
+            background: #f0edff;
+          }
 
-            <Link
-              href="/business-dashboard/bookings"
-              className="btn"
-            >
-              📋 Reservas
-            </Link>
-            <Link
-  href="/business-dashboard/agenda"
-  className="btn"
->
-  📅 Agenda
-</Link>
-            <Link
-              href="/business-dashboard/subscribers"
-              className="btn"
-            >
-              🔔 Suscriptores
-            </Link>
+          .stats8-chart-track span {
+            width: 100%;
+            display: block;
+            border-radius:
+              8px 8px 2px 2px;
+            background:
+              var(--accent);
+          }
 
-            <Link
-              href={`/business/${business.slug}`}
-              className="btn primary"
-            >
-              Ver ficha pública
-            </Link>
-          </div>
-        </section>
+          .stats8-chart-day small {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: capitalize;
+          }
 
-        <section
-          className="section"
-          style={{
-            marginTop: 20,
-          }}
-        >
-          <Link
-            href="/"
-            className="btn"
-          >
-            ← Volver a Slottye
-          </Link>
-        </section>
-                {/* ======================================================
-            ZONA DE PELIGRO
-            ====================================================== */}
+          .stats8-top-service {
+            margin-top: 14px;
+            padding: 13px;
+            border-radius: 12px;
+            background: #f7f5ff;
+          }
 
-<section className="section">
-          <div
-            style={{
-              marginTop: 16,
-              paddingTop: 24,
-              borderTop:
-                "1px solid var(--border)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: "#b91c1c",
-                marginBottom: 6,
-              }}
-            >
-              Zona de peligro
-            </div>
+          .stats8-top-service span,
+          .stats8-top-service strong,
+          .stats8-top-service small {
+            display: block;
+          }
 
-            <p
-              className="muted"
-              style={{
-                fontSize: 13,
-                lineHeight: 1.6,
-                marginBottom: 14,
-                maxWidth: 650,
-              }}
-            >
-              Elimina permanentemente tu cuenta de Slottye,
-              tu negocio y todos los datos asociados. Las
-              reservas futuras de tus clientes serán canceladas
-              y recibirán un aviso por correo electrónico.
-            </p>
+          .stats8-top-service span {
+            color: var(--accent-dark);
+            font-size: 9.5px;
+            font-weight: 850;
+            text-transform: uppercase;
+          }
 
-            <Link
-              href="/account/delete"
-              className="btn"
-              style={{
-                color: "#b91c1c",
-                borderColor: "#fecaca",
-                background: "#fff",
-              }}
-            >
-              Eliminar cuenta y negocio
-            </Link>
-          </div>
-        </section>
+          .stats8-top-service strong {
+            margin-top: 4px;
+            font-size: 18px;
+          }
+
+          .stats8-top-service small {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 11px;
+          }
+
+          .stats8-ranking {
+            display: grid;
+            gap: 11px;
+            margin-top: 15px;
+          }
+
+          .stats8-ranking-main {
+            display: grid;
+            grid-template-columns:
+              24px
+              minmax(0,1fr)
+              auto;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .stats8-ranking-main > span {
+            width: 24px;
+            height: 24px;
+            display: grid;
+            place-items: center;
+            border-radius: 7px;
+            background: #f0ecff;
+            color: var(--accent-dark);
+            font-size: 10px;
+            font-weight: 850;
+          }
+
+          .stats8-ranking-main strong {
+            font-size: 12px;
+          }
+
+          .stats8-ranking-main small {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 800;
+          }
+
+          .stats8-ranking-track {
+            height: 5px;
+            margin: 5px 0 0 32px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #f0edf5;
+          }
+
+          .stats8-ranking-track span {
+            height: 100%;
+            display: block;
+            border-radius: inherit;
+            background: var(--accent);
+          }
+
+          .stats8-empty {
+            margin-top: 14px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #f8f7fb;
+            color: var(--muted);
+            font-size: 12px;
+          }
+
+          .stats8-month {
+            display: grid;
+            grid-template-columns:
+              minmax(220px,.72fr)
+              minmax(0,1.7fr);
+            gap: 24px;
+            align-items: center;
+            margin-top: 16px;
+            padding: 18px 20px;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background: #fff;
+          }
+
+          .stats8-month-values {
+            display: grid;
+            grid-template-columns:
+              repeat(
+                4,
+                minmax(0,1fr)
+              );
+            gap: 8px;
+          }
+
+          .stats8-month-values > div {
+            padding: 10px 11px;
+            border-radius: 11px;
+            background: #f8f7fb;
+          }
+
+          .stats8-month-values span,
+          .stats8-month-values strong {
+            display: block;
+          }
+
+          .stats8-month-values small {
+            display: block;
+            margin-top: 3px;
+            color: #8b8896;
+            font-size: 9.5px;
+            line-height: 1.25;
+          }
+
+          .stats8-month-values .is-positive strong {
+            color: #15803d;
+          }
+
+          .stats8-month-values .is-negative strong {
+            color: #b42318;
+          }
+
+          .stats8-month-values span {
+            color: var(--muted);
+            font-size: 10px;
+          }
+
+          .stats8-month-values strong {
+            margin-top: 3px;
+            font-size: 18px;
+          }
+
+          @media (
+            max-width: 1050px
+          ) {
+            .stats8-kpis {
+              grid-template-columns:
+                repeat(
+                  3,
+                  minmax(0,1fr)
+                );
+            }
+
+            .stats8-grid {
+              grid-template-columns:
+                minmax(0,1.35fr)
+                minmax(280px,.72fr);
+            }
+          }
+
+          @media (
+            max-width: 820px
+          ) {
+            .stats8-grid {
+              grid-template-columns:
+                1fr;
+            }
+
+            .stats8-month {
+              grid-template-columns:
+                1fr;
+            }
+          }
+
+          @media (
+            max-width: 620px
+          ) {
+            .stats8 {
+              padding:
+                18px 12px
+                46px;
+            }
+
+            .stats8-hero {
+              flex-direction:
+                column;
+              align-items:
+                stretch;
+              padding: 19px;
+            }
+
+            .stats8-hero h1 {
+              font-size: 29px;
+            }
+
+            .stats8-public-link {
+              width: 100%;
+              justify-content:
+                center;
+            }
+
+            .stats8-kpis {
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0,1fr)
+                );
+            }
+
+            .stats8-card-head {
+              flex-direction:
+                column;
+            }
+
+            .stats8-chart {
+              height: 150px;
+            }
+
+            .stats8-chart-track {
+              width: min(
+                30px,
+                64%
+              );
+              height: 100px;
+            }
+
+            .stats8-month-values {
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0,1fr)
+                );
+            }
+          }
+
+          @media (
+            max-width: 400px
+          ) {
+            .stats8-kpis {
+              grid-template-columns:
+                1fr 1fr;
+            }
+
+            .stats8-kpis article {
+              padding: 12px;
+            }
+
+            .stats8-card {
+              padding: 15px;
+            }
+          }
+        `}</style>
       </main>
     </>
   );

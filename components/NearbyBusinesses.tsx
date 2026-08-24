@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,6 +9,12 @@ import {
 } from "react";
 
 import { BusinessCard } from "@/components/BusinessCard";
+
+import {
+  Info,
+  MapPin,
+  SlidersHorizontal,
+} from "lucide-react";
 
 type Business = {
   id: string;
@@ -26,6 +33,7 @@ type Business = {
   reviewCount: number;
 
   hasAvailableSlots: boolean;
+  nextAvailableAt?: string | null;
 };
 
 type Props = {
@@ -183,6 +191,12 @@ export function NearbyBusinesses({
   const permissionChecked =
     useRef(false);
 
+  const userLocationRef =
+    useRef<UserLocation | null>(null);
+
+  const sortModeRef =
+    useRef<SortMode>("default");
+
   const [
     sortMode,
     setSortMode,
@@ -231,10 +245,10 @@ export function NearbyBusinesses({
    * ============================================================
    */
 
-  function saveLocation(
+  const saveLocation = useCallback((
     position:
       GeolocationPosition
-  ) {
+  ) => {
     setUserLocation({
       latitude:
         position
@@ -267,7 +281,7 @@ export function NearbyBusinesses({
     setSortMode(
       "distance"
     );
-  }
+  }, []);
 
   /*
    * ============================================================
@@ -275,12 +289,12 @@ export function NearbyBusinesses({
    * ============================================================
    */
 
-  function handleLocationError(
+  const handleLocationError = useCallback((
     error:
       GeolocationPositionError,
     automatic:
       boolean
-  ) {
+  ) => {
     setLocating(
       false
     );
@@ -342,7 +356,7 @@ export function NearbyBusinesses({
     setMessage(
       "No hemos podido acceder a tu ubicación. Puedes seguir viendo los negocios igualmente."
     );
-  }
+  }, []);
 
   /*
    * ============================================================
@@ -350,10 +364,10 @@ export function NearbyBusinesses({
    * ============================================================
    */
 
-  function getLocation(
+  const getLocation = useCallback((
     automatic =
       false
-  ) {
+  ) => {
     if (
       !navigator.geolocation
     ) {
@@ -410,7 +424,7 @@ export function NearbyBusinesses({
           300000,
       }
     );
-  }
+  }, [handleLocationError, saveLocation]);
 
   /*
    * ============================================================
@@ -419,6 +433,41 @@ export function NearbyBusinesses({
    */
 
   async function requestLocation() {
+    /*
+     * Si la ubicación ya está activa, el mismo botón
+     * sirve para dejar de utilizarla en Slottye.
+     *
+     * Esto no revoca el permiso del navegador:
+     * simplemente dejamos de usar la ubicación
+     * hasta que el usuario vuelva a activarla.
+     */
+    if (
+      userLocation
+    ) {
+      setUserLocation(
+        null
+      );
+
+      setMaxDistanceKm(
+        null
+      );
+
+      if (
+        sortMode ===
+        "distance"
+      ) {
+        setSortMode(
+          "default"
+        );
+      }
+
+      setMessage(
+        ""
+      );
+
+      return;
+    }
+
     /*
      * Si sabemos que está denegado,
      * evitamos hacer una petición que el
@@ -452,6 +501,14 @@ export function NearbyBusinesses({
    * COMPROBAR PERMISO AL ENTRAR
    * ============================================================
    */
+
+  useEffect(() => {
+    userLocationRef.current =
+      userLocation;
+
+    sortModeRef.current =
+      sortMode;
+  }, [sortMode, userLocation]);
 
   useEffect(() => {
     if (
@@ -542,7 +599,7 @@ export function NearbyBusinesses({
             if (
               permission.state ===
               "granted" &&
-              !userLocation
+              !userLocationRef.current
             ) {
               getLocation(
                 true
@@ -562,7 +619,7 @@ export function NearbyBusinesses({
               );
 
               if (
-                sortMode ===
+                sortModeRef.current ===
                 "distance"
               ) {
                 setSortMode(
@@ -583,7 +640,7 @@ export function NearbyBusinesses({
     }
 
     checkLocationPermission();
-  }, []);
+  }, [getLocation]);
 
   /*
    * ============================================================
@@ -850,400 +907,16 @@ export function NearbyBusinesses({
    */
 
   return (
-    <>
-      <div
-        style={{
-          padding:
-            16,
-
-          border:
-            "1px solid var(--border)",
-
-          borderRadius:
-            16,
-
-          marginBottom:
-            20,
-        }}
-      >
-        {/* UBICACIÓN + ORDEN */}
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            gap:
-              10,
-
-            alignItems:
-              "center",
-
-            flexWrap:
-              "wrap",
-          }}
-        >
-          <button
-            type="button"
-
-            className={
-              userLocation
-                ? "btn primary"
-                : "btn"
-            }
-
-            onClick={
-              requestLocation
-            }
-
-            disabled={
-              locating
-            }
-          >
-            {locating
-              ? "Localizando..."
-              : userLocation
-                ? "📍 Ubicación activada"
-                : "📍 Usar mi ubicación"}
-          </button>
-
-          <label>
-            <span
-              className="muted"
-
-              style={{
-                marginRight:
-                  8,
-              }}
-            >
-              Ordenar:
-            </span>
-
-            <select
-              value={
-                sortMode
-              }
-
-              onChange={(
-                e
-              ) => {
-                const value =
-                  e.target
-                    .value as SortMode;
-
-                setSortMode(
-                  value
-                );
-
-                if (
-                  value ===
-                    "distance" &&
-                  !userLocation
-                ) {
-                  setMessage(
-                    "Activa tu ubicación para ordenar los negocios por distancia."
-                  );
-                } else {
-                  setMessage(
-                    ""
-                  );
-                }
-              }}
-
-              style={{
-                padding:
-                  "10px 12px",
-
-                border:
-                  "1px solid var(--border)",
-
-                borderRadius:
-                  12,
-
-                background:
-                  "var(--card)",
-
-                color:
-                  "var(--text)",
-
-                font:
-                  "inherit",
-              }}
-            >
-              <option value="default">
-                Recomendados
-              </option>
-
-              <option value="distance">
-                Distancia
-              </option>
-
-              <option value="rating">
-                Mejor valorados
-              </option>
-
-              <option value="name">
-                Nombre A-Z
-              </option>
-            </select>
-          </label>
-
-          {/* DISTANCIA MÁXIMA */}
-
-          <label>
-            <span
-              className="muted"
-
-              style={{
-                marginRight:
-                  8,
-              }}
-            >
-              Distancia máxima:
-            </span>
-
-            <select
-              value={
-                maxDistanceKm ??
-                ""
-              }
-
-              onChange={(
-                e
-              ) => {
-                const value =
-                  e.target
-                    .value;
-
-                if (
-                  !value
-                ) {
-                  setMaxDistanceKm(
-                    null
-                  );
-
-                  setMessage(
-                    ""
-                  );
-
-                  return;
-                }
-
-                if (
-                  !userLocation
-                ) {
-                  setMaxDistanceKm(
-                    null
-                  );
-
-                  setMessage(
-                    "Activa tu ubicación para filtrar por distancia."
-                  );
-
-                  return;
-                }
-
-                setMaxDistanceKm(
-                  Number(
-                    value
-                  )
-                );
-
-                setMessage(
-                  ""
-                );
-
-                setSortMode(
-                  "distance"
-                );
-              }}
-
-              style={{
-                padding:
-                  "10px 12px",
-
-                border:
-                  "1px solid var(--border)",
-
-                borderRadius:
-                  12,
-
-                background:
-                  "var(--card)",
-
-                color:
-                  "var(--text)",
-
-                font:
-                  "inherit",
-              }}
-            >
-              <option value="">
-                Cualquier distancia
-              </option>
-
-              <option value="1">
-                Hasta 1 km
-              </option>
-
-              <option value="5">
-                Hasta 5 km
-              </option>
-
-              <option value="10">
-                Hasta 10 km
-              </option>
-
-              <option value="25">
-                Hasta 25 km
-              </option>
-
-              <option value="50">
-                Hasta 50 km
-              </option>
-            </select>
-          </label>
-        </div>
-
-        {/* FILTROS */}
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            gap:
-              16,
-
-            flexWrap:
-              "wrap",
-
-            alignItems:
-              "center",
-
-            marginTop:
-              14,
-          }}
-        >
-          {/* DISPONIBILIDAD */}
-
-          <label
-            style={{
-              display:
-                "flex",
-
-              gap:
-                7,
-
-              alignItems:
-                "center",
-
-              cursor:
-                "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-
-              checked={
-                onlyAvailable
-              }
-
-              onChange={(
-                e
-              ) =>
-                setOnlyAvailable(
-                  e.target
-                    .checked
-                )
-              }
-            />
-
-            📅 Con citas disponibles
-          </label>
-
-          {/* 4+ */}
-
-          <label
-            style={{
-              display:
-                "flex",
-
-              gap:
-                7,
-
-              alignItems:
-                "center",
-
-              cursor:
-                "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-
-              checked={
-                minimumFourStars
-              }
-
-              onChange={(
-                e
-              ) =>
-                setMinimumFourStars(
-                  e.target
-                    .checked
-                )
-              }
-            />
-
-            ⭐ 4 o más
-          </label>
-
-          {/* OPINIONES */}
-
-          <label
-            style={{
-              display:
-                "flex",
-
-              gap:
-                7,
-
-              alignItems:
-                "center",
-
-              cursor:
-                "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-
-              checked={
-                onlyRated
-              }
-
-              onChange={(
-                e
-              ) =>
-                setOnlyRated(
-                  e.target
-                    .checked
-                )
-              }
-            />
-
-            Solo con opiniones
-          </label>
-
-          {/* LIMPIAR */}
+    <div className="nearby4-layout">
+      <aside className="nearby4-filter">
+        <div className="nearby4-filter-head">
+          <strong>
+            Filtros
+          </strong>
 
           {hasActiveFilters && (
             <button
               type="button"
-
-              className="btn"
-
               onClick={() => {
                 setMinimumFourStars(
                   false
@@ -1272,144 +945,344 @@ export function NearbyBusinesses({
                 );
               }}
             >
-              Limpiar filtros
+              Limpiar
             </button>
           )}
         </div>
 
-        {userLocation && (
-          <div
-            className="muted"
+        <div className="nearby4-location-label">
+          Ubicación actual
+        </div>
 
-            style={{
-              marginTop:
-                12,
+        <button
+          type="button"
+          className={
+            userLocation
+              ? "nearby4-location is-active"
+              : "nearby4-location"
+          }
+          onClick={
+            requestLocation
+          }
+          disabled={
+            locating
+          }
+        >
+          <MapPin
+            size={16}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+
+          <span>
+            {locating
+              ? "Localizando..."
+              : userLocation
+                ? "Ubicación activada"
+                : "Usar mi ubicación"}
+          </span>
+        </button>
+
+        <div className="nearby4-field">
+          <label htmlFor="nearby4-sort">
+            Ordenar
+          </label>
+
+          <select
+            id="nearby4-sort"
+            value={
+              sortMode
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                event.target
+                  .value as SortMode;
+
+              setSortMode(
+                value
+              );
+
+              if (
+                value ===
+                  "distance" &&
+                !userLocation
+              ) {
+                setMessage(
+                  "Activa tu ubicación para ordenar los negocios por distancia."
+                );
+              } else {
+                setMessage(
+                  ""
+                );
+              }
             }}
           >
-            📍 Distancias calculadas desde tu ubicación actual.
+            <option value="default">
+              Recomendados
+            </option>
+
+            <option value="distance">
+              Distancia
+            </option>
+
+            <option value="rating">
+              Mejor valorados
+            </option>
+
+            <option value="name">
+              Nombre A-Z
+            </option>
+          </select>
+        </div>
+
+        <div className="nearby4-field">
+          <label htmlFor="nearby4-distance">
+            Distancia máxima
+          </label>
+
+          <select
+            id="nearby4-distance"
+            value={
+              maxDistanceKm ??
+              ""
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                event.target
+                  .value;
+
+              if (
+                !value
+              ) {
+                setMaxDistanceKm(
+                  null
+                );
+
+                setMessage(
+                  ""
+                );
+
+                return;
+              }
+
+              if (
+                !userLocation
+              ) {
+                setMaxDistanceKm(
+                  null
+                );
+
+                setMessage(
+                  "Activa tu ubicación para filtrar por distancia."
+                );
+
+                return;
+              }
+
+              setMaxDistanceKm(
+                Number(
+                  value
+                )
+              );
+
+              setMessage(
+                ""
+              );
+
+              setSortMode(
+                "distance"
+              );
+            }}
+          >
+            <option value="">
+              Cualquier distancia
+            </option>
+
+            <option value="1">
+              Hasta 1 km
+            </option>
+
+            <option value="5">
+              Hasta 5 km
+            </option>
+
+            <option value="10">
+              Hasta 10 km
+            </option>
+
+            <option value="25">
+              Hasta 25 km
+            </option>
+
+            <option value="50">
+              Hasta 50 km
+            </option>
+          </select>
+        </div>
+
+        <div className="nearby4-checks">
+          <label>
+            <input
+              type="checkbox"
+              checked={
+                onlyAvailable
+              }
+              onChange={(
+                event
+              ) =>
+                setOnlyAvailable(
+                  event.target
+                    .checked
+                )
+              }
+            />
+
+            <span>
+              Con citas disponibles
+            </span>
+          </label>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={
+                minimumFourStars
+              }
+              onChange={(
+                event
+              ) =>
+                setMinimumFourStars(
+                  event.target
+                    .checked
+                )
+              }
+            />
+
+            <span>
+              4 estrellas o más
+            </span>
+          </label>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={
+                onlyRated
+              }
+              onChange={(
+                event
+              ) =>
+                setOnlyRated(
+                  event.target
+                    .checked
+                )
+              }
+            />
+
+            <span>
+              Solo con opiniones
+            </span>
+          </label>
+        </div>
+
+        {message && (
+          <div
+            className="nearby4-message"
+            role="status"
+          >
+            <Info
+              size={16}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+
+            <span>
+              {message}
+            </span>
+          </div>
+        )}
+      </aside>
+
+      <div className="nearby4-results">
+        {visibleBusinesses.length >
+        0 ? (
+          <div className="nearby4-cards">
+            {visibleBusinesses.map(
+              (
+                business
+              ) => (
+                <BusinessCard
+                  key={
+                    business.id
+                  }
+                  business={{
+                    slug:
+                      business.slug,
+
+                    name:
+                      business.name,
+
+                    description:
+                      business.description,
+
+                    address:
+                      business.address,
+
+                    city:
+                      business.city,
+
+                    phone:
+                      business.phone,
+
+                    website:
+                      business.website,
+
+                    imageUrl:
+                      business.imageUrl,
+
+                    distance:
+                      business.distanceKm !==
+                      null
+                        ? formatDistance(
+                            business.distanceKm
+                          )
+                        : null,
+
+                    averageRating:
+                      business.averageRating,
+
+                    reviewCount:
+                      business.reviewCount,
+
+                    nextAvailableAt:
+                      business.nextAvailableAt,
+                  }}
+                />
+              )
+            )}
+          </div>
+        ) : (
+          <div className="panel nearby4-empty">
+            <SlidersHorizontal
+              size={24}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+
+            <h3>
+              No hay negocios que coincidan con los filtros
+            </h3>
+
+            <p className="muted">
+              Prueba a ampliar la distancia o quitar alguno de los filtros.
+            </p>
           </div>
         )}
       </div>
-
-      {/* MENSAJE */}
-
-      {message && (
-        <div
-          style={{
-            marginBottom:
-              18,
-
-            padding:
-              "12px 14px",
-
-            border:
-              "1px solid #bfdbfe",
-
-            background:
-              "#eff6ff",
-
-            color:
-              "#1d4ed8",
-
-            borderRadius:
-              12,
-          }}
-        >
-          ℹ️{" "}
-          {
-            message
-          }
-        </div>
-      )}
-
-      {/* TOTAL */}
-
-      <div
-        className="muted"
-
-        style={{
-          marginBottom:
-            14,
-        }}
-      >
-        {
-          visibleBusinesses.length
-        }{" "}
-
-        {visibleBusinesses.length ===
-        1
-          ? "negocio"
-          : "negocios"}
-      </div>
-
-      {/* RESULTADOS */}
-
-      {visibleBusinesses.length >
-      0 ? (
-        <div className="cards">
-          {visibleBusinesses.map(
-            (
-              business
-            ) => (
-              <BusinessCard
-                key={
-                  business.id
-                }
-
-                business={{
-                  slug:
-                    business.slug,
-
-                  name:
-                    business.name,
-
-                  description:
-                    business.description,
-
-                  address:
-                    business.address,
-
-                  city:
-                    business.city,
-
-                  phone:
-                    business.phone,
-
-                  website:
-                    business.website,
-
-                  imageUrl:
-                    business.imageUrl,
-
-                  distance:
-                    business.distanceKm !==
-                    null
-                      ? formatDistance(
-                          business.distanceKm
-                        )
-                      : null,
-
-                  averageRating:
-                    business.averageRating,
-
-                  reviewCount:
-                    business.reviewCount,
-                }}
-              />
-            )
-          )}
-        </div>
-      ) : (
-        <div className="panel">
-          <h3>
-            No hay negocios que coincidan con los filtros
-          </h3>
-
-          <p className="muted">
-            Prueba a ampliar la distancia o quitar alguno de los filtros.
-          </p>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

@@ -63,15 +63,25 @@ export default function useAgendaSearch({
     if (
       query.length < 2
     ) {
-      setGlobalSearchResults(
-        []
-      );
+      const resetTimeout =
+        window.setTimeout(
+          () => {
+            setGlobalSearchResults(
+              []
+            );
 
-      setLoadingSearch(
-        false
-      );
+            setLoadingSearch(
+              false
+            );
+          },
+          0
+        );
 
-      return;
+      return () => {
+        window.clearTimeout(
+          resetTimeout
+        );
+      };
     }
 
     const timeout =

@@ -15,6 +15,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 const BUCKET_NAME =
   "business-images";
 
@@ -364,6 +368,7 @@ export async function POST(
 
     const {
       admin,
+      business,
       response:
         authorizationResponse,
     } =
@@ -373,7 +378,8 @@ export async function POST(
 
     if (
       authorizationResponse ||
-      !admin
+      !admin ||
+      !business
     ) {
       return authorizationResponse;
     }
@@ -390,6 +396,20 @@ export async function POST(
           status:
             400,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: business.owner_id,
+      prefix: "business-images-upload",
+      limit: 30,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 
@@ -731,6 +751,7 @@ export async function PATCH(
 
     const {
       admin,
+      business,
       response:
         authorizationResponse,
     } =
@@ -740,7 +761,8 @@ export async function PATCH(
 
     if (
       authorizationResponse ||
-      !admin
+      !admin ||
+      !business
     ) {
       return authorizationResponse;
     }
@@ -853,6 +875,20 @@ export async function PATCH(
       );
     }
 
+    const rateLimit = await checkRateLimit({
+      identifier: business.owner_id,
+      prefix: "business-images-update",
+      limit: 120,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
+    }
+
     return NextResponse.json({
       images:
         savedImages ??
@@ -957,6 +993,7 @@ export async function DELETE(
 
     const {
       admin,
+      business,
       response:
         authorizationResponse,
     } =
@@ -966,7 +1003,8 @@ export async function DELETE(
 
     if (
       authorizationResponse ||
-      !admin
+      !admin ||
+      !business
     ) {
       return authorizationResponse;
     }
@@ -1018,6 +1056,20 @@ export async function DELETE(
           status:
             500,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: business.owner_id,
+      prefix: "business-images-delete",
+      limit: 60,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

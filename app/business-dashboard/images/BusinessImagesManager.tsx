@@ -4,6 +4,18 @@ import {
   ChangeEvent,
   useState,
 } from "react";
+import Image from "next/image";
+
+import {
+  ArrowLeft,
+  ArrowRight,
+  ImagePlus,
+  Star,
+  Trash2,
+} from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+type Confirmation = { resolve: (confirmed: boolean) => void };
 
 type BusinessImage = {
   id: string;
@@ -14,6 +26,7 @@ type BusinessImage = {
 type Props = {
   businessId: string;
   initialImages: BusinessImage[];
+  endpoint?: string;
 };
 
 type MessageType =
@@ -24,7 +37,18 @@ type MessageType =
 export default function BusinessImagesManager({
   businessId,
   initialImages,
+  endpoint = "/api/business/images",
 }: Props) {
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+
+  function requestConfirmation() {
+    return new Promise<boolean>((resolve) => setConfirmation({ resolve }));
+  }
+
+  function finishConfirmation(confirmed: boolean) {
+    confirmation?.resolve(confirmed);
+    setConfirmation(null);
+  }
   const [
     images,
     setImages,
@@ -99,7 +123,7 @@ export default function BusinessImagesManager({
   ) {
     const response =
       await fetch(
-        "/api/business/images",
+        endpoint,
         {
           method:
             "PATCH",
@@ -219,7 +243,7 @@ export default function BusinessImagesManager({
 
       const response =
         await fetch(
-          "/api/business/images",
+          endpoint,
           {
             method:
               "POST",
@@ -451,10 +475,7 @@ export default function BusinessImagesManager({
     image:
       BusinessImage
   ) {
-    const confirmed =
-      window.confirm(
-        "¿Eliminar esta imagen del negocio?"
-      );
+    const confirmed = await requestConfirmation();
 
     if (
       !confirmed
@@ -471,7 +492,7 @@ export default function BusinessImagesManager({
     try {
       const response =
         await fetch(
-          "/api/business/images",
+          endpoint,
           {
             method:
               "DELETE",
@@ -540,145 +561,50 @@ export default function BusinessImagesManager({
   }
 
   return (
-    <div
-      style={{
-        marginTop:
-          28,
-      }}
-    >
-      <label className="btn primary">
-        {loading
-          ? "Procesando..."
-          : "📷 Subir imagen"}
+    <div className="img9">
+      <div className="img9-toolbar">
+        <label className="btn primary img9-upload">
+          <ImagePlus
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
 
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={
-            handleUpload
-          }
-          disabled={
-            loading
-          }
-          style={{
-            display:
-              "none",
-          }}
-        />
-      </label>
+          {loading
+            ? "Procesando..."
+            : "Subir imagen"}
 
-      <p
-        className="muted"
-        style={{
-          marginTop:
-            10,
-        }}
-      >
-        JPG, PNG o WebP · Máximo 5 MB. La primera imagen será la portada.
-      </p>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={
+              handleUpload
+            }
+            disabled={
+              loading
+            }
+          />
+        </label>
+
+        <p>
+          JPG, PNG o WebP · máximo 5 MB. La primera imagen será la portada.
+        </p>
+      </div>
 
       {message && (
         <div
           role="alert"
           aria-live="polite"
-          style={{
-            marginTop:
-              16,
-
-            padding:
-              "16px 18px",
-
-            borderRadius:
-              14,
-
-            display:
-              "flex",
-
-            alignItems:
-              "flex-start",
-
-            justifyContent:
-              "space-between",
-
-            gap:
-              14,
-
-            background:
-              messageType ===
+          className={
+            messageType ===
               "error"
-                ? "#fef2f2"
-                : "#f0fdf4",
-
-            border:
-              messageType ===
-              "error"
-                ? "1px solid #f87171"
-                : "1px solid #4ade80",
-
-            color:
-              messageType ===
-              "error"
-                ? "#b91c1c"
-                : "#166534",
-          }}
+              ? "img9-message is-error"
+              : "img9-message is-success"
+          }
         >
-          <div
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "flex-start",
-
-              gap:
-                12,
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                fontSize:
-                  22,
-
-                lineHeight:
-                  1,
-              }}
-            >
-              {messageType ===
-              "error"
-                ? "⚠️"
-                : "✅"}
-            </span>
-
-            <div>
-              <div
-                style={{
-                  fontWeight:
-                    800,
-
-                  fontSize:
-                    16,
-
-                  marginBottom:
-                    4,
-                }}
-              >
-                {messageType ===
-                "error"
-                  ? "No se ha podido completar la acción"
-                  : "Acción completada"}
-              </div>
-
-              <div
-                style={{
-                  lineHeight:
-                    1.5,
-                }}
-              >
-                {message}
-              </div>
-            </div>
-          </div>
+          <span>
+            {message}
+          </span>
 
           <button
             type="button"
@@ -686,34 +612,6 @@ export default function BusinessImagesManager({
               clearMessage
             }
             aria-label="Cerrar mensaje"
-            style={{
-              border:
-                0,
-
-              background:
-                "transparent",
-
-              color:
-                "inherit",
-
-              cursor:
-                "pointer",
-
-              fontSize:
-                20,
-
-              lineHeight:
-                1,
-
-              padding:
-                0,
-
-              opacity:
-                0.75,
-
-              flexShrink:
-                0,
-            }}
           >
             ×
           </button>
@@ -722,207 +620,419 @@ export default function BusinessImagesManager({
 
       {images.length ===
       0 ? (
-        <div
-          className="panel"
-          style={{
-            marginTop:
-              24,
-          }}
-        >
-          <h3>
-            Todavía no has subido imágenes
-          </h3>
+        <div className="img9-empty">
+          <ImagePlus
+            size={23}
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
 
-          <p className="muted">
-            La primera imagen se utilizará como portada del negocio.
+          <strong>
+            Todavía no has subido imágenes
+          </strong>
+
+          <p>
+            Añade fotografías para mejorar la ficha pública de tu negocio.
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display:
-              "grid",
-
-            gridTemplateColumns:
-              "repeat(auto-fit,minmax(240px,1fr))",
-
-            gap:
-              16,
-
-            marginTop:
-              24,
-          }}
-        >
+        <div className="img9-grid">
           {images.map(
             (
               image,
               index
             ) => (
-              <div
-                className="card"
+              <article
+                className="img9-card"
                 key={
                   image.id
                 }
               >
-                <div
-                  style={{
-                    position:
-                      "relative",
-                  }}
-                >
-                  <img
+                <div className="img9-media">
+                  <Image
                     src={
                       image.image_url
                     }
                     alt={`Imagen ${index + 1}`}
-                    style={{
-                      width:
-                        "100%",
-
-                      height:
-                        190,
-
-                      objectFit:
-                        "cover",
-
-                      borderRadius:
-                        "14px 14px 0 0",
-                    }}
+                    fill
+                    sizes="(max-width: 760px) 50vw, 220px"
+                    unoptimized
                   />
 
                   {index ===
                     0 && (
-                    <div
-                      style={{
-                        position:
-                          "absolute",
+                    <span className="img9-cover">
+                      <Star
+                        size={13}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
 
-                        top:
-                          10,
-
-                        left:
-                          10,
-
-                        background:
-                          "var(--card)",
-
-                        border:
-                          "1px solid var(--border)",
-
-                        borderRadius:
-                          999,
-
-                        padding:
-                          "6px 10px",
-
-                        fontSize:
-                          12,
-
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      ⭐ Portada
-                    </div>
+                      Portada
+                    </span>
                   )}
                 </div>
 
-                <div className="card-body">
-                  <div
-                    style={{
-                      display:
-                        "flex",
-
-                      flexWrap:
-                        "wrap",
-
-                      gap:
-                        8,
-                    }}
-                  >
-                    {index !==
-                      0 && (
-                      <button
-                        type="button"
-                        className="btn primary"
-                        disabled={
-                          loading
-                        }
-                        onClick={() =>
-                          makeCover(
-                            image
-                          )
-                        }
-                      >
-                        ⭐ Hacer portada
-                      </button>
-                    )}
-
+                <div className="img9-actions">
+                  {index !==
+                    0 && (
                     <button
                       type="button"
-                      className="btn"
-                      disabled={
-                        loading ||
-                        index ===
-                          0
-                      }
-                      onClick={() =>
-                        moveImage(
-                          image.id,
-                          "left"
-                        )
-                      }
-                    >
-                      ←
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={
-                        loading ||
-                        index ===
-                          images.length -
-                            1
-                      }
-                      onClick={() =>
-                        moveImage(
-                          image.id,
-                          "right"
-                        )
-                      }
-                    >
-                      →
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn"
+                      className="btn img9-cover-button"
                       disabled={
                         loading
                       }
                       onClick={() =>
-                        deleteImage(
+                        makeCover(
                           image
                         )
                       }
-                      style={{
-                        color:
-                          "#b91c1c",
-
-                        borderColor:
-                          "#fecaca",
-                      }}
                     >
-                      Eliminar
+                      <Star
+                        size={14}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+
+                      Hacer portada
                     </button>
-                  </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn img9-icon-button"
+                    aria-label="Mover imagen a la izquierda"
+                    disabled={
+                      loading ||
+                      index ===
+                        0
+                    }
+                    onClick={() =>
+                      moveImage(
+                        image.id,
+                        "left"
+                      )
+                    }
+                  >
+                    <ArrowLeft
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn img9-icon-button"
+                    aria-label="Mover imagen a la derecha"
+                    disabled={
+                      loading ||
+                      index ===
+                        images.length -
+                          1
+                    }
+                    onClick={() =>
+                      moveImage(
+                        image.id,
+                        "right"
+                      )
+                    }
+                  >
+                    <ArrowRight
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn img9-delete"
+                    aria-label="Eliminar imagen"
+                    disabled={
+                      loading
+                    }
+                    onClick={() =>
+                      deleteImage(
+                        image
+                      )
+                    }
+                  >
+                    <Trash2
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
-              </div>
+              </article>
             )
           )}
+
+          <label className="img9-add-card">
+            <ImagePlus
+              size={22}
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
+
+            <strong>
+              Añadir más
+            </strong>
+
+            <span>
+              JPG, PNG o WebP
+            </span>
+
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleUpload}
+              disabled={loading}
+            />
+          </label>
         </div>
       )}
+
+      <style jsx>{`
+        .img9 {
+          margin-top: 4px;
+        }
+
+        .img9-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .img9-upload {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .img9-upload input {
+          display: none;
+        }
+
+        .img9-toolbar p,
+        .img9-empty p {
+          margin: 0;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .img9-message {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 12px;
+          padding: 9px 10px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .img9-message.is-success {
+          background: #effaf3;
+          color: #17663a;
+        }
+
+        .img9-message.is-error {
+          background: #fff0f0;
+          color: #b42318;
+        }
+
+        .img9-message button {
+          border: 0;
+          background: transparent;
+          color: inherit;
+          cursor: pointer;
+          font-size: 18px;
+          line-height: 1;
+        }
+
+        .img9-empty {
+          display: grid;
+          justify-items: center;
+          gap: 7px;
+          margin-top: 14px;
+          padding: 26px 16px;
+          border: 1px dashed #dcd7eb;
+          border-radius: 14px;
+          background: #fbfaff;
+          color: var(--accent);
+          text-align: center;
+        }
+
+        .img9-empty strong {
+          color: var(--text);
+          font-size: 14px;
+        }
+
+        .img9-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(210px, 245px));
+          gap: 9px;
+          margin-top: 12px;
+        }
+
+        .img9-card {
+          overflow: hidden;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          background: #fff;
+        }
+
+        .img9-media {
+          position: relative;
+          height: 126px;
+          overflow: hidden;
+          background: #f4f3f7;
+        }
+
+        .img9-media img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .img9-cover {
+          position: absolute;
+          top: 9px;
+          left: 9px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 5px 8px;
+          border: 1px solid rgba(255,255,255,.7);
+          border-radius: 999px;
+          background: rgba(255,255,255,.92);
+          color: var(--accent-dark);
+          font-size: 11px;
+          font-weight: 850;
+          backdrop-filter: blur(8px);
+        }
+
+        .img9-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+          padding: 9px;
+        }
+
+        .img9-actions .btn {
+          min-height: 34px;
+          padding: 7px 9px;
+          font-size: 12px;
+        }
+
+        .img9-cover-button {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .img9-icon-button {
+          min-width: 34px;
+        }
+
+        .img9-delete {
+          margin-left: auto;
+          color: #b42318;
+          border-color: #fecaca;
+        }
+
+
+        .img9-add-card {
+          min-height: 174px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          gap: 5px;
+          border: 1.5px dashed #cfc5ff;
+          border-radius: 12px;
+          background: #fbfaff;
+          color: var(--accent);
+          cursor: pointer;
+          transition:
+            border-color .16s ease,
+            background .16s ease,
+            transform .16s ease;
+        }
+
+        .img9-add-card:hover {
+          border-color: #9e8cff;
+          background: #f7f4ff;
+          transform: translateY(-1px);
+        }
+
+        .img9-add-card strong {
+          font-size: 12px;
+        }
+
+        .img9-add-card span {
+          color: var(--muted);
+          font-size: 10px;
+        }
+
+        .img9-add-card input {
+          display: none;
+        }
+
+        @media (max-width: 900px) {
+          .img9-grid {
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+          }
+        }
+
+        @media (max-width: 560px) {
+          .img9-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .img9-upload {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .img9-grid {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 7px;
+          }
+
+          .img9-media {
+            height: 104px;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .img9-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .img9-media {
+            height: 168px;
+          }
+        }
+      `}</style>
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        onOpenChange={(open) => { if (!open) finishConfirmation(false); }}
+        title="Eliminar imagen"
+        description="La imagen se eliminará definitivamente de la galería del negocio."
+        variant="danger"
+        confirmLabel="Eliminar imagen"
+        onConfirm={() => finishConfirmation(true)}
+      />
     </div>
   );
 }

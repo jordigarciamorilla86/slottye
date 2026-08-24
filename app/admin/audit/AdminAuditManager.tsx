@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
-  useEffect,
   useMemo,
   useState,
 } from "react";
+import managerStyles from "../AdminManagement.module.css";
 
 type AuditAdmin = {
   id: string;
@@ -79,6 +80,17 @@ type AuditLog = {
 
 type Props = {
   initialLogs: AuditLog[];
+  search: string;
+  entityFilter: string;
+  actionFilter: string;
+  entityTypes: string[];
+  actions: string[];
+  currentPage: number;
+  totalPages: number;
+  totalResults: number;
+  totalLogs: number;
+  affectedUsers: number;
+  affectedBusinesses: number;
 };
 
 const ITEMS_PER_PAGE =
@@ -86,24 +98,22 @@ const ITEMS_PER_PAGE =
 
 export default function AdminAuditManager({
   initialLogs,
+  search,
+  entityFilter,
+  actionFilter,
+  entityTypes,
+  actions,
+  currentPage,
+  totalPages,
+  totalResults,
+  totalLogs,
+  affectedUsers,
+  affectedBusinesses,
 }: Props) {
-  const [
-    search,
-    setSearch,
-  ] =
-    useState("");
-
-  const [
-    entityFilter,
-    setEntityFilter,
-  ] =
-    useState("ALL");
-
-  const [
-    actionFilter,
-    setActionFilter,
-  ] =
-    useState("ALL");
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlSearchParams = useSearchParams();
+  const [searchValue, setSearchValue] = useState(search);
 
   const [
     expandedId,
@@ -114,157 +124,13 @@ export default function AdminAuditManager({
       null
     >(null);
 
-  const [
-    currentPage,
-    setCurrentPage,
-  ] =
-    useState(1);
-
-  /*
-   * ============================================================
-   * OPCIONES DE FILTRO
-   * ============================================================
-   */
-
-  const entityTypes =
-    useMemo(
-      () =>
-        Array.from(
-          new Set(
-            initialLogs.map(
-              (
-                log
-              ) =>
-                log.entity_type
-            )
-          )
-        ).sort(),
-      [
-        initialLogs,
-      ]
-    );
-
-  const actions =
-    useMemo(
-      () =>
-        Array.from(
-          new Set(
-            initialLogs.map(
-              (
-                log
-              ) =>
-                log.action
-            )
-          )
-        ).sort(),
-      [
-        initialLogs,
-      ]
-    );
-
-  /*
-   * ============================================================
-   * FILTRADO
-   * ============================================================
-   */
-
-  const filteredLogs =
-    useMemo(
-      () => {
-        const normalizedSearch =
-          search
-            .trim()
-            .toLowerCase();
-
-        return initialLogs.filter(
-          (
-            log
-          ) => {
-            if (
-              entityFilter !==
-                "ALL" &&
-              log.entity_type !==
-                entityFilter
-            ) {
-              return false;
-            }
-
-            if (
-              actionFilter !==
-                "ALL" &&
-              log.action !==
-                actionFilter
-            ) {
-              return false;
-            }
-
-            if (
-              !normalizedSearch
-            ) {
-              return true;
-            }
-
-            const searchableValues = [
-              log.description,
-              log.action,
-              log.entity_type,
-              log.entity_id,
-
-              log.business
-                ?.name,
-
-              log.admin_profile
-                ?.name,
-
-              log.admin_profile
-                ?.email,
-
-              log.target_profile
-                ?.name,
-
-              log.target_profile
-                ?.email,
-            ]
-              .filter(
-                Boolean
-              )
-              .join(" ")
-              .toLowerCase();
-
-            return searchableValues.includes(
-              normalizedSearch
-            );
-          }
-        );
-      },
-      [
-        actionFilter,
-        entityFilter,
-        initialLogs,
-        search,
-      ]
-    );
-
   /*
    * ============================================================
    * PAGINACIÓN
    * ============================================================
    */
 
-  const totalPages =
-    Math.max(
-      1,
-      Math.ceil(
-        filteredLogs.length /
-          ITEMS_PER_PAGE
-      )
-    );
-
-  const safeCurrentPage =
-    Math.min(
-      currentPage,
-      totalPages
-    );
+  const safeCurrentPage = currentPage;
 
   const firstIndex =
     (
@@ -277,52 +143,20 @@ export default function AdminAuditManager({
     Math.min(
       firstIndex +
         ITEMS_PER_PAGE,
-      filteredLogs.length
+      totalResults
     );
 
-  const visibleLogs =
-    filteredLogs.slice(
-      firstIndex,
-      lastIndex
-    );
+  const visibleLogs = initialLogs;
 
-  /*
-   * Al cambiar cualquier filtro,
-   * volvemos a la primera página.
-   */
-
-  useEffect(() => {
-    setCurrentPage(
-      1
-    );
-
-    setExpandedId(
-      null
-    );
-  }, [
-    search,
-    entityFilter,
-    actionFilter,
-  ]);
-
-  /*
-   * Protección por si cambia el número
-   * de resultados disponibles.
-   */
-
-  useEffect(() => {
-    if (
-      currentPage >
-      totalPages
-    ) {
-      setCurrentPage(
-        totalPages
-      );
-    }
-  }, [
-    currentPage,
-    totalPages,
-  ]);
+  function navigate(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(urlSearchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value || value === "ALL") params.delete(key);
+      else params.set(key, value);
+    });
+    router.push(`${pathname}${params.size ? `?${params}` : ""}`);
+    setExpandedId(null);
+  }
 
   function changePage(
     page:
@@ -337,9 +171,7 @@ export default function AdminAuditManager({
         totalPages
       );
 
-    setCurrentPage(
-      nextPage
-    );
+    navigate({ page: nextPage === 1 ? null : String(nextPage) });
 
     setExpandedId(
       null
@@ -397,6 +229,7 @@ export default function AdminAuditManager({
 
   return (
     <div
+      className={managerStyles.manager}
       style={{
         marginTop:
           28,
@@ -421,43 +254,21 @@ export default function AdminAuditManager({
         <StatCard
           label="Registros"
           value={
-            initialLogs.length
+              totalLogs
           }
         />
 
         <StatCard
           label="Usuarios afectados"
           value={
-            new Set(
-              initialLogs
-                .map(
-                  (
-                    log
-                  ) =>
-                    log.target_user_id
-                )
-                .filter(
-                  Boolean
-                )
-            ).size
+            affectedUsers
           }
         />
 
         <StatCard
           label="Negocios afectados"
           value={
-            new Set(
-              initialLogs
-                .map(
-                  (
-                    log
-                  ) =>
-                    log.business_id
-                )
-                .filter(
-                  Boolean
-                )
-            ).size
+            affectedBusinesses
           }
         />
 
@@ -499,15 +310,19 @@ export default function AdminAuditManager({
 
           <input
             value={
-              search
+              searchValue
             }
             onChange={(
               event
-            ) =>
-              setSearch(
+            ) => {
+              setSearchValue(
                 event.target.value
-              )
-            }
+              );
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") navigate({ q: searchValue.trim() || null, page: null });
+            }}
+            onBlur={() => navigate({ q: searchValue.trim() || null, page: null })}
             placeholder="Descripción, administrador, usuario o negocio"
             style={
               inputStyle
@@ -526,11 +341,9 @@ export default function AdminAuditManager({
             }
             onChange={(
               event
-            ) =>
-              setEntityFilter(
-                event.target.value
-              )
-            }
+            ) => {
+              navigate({ entity: event.target.value, page: null });
+            }}
             style={
               inputStyle
             }
@@ -569,11 +382,9 @@ export default function AdminAuditManager({
             }
             onChange={(
               event
-            ) =>
-              setActionFilter(
-                event.target.value
-              )
-            }
+            ) => {
+              navigate({ action: event.target.value, page: null });
+            }}
             style={
               inputStyle
             }
@@ -634,7 +445,7 @@ export default function AdminAuditManager({
               13,
           }}
         >
-          {filteredLogs.length >
+          {totalResults >
           0 ? (
             <>
               Mostrando{" "}
@@ -648,7 +459,7 @@ export default function AdminAuditManager({
               </strong>{" "}
               de{" "}
               <strong>
-                {filteredLogs.length}
+                {totalResults}
               </strong>{" "}
               registros.
             </>
@@ -921,7 +732,7 @@ export default function AdminAuditManager({
                           href={`/admin/users?user=${log.target_user_id}`}
                           className="btn"
                         >
-                          👤 Ver usuario
+                          Ver usuario
                         </Link>
                       )}
 
@@ -930,13 +741,15 @@ export default function AdminAuditManager({
                           href={`/admin/businesses/${log.business.id}`}
                           className="btn"
                         >
-                          🏢 Ver negocio
+                          Ver negocio
                         </Link>
                       )}
 
                       <button
                         type="button"
                         className="btn"
+                        aria-expanded={expanded}
+                        aria-controls={`audit-details-${log.id}`}
                         onClick={() =>
                           setExpandedId(
                             expanded
@@ -953,6 +766,9 @@ export default function AdminAuditManager({
 
                     {expanded && (
                       <div
+                        id={`audit-details-${log.id}`}
+                        role="region"
+                        aria-label="Cambios registrados"
                         style={{
                           display:
                             "grid",
@@ -1004,7 +820,7 @@ export default function AdminAuditManager({
           PAGINACIÓN
           ======================================================== */}
 
-      {filteredLogs.length >
+      {totalResults >
         ITEMS_PER_PAGE && (
         <Pagination
           currentPage={

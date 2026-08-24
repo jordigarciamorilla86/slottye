@@ -2,10 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Header } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell } from "@/components/admin/AdminShell";
+import { ServerPagination } from "@/components/ServerPagination";
 import { createClient } from "@/lib/supabase/server";
+import collectionStyles from "../AdminCollections.module.css";
 import AdminReviewVisibilityButton from "./AdminReviewVisibilityButton";
 
-export default async function AdminReviewsPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminReviewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const requestedPage = Number.parseInt((await searchParams).page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0
+    ? requestedPage
+    : 1;
   const supabase = await createClient();
 
   /*
@@ -52,6 +65,7 @@ export default async function AdminReviewsPage() {
   const {
     data: reviews,
     error,
+    count,
   } = await supabase
     .from("reviews")
     .select(`
@@ -88,10 +102,13 @@ export default async function AdminReviewsPage() {
           name
         )
       )
-    `)
+    `, { count: "exact" })
     .order("created_at", {
       ascending: false,
-    });
+    })
+    .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   if (error) {
     console.error(
@@ -165,27 +182,13 @@ export default async function AdminReviewsPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth: 1150,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Admin
-          </div>
-
-          <h1 className="business-title">
-            Reseñas
-          </h1>
-
-          <p className="muted">
-            Consulta y modera todas las opiniones verificadas
-            publicadas en Slottye.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader title="Reseñas" description="Consulta y modera todas las opiniones verificadas publicadas en Slottye." />
+        <AdminContent>
+        <section className={`panel ${collectionStyles.panel}`}>
 
           <div
+            className={collectionStyles.grid}
             style={{
               marginTop: 24,
               display: "grid",
@@ -580,6 +583,12 @@ export default async function AdminReviewsPage() {
               </p>
             </div>
           )}
+
+          <ServerPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pathname="/admin/reviews"
+          />
         </section>
 
         {/* ======================================================
@@ -608,7 +617,8 @@ export default async function AdminReviewsPage() {
             Volver a Slottye
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

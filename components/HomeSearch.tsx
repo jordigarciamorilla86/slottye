@@ -4,6 +4,12 @@ import {
   useState,
 } from "react";
 
+import {
+  CalendarDays,
+  Search,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 
 type Category = {
   id: string;
@@ -58,11 +64,7 @@ export function HomeSearch({
 
   initialMode =
     "business",
-
- 
 }: Props) {
-  
-
   const [
     mode,
     setMode,
@@ -126,12 +128,6 @@ export function HomeSearch({
    * ============================================================
    * CAMBIO DE MODO
    * ============================================================
-   *
-   * En Home únicamente cambiamos la UI.
-   *
-   * Dentro de /category/[slug], además limpiamos la URL
-   * para no conservar parámetros pertenecientes al modo
-   * anterior.
    */
 
   function changeMode(
@@ -144,274 +140,146 @@ export function HomeSearch({
   }
 
   return (
-    <div
-      style={{
-        width:
-          "100%",
-
-        maxWidth:
-          760,
-
-        margin:
-          "0 auto",
-      }}
-    >
-      {/* ================================================
-          MODOS
-          ================================================ */}
-
+    <div className="home3-search">
       <div
-        style={{
-          display:
-            "flex",
-
-          gap:
-            8,
-
-          marginBottom:
-            14,
-
-          flexWrap:
-            "wrap",
-        }}
+        className="home3-search-tabs"
+        role="tablist"
+        aria-label="Tipo de búsqueda"
       >
         <button
           type="button"
+          role="tab"
+          aria-selected={
+            mode ===
+            "business"
+          }
+          className={
+            mode ===
+            "business"
+              ? "is-active"
+              : ""
+          }
           onClick={() =>
             changeMode(
               "business"
             )
           }
-          style={{
-            padding:
-              "10px 16px",
-
-            border:
-              mode ===
-              "business"
-                ? "1px solid #c4b5fd"
-                : "1px solid var(--border)",
-
-            borderRadius:
-              12,
-
-            background:
-              mode ===
-              "business"
-                ? "#f5f3ff"
-                : "#ffffff",
-
-            color:
-              mode ===
-              "business"
-                ? "#4c1d95"
-                : "var(--text)",
-
-            fontWeight:
-              700,
-
-            fontSize:
-              14,
-
-            cursor:
-              "pointer",
-          }}
         >
-          🔎 Buscar negocio
+          <Search
+            size={17}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+
+          Buscar negocio
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={
+            mode ===
+            "availability"
+          }
+          className={
+            mode ===
+            "availability"
+              ? "is-active"
+              : ""
+          }
           onClick={() =>
             changeMode(
               "availability"
             )
           }
-          style={{
-            padding:
-              "10px 16px",
-
-            border:
-              mode ===
-              "availability"
-                ? "1px solid #c4b5fd"
-                : "1px solid var(--border)",
-
-            borderRadius:
-              12,
-
-            background:
-              mode ===
-              "availability"
-                ? "#f5f3ff"
-                : "#ffffff",
-
-            color:
-              mode ===
-              "availability"
-                ? "#4c1d95"
-                : "var(--text)",
-
-            fontWeight:
-              700,
-
-            fontSize:
-              14,
-
-            cursor:
-              "pointer",
-          }}
         >
-          ⚡ Buscar una cita
+          <Zap
+            size={17}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+
+          Buscar una cita
         </button>
       </div>
-
-      {/* ================================================
-          BUSCAR NEGOCIO
-          ================================================ */}
 
       {mode ===
       "business" ? (
         <form
-          className="search"
+          className="home3-search-form"
           action={
             businessAction
           }
         >
-          <input
-            name="q"
-            value={
-              searchQuery
-            }
-            onChange={(
-              event
-            ) =>
-              setSearchQuery(
-                event.target
-                  .value
-              )
-            }
-            placeholder="Negocio, servicio, ciudad, categoría..."
-          />
+          <div className="home3-search-input">
+            <Search
+              size={20}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
 
-          <button type="submit">
+            <input
+              name="q"
+              value={
+                searchQuery
+              }
+              onChange={(
+                event
+              ) =>
+                setSearchQuery(
+                  event.target
+                    .value
+                )
+              }
+              placeholder="Negocio, servicio, ciudad..."
+              aria-label="Buscar negocio, servicio, ciudad o categoría"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="home3-search-submit"
+          >
             Buscar
           </button>
         </form>
       ) : (
-        /* ================================================
-           BUSCAR CITA
-           ================================================ */
-
         <form
           action={
             availabilityFormAction
           }
           method="get"
-          style={{
-            padding:
-              18,
-
-            border:
-              "1px solid var(--border)",
-
-            borderRadius:
-              20,
-
-            background:
-              "#ffffff",
-
-            boxShadow:
-              "0 14px 40px rgba(15, 23, 42, 0.08)",
-          }}
+          className="home3-availability"
         >
-          {/* Indica a /category/[slug] que queremos
-              mostrar citas y no negocios. */}
-
           <input
             type="hidden"
             name="mode"
             value="availability"
           />
 
-          <div
-            style={{
-              marginBottom:
-                16,
-            }}
-          >
-            <strong
-              style={{
-                display:
-                  "block",
-
-                fontSize:
-                  16,
-              }}
-            >
-              ⚡ Encuentra la primera cita disponible
-            </strong>
-
-            <span
-              className="muted"
-              style={{
-                display:
-                  "block",
-
-                marginTop:
-                  4,
-
-                fontSize:
-                  13,
-              }}
-            >
-              Buscaremos entre todos los negocios por ti.
+          <div className="home3-availability-intro">
+            <span>
+              <Sparkles
+                size={19}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
             </span>
+
+            <div>
+              <strong>
+                Primera cita disponible
+              </strong>
+
+              <small>
+                Buscaremos entre los negocios disponibles.
+              </small>
+            </div>
           </div>
 
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              alignItems:
-                "flex-end",
-
-              flexWrap:
-                "wrap",
-            }}
-          >
-            {/* ================================================
-                CATEGORÍA
-                ================================================ */}
-
-            <label
-              style={{
-                flex:
-                  "1 1 240px",
-              }}
-            >
-              <span
-                style={{
-                  display:
-                    "block",
-
-                  marginBottom:
-                    7,
-
-                  fontSize:
-                    12,
-
-                  fontWeight:
-                    700,
-
-                  color:
-                    "#64748b",
-                }}
-              >
+          <div className="home3-availability-fields">
+            <label>
+              <span>
                 ¿Qué necesitas?
               </span>
 
@@ -428,9 +296,6 @@ export function HomeSearch({
                     event.target
                       .value
                   )
-                }
-                style={
-                  selectStyle
                 }
               >
                 <option
@@ -452,10 +317,6 @@ export function HomeSearch({
                         category.slug
                       }
                     >
-                      {category.icon
-                        ? `${category.icon} `
-                        : ""}
-
                       {
                         category.name
                       }
@@ -465,34 +326,8 @@ export function HomeSearch({
               </select>
             </label>
 
-            {/* ================================================
-                CUÁNDO
-                ================================================ */}
-
-            <label
-              style={{
-                flex:
-                  "1 1 210px",
-              }}
-            >
-              <span
-                style={{
-                  display:
-                    "block",
-
-                  marginBottom:
-                    7,
-
-                  fontSize:
-                    12,
-
-                  fontWeight:
-                    700,
-
-                  color:
-                    "#64748b",
-                }}
-              >
+            <label>
+              <span>
                 ¿Cuándo?
               </span>
 
@@ -521,12 +356,9 @@ export function HomeSearch({
                     );
                   }
                 }}
-                style={
-                  selectStyle
-                }
               >
                 <option value="asap">
-                  ⚡ Lo antes posible
+                  Lo antes posible
                 </option>
 
                 <option value="today">
@@ -542,90 +374,58 @@ export function HomeSearch({
                 </option>
 
                 <option value="date">
-                  📅 Elegir fecha
+                  Elegir fecha
                 </option>
               </select>
             </label>
 
-            {/* ================================================
-                FECHA CONCRETA
-                ================================================ */}
-
             {when ===
               "date" && (
-              <label
-                style={{
-                  flex:
-                    "1 1 190px",
-                }}
-              >
-                <span
-                  style={{
-                    display:
-                      "block",
-
-                    marginBottom:
-                      7,
-
-                    fontSize:
-                      12,
-
-                    fontWeight:
-                      700,
-
-                    color:
-                      "#64748b",
-                  }}
-                >
+              <label>
+                <span>
                   Fecha
                 </span>
 
-                <input
-                  type="date"
-                  name="date"
-                  required
-                  min={
-                    todayValue()
-                  }
-                  value={
-                    selectedDate
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setSelectedDate(
-                      event.target
-                        .value
-                    )
-                  }
-                  style={
-                    selectStyle
-                  }
-                />
+                <div className="home3-date-field">
+                  <CalendarDays
+                    size={17}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+
+                  <input
+                    type="date"
+                    name="date"
+                    required
+                    min={
+                      todayValue()
+                    }
+                    value={
+                      selectedDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSelectedDate(
+                        event.target
+                          .value
+                      )
+                    }
+                  />
+                </div>
               </label>
             )}
 
-            {/* ================================================
-                BOTÓN
-                ================================================ */}
-
             <button
               type="submit"
-              className="btn primary"
-              style={{
-                height:
-                  48,
-
-                padding:
-                  "0 20px",
-
-                whiteSpace:
-                  "nowrap",
-
-                flexShrink:
-                  0,
-              }}
+              className="home3-search-submit home3-search-submit-availability"
             >
+              <Zap
+                size={17}
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
+
               Buscar citas
             </button>
           </div>
@@ -634,35 +434,3 @@ export function HomeSearch({
     </div>
   );
 }
-
-const selectStyle = {
-  width:
-    "100%",
-
-  height:
-    48,
-
-  padding:
-    "0 14px",
-
-  border:
-    "1px solid #dbe1ea",
-
-  borderRadius:
-    12,
-
-  background:
-    "#ffffff",
-
-  color:
-    "#111827",
-
-  fontSize:
-    15,
-
-  fontWeight:
-    600,
-
-  cursor:
-    "pointer",
-};

@@ -5,6 +5,12 @@ import {
 } from "next/navigation";
 
 import {
+  ArrowLeft,
+  CalendarDays,
+  ExternalLink,
+} from "lucide-react";
+
+import {
   Header,
 } from "@/components/Header";
 
@@ -56,7 +62,7 @@ export default async function CalendarPage({
         "businesses"
       )
       .select(
-        "id,name"
+        "id,name,slug"
       )
       .eq(
         "owner_id",
@@ -176,26 +182,70 @@ export default async function CalendarPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            900,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Business
-          </div>
+      <main className="calendar-page">
+        <div className="calendar-page-shell">
+          <section className="calendar-page-hero">
+            <div>
+              <span className="calendar-page-kicker">
+                Configuración
+              </span>
 
-          <h1 className="business-title">
-            Calendario y citas
-          </h1>
+              <h1>
+                Calendario y citas
+              </h1>
 
-          <p className="muted">
-            Crea y gestiona las citas disponibles de{" "}
-            {business.name}.
-          </p>
+              <p>
+                Crea y gestiona la disponibilidad de {business.name}.
+              </p>
+            </div>
+
+            <div className="calendar-page-actions">
+              <Link
+                href={
+                  fromSetup
+                    ? "/business-dashboard/agenda?setup=1"
+                    : "/business-dashboard/agenda"
+                }
+                className="btn primary"
+              >
+                <CalendarDays
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+
+                Abrir agenda
+              </Link>
+
+              {fromSetup ? (
+                <Link
+                  href="/business-dashboard/setup"
+                  className="btn"
+                >
+                  <ArrowLeft
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+
+                  Volver a configuración inicial
+                </Link>
+              ) : (
+                <Link
+                  href={`/business/${business.slug}`}
+                  className="btn"
+                >
+                  Ver ficha pública
+
+                  <ExternalLink
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                </Link>
+              )}
+            </div>
+          </section>
 
           <CalendarManager
             businessId={
@@ -218,50 +268,98 @@ export default async function CalendarPage({
               []
             }
           />
-        </section>
+        </div>
 
-        <section
-          style={{
-            marginTop:
-              20,
+        <style>{`
+          .calendar-page {
+            min-height: 100vh;
+            padding: 22px 20px 54px;
+            background: #f8f8fb;
+          }
 
-            display:
-              "flex",
+          .calendar-page-shell {
+            width: min(1180px,100%);
+            margin: 0 auto;
+          }
 
-            gap:
-              10,
+          .calendar-page-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 24px 26px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+              radial-gradient(
+                circle at 88% 12%,
+                rgba(112,87,245,.09),
+                transparent 30%
+              ),
+              #fff;
+            box-shadow:
+              0 16px 42px
+              rgba(31,27,48,.035);
+          }
 
-            flexWrap:
-              "wrap",
-          }}
-        >
-          {fromSetup ? (
-            <Link
-              href="/business-dashboard/setup"
-              className="btn primary"
-            >
-              ← Volver a la configuración inicial
-            </Link>
-          ) : (
-            <Link
-              href="/business-dashboard"
-              className="btn"
-            >
-              ← Volver al panel
-            </Link>
-          )}
+          .calendar-page-kicker {
+            color: var(--accent-dark);
+            font-size: 11px;
+            font-weight: 850;
+          }
 
-          <Link
-            href={
-              fromSetup
-                ? "/business-dashboard/agenda?setup=1"
-                : "/business-dashboard/agenda"
+          .calendar-page-hero h1 {
+            margin: 6px 0 5px;
+            font-size: clamp(30px,3vw,38px);
+            line-height: 1.08;
+            letter-spacing: -.04em;
+          }
+
+          .calendar-page-hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+          }
+
+          .calendar-page-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 9px;
+            flex-wrap: wrap;
+          }
+
+          .calendar-page-actions .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+          }
+
+          @media (max-width: 700px) {
+            .calendar-page {
+              padding: 18px 12px 46px;
             }
-            className="btn"
-          >
-            Abrir agenda
-          </Link>
-        </section>
+
+            .calendar-page-hero {
+              flex-direction: column;
+              align-items: stretch;
+              padding: 19px;
+            }
+
+            .calendar-page-hero h1 {
+              font-size: 30px;
+            }
+
+            .calendar-page-actions {
+              display: grid;
+              grid-template-columns: 1fr;
+            }
+
+            .calendar-page-actions .btn {
+              width: 100%;
+            }
+          }
+        `}</style>
       </main>
     </>
   );

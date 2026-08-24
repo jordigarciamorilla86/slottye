@@ -78,124 +78,88 @@ export function BusinessBookingSection({
   }
 
   return (
-    <>
-      {/* ========================================================
-          SERVICIOS
-          ======================================================== */}
-
-      <section className="section">
-        <div className="section-head">
+    <div className="business6-booking">
+      <section
+        id="servicios"
+        className="business6-services-section"
+      >
+        <div className="business6-section-heading">
           <div>
             <h2>
               Servicios
             </h2>
 
-            <p className="muted">
-              Selecciona un servicio para consultar disponibilidad.
+            <p>
+              Elige un servicio para ver sus próximas citas.
             </p>
           </div>
         </div>
 
         {services.length >
         0 ? (
-          <div className="cards">
+          <div className="business6-services-grid">
             {services.map(
               (
                 service
               ) => (
-                <div
-                  className="card"
+                <article
+                  className="business6-service-card"
                   key={
                     service.id
                   }
                 >
-                  <div className="card-body">
+                  <div>
                     <h3>
                       {service.name}
                     </h3>
 
                     {service.description && (
-                      <p className="muted">
+                      <p>
                         {service.description}
                       </p>
                     )}
-
-                    <div
-                      className="meta"
-                      style={{
-                        marginTop:
-                          12,
-                      }}
-                    >
-                      ⏱{" "}
-                      {
-                        service.duration_minutes
-                      }{" "}
-                      min
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop:
-                          18,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="btn primary"
-                        onClick={() =>
-                          showSlots(
-                            service.id
-                          )
-                        }
-                      >
-                        Ver citas
-                      </button>
-                    </div>
                   </div>
-                </div>
+
+                  <div className="business6-service-bottom">
+                    <span>
+                      ⏱ {service.duration_minutes} min
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        showSlots(
+                          service.id
+                        )
+                      }
+                    >
+                      Ver citas →
+                    </button>
+                  </div>
+                </article>
               )
             )}
           </div>
         ) : (
-          <div className="panel">
-            <h3>
+          <div className="business6-empty">
+            <strong>
               Todavía no hay servicios publicados
-            </h3>
+            </strong>
 
-            <p className="muted">
+            <span>
               Este negocio aún no ha configurado sus servicios.
-            </p>
+            </span>
           </div>
         )}
       </section>
 
-      {/* ========================================================
-          CITAS DISPONIBLES
-          ======================================================== */}
-
       <section
-        className="section"
+        id="citas"
         ref={
           slotsRef
         }
-        style={{
-          scrollMarginTop:
-            20,
-        }}
+        className="business6-booking-panel"
       >
-        <div className="section-head">
-          <div>
-            <h2>
-              Citas disponibles
-            </h2>
-
-            <p className="muted">
-              Elige el día y la hora que mejor te vaya.
-            </p>
-          </div>
-        </div>
-
         <AvailableSlots
           businessId={
             businessId
@@ -217,6 +181,6 @@ export function BusinessBookingSection({
           }
         />
       </section>
-    </>
+    </div>
   );
 }

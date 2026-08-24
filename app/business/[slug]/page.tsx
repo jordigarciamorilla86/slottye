@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -1359,10 +1360,6 @@ if (
 
   return (
     <>
-      {/* ======================================================
-          SEO JSON-LD
-          ====================================================== */}
-
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -1378,704 +1375,453 @@ if (
 
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            950,
-        }}
-      >
-         <section className="section">
-          <Link
-            href="/"
-            className="btn"
+      <main className="business6-page">
+        <div className="business6-shell">
+          <nav
+            className="business6-breadcrumb"
+            aria-label="Migas de pan"
           >
-            ← Volver a Slottye
-          </Link>
-        </section>
-        {/* ======================================================
-            GALERÍA
-            ====================================================== */}
+            <Link href="/">
+              Explorar
+            </Link>
 
-        {images &&
-          images.length >
-            0 && (
-            <section
-              style={{
-                display:
-                  "grid",
+            <span>
+              /
+            </span>
 
-                gridTemplateColumns:
-                  images.length ===
-                  1
-                    ? "1fr"
-                    : "2fr 1fr",
-
-                gap:
-                  10,
-
-                marginBottom:
-                  20,
-              }}
-            >
-              <img
-                src={
-                  images[0]
-                    .image_url
-                }
-                alt={
-                  business.name
-                }
-                style={{
-                  width:
-                    "100%",
-
-                  height:
-                    380,
-
-                  objectFit:
-                    "cover",
-
-                  borderRadius:
-                    20,
-                }}
-              />
-
-              {images.length >
-                1 && (
-                <div
-                  style={{
-                    display:
-                      "grid",
-
-                    gap:
-                      10,
-                  }}
-                >
-                  {images
-                    .slice(
-                      1,
-                      3
-                    )
-                    .map(
-                      (
-                        image
-                      ) => (
-                        <img
-                          key={
-                            image.id
-                          }
-                          src={
-                            image.image_url
-                          }
-                          alt={
-                            business.name
-                          }
-                          style={{
-                            width:
-                              "100%",
-
-                            height:
-                              185,
-
-                            objectFit:
-                              "cover",
-
-                            borderRadius:
-                              20,
-                          }}
-                        />
-                      )
-                    )}
-                </div>
-              )}
-            </section>
-          )}
-
-        {/* ======================================================
-            INFORMACIÓN PRINCIPAL
-            ====================================================== */}
-
-        <section className="panel">
-          {category?.name && (
-            <div className="kicker">
-              {
-                category.name
-              }
-            </div>
-          )}
-
-          <h1 className="business-title">
-            {
-              business.name
-            }
-          </h1>
-
-          {/* ====================================================
-              VALORACIÓN SLOTTYE
-              ==================================================== */}
-
-          {reviewCount >
-          0 ? (
-            <div
-              style={{
-                display:
-                  "flex",
-
-                alignItems:
-                  "center",
-
-                gap:
-                  8,
-
-                marginTop:
-                  8,
-
-                flexWrap:
-                  "wrap",
-              }}
-            >
-              <span
-                style={{
-                  color:
-                    "#f59e0b",
-
-                  fontSize:
-                    21,
-                }}
-              >
-                ★
-              </span>
-
-              <strong
-                style={{
-                  fontSize:
-                    18,
-                }}
-              >
-                {averageRating.toFixed(
-                  1
-                )}
-              </strong>
-
-              <span className="muted">
-                ·{" "}
-                {
-                  reviewCount
-                }{" "}
-                {reviewCount ===
-                1
-                  ? "opinión verificada en Slottye"
-                  : "opiniones verificadas en Slottye"}
-              </span>
-            </div>
-          ) : (
-            <div
-              className="muted"
-              style={{
-                marginTop:
-                  8,
-              }}
-            >
-              Sin opiniones en Slottye todavía
-            </div>
-          )}
-
-          {/* ====================================================
-              VALORACIÓN GOOGLE
-              ==================================================== */}
-
-          {business.show_google_reviews &&
-            googleRating !==
-              null && (
-              <div
-                style={{
-                  display:
-                    "flex",
-
-                  alignItems:
-                    "center",
-
-                  gap:
-                    8,
-
-                  marginTop:
-                    8,
-
-                  flexWrap:
-                    "wrap",
-                }}
-              >
-                <span
-                  style={{
-                    color:
-                      "#f59e0b",
-
-                    fontSize:
-                      21,
-                  }}
-                >
-                  ★
+            {category?.name && (
+              <>
+                <span>
+                  {category.name}
                 </span>
 
-                <strong
-                  style={{
-                    fontSize:
-                      18,
-                  }}
-                >
-                  {googleRating.toFixed(
-                    1
-                  )}
-                </strong>
-
-                <span className="muted">
-                  ·{" "}
-                  {
-                    googleReviewCount
-                  }{" "}
-                  {googleReviewCount ===
-                  1
-                    ? "reseña en Google"
-                    : "reseñas en Google"}
+                <span>
+                  /
                 </span>
-
-                {googleMapsUrl && (
-                  <a
-                    href={
-                      googleMapsUrl
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontSize:
-                        14,
-                    }}
-                  >
-                    Ver en Google Maps ↗
-                  </a>
-                )}
-              </div>
+              </>
             )}
 
-          {/* ====================================================
-              ABIERTO / CERRADO
-              ==================================================== */}
+            <strong>
+              {business.name}
+            </strong>
+          </nav>
 
-          {openStatus && (
-            <div
-              style={{
-                marginTop:
-                  10,
-
-                fontWeight:
-                  800,
-              }}
-            >
-              {openStatus.open
-                ? "🟢"
-                : "🟠"}{" "}
-              {
-                openStatus.text
-              }
-            </div>
-          )}
-
-          {business.description && (
-            <p className="lead">
-              {
-                business.description
-              }
-            </p>
-          )}
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gap:
-                10,
-
-              marginTop:
-                22,
-            }}
+          <section
+            id="resumen"
+            className="business6-hero"
           >
+            <div
+              className="business6-photo"
+              style={{ position: "relative" }}
+            >
+              {images &&
+              images.length >
+                0 ? (
+                <Image
+                  src={
+                    images[0]
+                      .image_url
+                  }
+                  alt={
+                    business.name
+                  }
+                  fill
+                  sizes="(max-width: 900px) 100vw, 42vw"
+                  priority
+                  unoptimized
+                />
+              ) : (
+                <div className="business6-photo-placeholder">
+                  <span>
+                    S
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="business6-hero-info">
+              {category?.name && (
+                <span className="business6-category">
+                  {category.name}
+                </span>
+              )}
+
+              <h1>
+                {business.name}
+              </h1>
+
+              {business.description && (
+                <p className="business6-description">
+                  {business.description}
+                </p>
+              )}
+
+              <div className="business6-rating-row">
+                {reviewCount >
+                0 && (
+                  <div className="business6-rating">
+                    <span>
+                      ★
+                    </span>
+
+                    <strong>
+                      {averageRating.toFixed(
+                        1
+                      )}
+                    </strong>
+
+                    <small>
+                      ({reviewCount} {reviewCount === 1 ? "opinión" : "opiniones"})
+                    </small>
+                  </div>
+                )}
+
+                {openStatus && (
+                  <span
+                    className={
+                      openStatus.open
+                        ? "business6-open is-open"
+                        : "business6-open is-closed"
+                    }
+                  >
+                    {openStatus.text}
+                  </span>
+                )}
+              </div>
+
+              {business.show_google_reviews &&
+                googleRating !==
+                  null && (
+                <div className="business6-google-rating">
+                  <span>
+                    Google
+                  </span>
+
+                  <strong>
+                    ★ {googleRating.toFixed(
+                      1
+                    )}
+                  </strong>
+
+                  <small>
+                    {googleReviewCount} {googleReviewCount === 1 ? "reseña" : "reseñas"}
+                  </small>
+
+                  {googleMapsUrl && (
+                    <a
+                      href={
+                        googleMapsUrl
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Ver en Google Maps ↗
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className="business6-hero-actions">
+                <a
+                  href="#citas"
+                  className="business6-primary-cta"
+                >
+                  Reservar cita
+                </a>
+
+                <FavoriteButton
+                  businessId={
+                    business.id
+                  }
+                  loggedIn={
+                    !!user
+                  }
+                  initialFavorite={
+                    isFavorite
+                  }
+                />
+
+                <BusinessSubscriptionButton
+                  businessId={
+                    business.id
+                  }
+                  userId={
+                    user?.id ??
+                    null
+                  }
+                  initialSubscribed={
+                    subscribed
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="business6-contact-strip">
             {fullAddress && (
               <div>
-                📍{" "}
-                {
-                  fullAddress
-                }
+                <span className="business6-contact-icon">
+                  ⌖
+                </span>
+
+                <div>
+                  <strong>
+                    {fullAddress}
+                  </strong>
+
+                  <a href="#informacion">
+                    Ver ubicación
+                  </a>
+                </div>
               </div>
             )}
 
             {business.phone && (
               <div>
-                ☎{" "}
-                <a
-                  href={`tel:${business.phone}`}
-                >
-                  {
-                    business.phone
-                  }
-                </a>
-              </div>
-            )}
+                <span className="business6-contact-icon">
+                  ☎
+                </span>
 
-            {business.email && (
-              <div>
-                ✉{" "}
-                <a
-                  href={`mailto:${business.email}`}
-                >
-                  {
-                    business.email
-                  }
-                </a>
+                <div>
+                  <strong>
+                    {business.phone}
+                  </strong>
+
+                  <a
+                    href={`tel:${business.phone}`}
+                  >
+                    Llamar
+                  </a>
+                </div>
               </div>
             )}
 
             {business.website && (
               <div>
-                🌐{" "}
-                <a
-                  href={
-                    business.website
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Web del negocio
-                </a>
+                <span className="business6-contact-icon">
+                  ◎
+                </span>
+
+                <div>
+                  <strong>
+                    Web del negocio
+                  </strong>
+
+                  <a
+                    href={
+                      business.website
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Visitar web ↗
+                  </a>
+                </div>
               </div>
             )}
           </div>
 
-          <div
-            style={{
-              display:
-                "flex",
 
-              flexWrap:
-                "wrap",
 
-              gap:
-                10,
+          <div className="business6-content-grid">
+            <div className="business6-main-column">
+              <BusinessBookingSection
+                businessId={
+                  business.id
+                }
+                services={
+                  services ??
+                  []
+                }
+                loggedIn={
+                  !!user
+                }
+                requestedSlot={
+                  requestedSlot
+                }
+              />
+            </div>
 
-              marginTop:
-                24,
-            }}
-          >
-            <FavoriteButton
-              businessId={
-                business.id
-              }
-              loggedIn={
-                !!user
-              }
-              initialFavorite={
-                isFavorite
-              }
-            />
+            <aside className="business6-sidebar">
+              <div className="business6-practical-card">
+                <h2>
+                  Horario
+                </h2>
 
-            <BusinessSubscriptionButton
-              businessId={
-                business.id
-              }
-              userId={
-                user?.id ??
-                null
-              }
-              initialSubscribed={
-                subscribed
-              }
-            />
-          </div>
-        </section>
+                {openStatus && (
+                  <div className="business6-practical-status">
+                    <span
+                      className={
+                        openStatus.open
+                          ? "is-open"
+                          : "is-closed"
+                      }
+                    />
+                    <div>
+                      <strong>
+                        {openStatus.text}
+                      </strong>
 
-        {/* ======================================================
-            HORARIO
-            ====================================================== */}
+                      <p>
+                        Horario habitual del negocio
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-        {hours &&
-          hours.length >
-            0 && (
-            <section className="section">
-              <div className="section-head">
-                <div>
-                  <h2>
-                    Horario
-                  </h2>
-
-                  <p className="muted">
-                    Horario habitual del negocio.
-                  </p>
-                </div>
-              </div>
-
-              <div className="panel">
-                <div
-                  style={{
-                    display:
-                      "grid",
-
-                    gap:
-                      12,
-                  }}
-                >
-                  {hours.map(
-                    (
-                      hour
-                    ) => (
-                      <div
-                        key={
-                          hour.day_of_week
-                        }
-                        style={{
-                          display:
-                            "grid",
-
-                          gridTemplateColumns:
-                            "140px 1fr",
-
-                          gap:
-                            16,
-
-                          alignItems:
-                            "center",
-                        }}
-                      >
-                        <strong>
-                          {
-                            DAY_NAMES[
-                              hour
-                                .day_of_week
-                            ]
+                {hours &&
+                  hours.length >
+                    0 && (
+                  <div className="business6-practical-hours">
+                    {hours.map(
+                      (
+                        hour
+                      ) => (
+                        <div
+                          key={
+                            hour.day_of_week
                           }
-                        </strong>
+                        >
+                          <strong>
+                            {DAY_NAMES[
+                              hour.day_of_week
+                            ]}
+                          </strong>
 
-                        {hour.closed ? (
-                          <span className="muted">
-                            Cerrado
-                          </span>
-                        ) : (
-                          <span>
-                            {formatTime(
-                              hour.open_time
-                            )}
-                            {" – "}
-                            {formatTime(
-                              hour.close_time
-                            )}
-
-                            {hour.open_time_2 &&
-                              hour.close_time_2 && (
-                                <>
-                                  {" · "}
-                                  {formatTime(
-                                    hour.open_time_2
-                                  )}
-                                  {" – "}
-                                  {formatTime(
-                                    hour.close_time_2
-                                  )}
-                                </>
+                          {hour.closed ? (
+                            <span>
+                              Cerrado
+                            </span>
+                          ) : (
+                            <span>
+                              {formatTime(
+                                hour.open_time
                               )}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  )}
-                </div>
+                              {" – "}
+                              {formatTime(
+                                hour.close_time
+                              )}
+
+                              {hour.open_time_2 &&
+                                hour.close_time_2 && (
+                                  <>
+                                    {" · "}
+                                    {formatTime(
+                                      hour.open_time_2
+                                    )}
+                                    {" – "}
+                                    {formatTime(
+                                      hour.close_time_2
+                                    )}
+                                  </>
+                                )}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                <a
+                  href="#informacion"
+                  className="business6-info-link"
+                >
+                  Ver ubicación y cómo llegar →
+                </a>
               </div>
-            </section>
-          )}
 
-        {/* ======================================================
-            UBICACIÓN
-            ====================================================== */}
-
-        {business.latitude !==
-          null &&
-          business.longitude !==
-            null && (
-            <section className="section">
-              <div className="section-head">
-                <div>
+              <div
+                id="informacion"
+                className="business6-sidebar-map-card"
+              >
+                <div className="business6-sidebar-map-head">
                   <h2>
                     Ubicación
                   </h2>
 
-                  <p className="muted">
+                  <p>
                     Consulta dónde está el negocio y abre la ruta en Google Maps.
                   </p>
                 </div>
-              </div>
 
-              <div className="panel">
-                <PublicBusinessMap
-                  latitude={
-                    business.latitude
-                  }
-                  longitude={
-                    business.longitude
-                  }
-                  businessName={
-                    business.name
-                  }
-                />
-
-                {fullAddress && (
-                  <div
-                    className="meta"
-                    style={{
-                      marginTop:
-                        14,
-                    }}
-                  >
-                    📍{" "}
-                    {
-                      fullAddress
+                {business.latitude !==
+                  null &&
+                  business.longitude !==
+                    null ? (
+                  <PublicBusinessMap
+                    latitude={
+                      business.latitude
                     }
+                    longitude={
+                      business.longitude
+                    }
+                    businessName={
+                      business.name
+                    }
+                  />
+                ) : (
+                  <div className="business6-empty">
+                    Este negocio todavía no ha publicado su ubicación en el mapa.
                   </div>
                 )}
               </div>
-            </section>
-          )}
-
-        {/* ======================================================
-            SERVICIOS Y RESERVAS
-            ====================================================== */}
-
-<BusinessBookingSection
-  businessId={
-    business.id
-  }
-  services={
-    services ??
-    []
-  }
-  loggedIn={
-    !!user
-  }
-  requestedSlot={
-    requestedSlot
-  }
-/>
-
-        {/* ======================================================
-            OPINIONES SLOTTYE
-            ====================================================== */}
-
-        <section className="section">
-          <div className="section-head">
-            <div>
-              <h2>
-                Opiniones
-              </h2>
-
-              {reviewCount >
-              0 ? (
-                <p className="muted">
-                  ⭐{" "}
-                  {averageRating.toFixed(
-                    1
-                  )}{" "}
-                  de 5
-                  {" · "}
-                  {
-                    reviewCount
-                  }{" "}
-                  {reviewCount ===
-                  1
-                    ? "opinión verificada"
-                    : "opiniones verificadas"}{" "}
-                  en Slottye
-                </p>
-              ) : (
-                <p className="muted">
-                  Este negocio todavía no tiene opiniones verificadas en Slottye.
-                </p>
-              )}
-            </div>
+            </aside>
           </div>
 
-          {reviewCount >
-            0 && (
-            <div
-              style={{
-                display:
-                  "grid",
+          <section
+            id="opiniones"
+            className="business6-reviews"
+          >
+            <div className="business6-section-heading">
+              <div>
+                <h2>
+                  Opiniones de clientes
+                </h2>
 
-                gap:
-                  14,
-              }}
-            >
-              {(reviews ?? []).map(
-                (
-                  review
-                ) => {
-                  const profile =
-                    Array.isArray(
-                      review.profiles
-                    )
-                      ? review
-                          .profiles[0] ??
-                        null
-                      : review.profiles;
+                {reviewCount >
+                0 && (
+                  <p>
+                    ★ {averageRating.toFixed(
+                      1
+                    )} de 5 · {reviewCount} {reviewCount === 1 ? "opinión verificada" : "opiniones verificadas"} en Slottye
+                  </p>
+                )}
+              </div>
+            </div>
 
-                  return (
-                    <div
-                      className="card"
-                      key={
-                        review.id
-                      }
-                    >
-                      <div className="card-body">
-                        <div
-                          style={{
-                            display:
-                              "flex",
+            {reviewCount >
+              0 ? (
+              <div className="business6-review-grid">
+                {(reviews ?? []).map(
+                  (
+                    review
+                  ) => {
+                    const profile =
+                      Array.isArray(
+                        review.profiles
+                      )
+                        ? review
+                            .profiles[0] ??
+                          null
+                        : review.profiles;
 
-                            justifyContent:
-                              "space-between",
-
-                            alignItems:
-                              "flex-start",
-
-                            gap:
-                              14,
-
-                            flexWrap:
-                              "wrap",
-                          }}
-                        >
+                    return (
+                      <article
+                        className="business6-review-card"
+                        key={
+                          review.id
+                        }
+                      >
+                        <div className="business6-review-head">
                           <div>
                             <strong>
                               {profile?.name ??
                                 "Usuario de Slottye"}
                             </strong>
 
-                            <div
-                              style={{
-                                marginTop:
-                                  6,
-
-                                fontSize:
-                                  19,
-
-                                letterSpacing:
-                                  2,
-                              }}
-                            >
-                              {[
-                                1,
-                                2,
-                                3,
-                                4,
-                                5,
-                              ].map(
+                            <span className="business6-stars">
+                              {[1, 2, 3, 4, 5].map(
                                 (
                                   star
                                 ) => (
@@ -2083,28 +1829,21 @@ if (
                                     key={
                                       star
                                     }
-                                    style={{
-                                      color:
-                                        star <=
-                                        review.rating
-                                          ? "#f59e0b"
-                                          : "#d1d5db",
-                                    }}
+                                    className={
+                                      star <=
+                                      review.rating
+                                        ? "is-on"
+                                        : ""
+                                    }
                                   >
                                     ★
                                   </span>
                                 )
                               )}
-                            </div>
+                            </span>
                           </div>
 
-                          <span
-                            className="muted"
-                            style={{
-                              fontSize:
-                                13,
-                            }}
-                          >
+                          <time>
                             {new Intl.DateTimeFormat(
                               "es-ES",
                               {
@@ -2125,142 +1864,60 @@ if (
                                 review.created_at
                               )
                             )}
-                          </span>
+                          </time>
                         </div>
 
                         {review.comment && (
-                          <p
-                            style={{
-                              marginTop:
-                                14,
-
-                              marginBottom:
-                                0,
-
-                              lineHeight:
-                                1.6,
-                            }}
-                          >
-                            {
-                              review.comment
-                            }
+                          <p>
+                            {review.comment}
                           </p>
                         )}
-                      </div>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          )}
+                      </article>
+                    );
+                  }
+                )}
+              </div>
+            ) : (
+              <div className="business6-empty">
+                Este negocio todavía no tiene opiniones verificadas en Slottye.
+              </div>
+            )}
 
-          {/* ====================================================
-              GOOGLE RESUMEN
-              ==================================================== */}
-
-          {business.show_google_reviews &&
-            googleRating !==
-              null && (
-              <div
-                className="panel"
-                style={{
-                  marginTop:
-                    20,
-                }}
-              >
-                <div className="kicker">
-                  Google Maps
-                </div>
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-
-                    alignItems:
-                      "center",
-
-                    gap:
-                      8,
-
-                    flexWrap:
-                      "wrap",
-
-                    marginTop:
-                      8,
-                  }}
-                >
-                  <span
-                    style={{
-                      color:
-                        "#f59e0b",
-
-                      fontSize:
-                        22,
-                    }}
-                  >
-                    ★
+            {business.show_google_reviews &&
+              googleRating !==
+                null && (
+              <div className="business6-google-card">
+                <div>
+                  <span>
+                    Google Maps
                   </span>
 
-                  <strong
-                    style={{
-                      fontSize:
-                        20,
-                    }}
-                  >
-                    {googleRating.toFixed(
+                  <strong>
+                    ★ {googleRating.toFixed(
                       1
                     )}
                   </strong>
 
-                  <span className="muted">
-                    ·{" "}
-                    {
-                      googleReviewCount
-                    }{" "}
-                    {googleReviewCount ===
-                    1
-                      ? "reseña"
-                      : "reseñas"}{" "}
-                    en Google
-                  </span>
+                  <small>
+                    {googleReviewCount} reseñas en Google
+                  </small>
                 </div>
 
                 {googleMapsUrl && (
-                  <div
-                    style={{
-                      marginTop:
-                        14,
-                    }}
+                  <a
+                    href={
+                      googleMapsUrl
+                    }
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    <a
-                      href={
-                        googleMapsUrl
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn"
-                    >
-                      Ver reseñas en Google Maps ↗
-                    </a>
-                  </div>
+                    Ver reseñas en Google Maps ↗
+                  </a>
                 )}
               </div>
             )}
-        </section>
-
-        {/* ======================================================
-            VOLVER
-            ====================================================== */}
-
-        <section className="section">
-          <Link
-            href="/"
-            className="btn"
-          >
-            ← Volver a Slottye
-          </Link>
-        </section>
+          </section>
+        </div>
       </main>
     </>
   );

@@ -1,13 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(
+    () => createClient(),
+    []
+  );
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] =
@@ -57,7 +60,7 @@ export default function ResetPasswordPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   function validatePassword() {
     if (password.length < 8) {
@@ -140,12 +143,12 @@ export default function ResetPasswordPage() {
       <Header />
 
       <main
-        className="shell detail"
+        className="auth-page"
         style={{
           maxWidth: 600,
         }}
       >
-        <section className="panel">
+        <section className="auth-card">
           <div className="kicker">
             Seguridad
           </div>
@@ -181,11 +184,14 @@ export default function ResetPasswordPage() {
               </div>
 
               <form
+                className="auth-form"
                 onSubmit={handleSubmit}
                 style={{
                   marginTop: 22,
                 }}
               >
+                <label className="auth-field">
+                  <span>Nueva contraseña</span>
                 <input
                   required
                   type="password"
@@ -197,9 +203,12 @@ export default function ResetPasswordPage() {
                   }
                   placeholder="Nueva contraseña"
                   autoComplete="new-password"
-                  style={inputStyle}
+                  className="auth-input"
                 />
+                </label>
 
+                <label className="auth-field">
+                  <span>Confirmar contraseña</span>
                 <input
                   required
                   type="password"
@@ -211,8 +220,9 @@ export default function ResetPasswordPage() {
                   }
                   placeholder="Repite la contraseña"
                   autoComplete="new-password"
-                  style={inputStyle}
+                  className="auth-input"
                 />
+                </label>
 
                 <button
                   type="submit"
@@ -232,6 +242,7 @@ export default function ResetPasswordPage() {
 
           {message && (
             <div
+              className={`auth-alert ${isError ? "auth-alert-error" : "auth-alert-success"}`}
               role="alert"
               style={{
                 marginTop: 16,
@@ -263,12 +274,3 @@ export default function ResetPasswordPage() {
   );
 }
 
-const inputStyle = {
-  width: "100%",
-  padding: 14,
-  border: "1px solid var(--border)",
-  borderRadius: 14,
-  marginBottom: 12,
-  background: "var(--card)",
-  color: "var(--text)",
-};

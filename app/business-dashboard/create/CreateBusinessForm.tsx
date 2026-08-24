@@ -7,6 +7,18 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import {
+  AlertTriangle,
+  Check,
+  ExternalLink,
+  Globe2,
+  Info,
+  MapPin,
+  Phone,
+  Search,
+  Star,
+} from "lucide-react";
+
 
 type Category = {
   id: string;
@@ -924,6 +936,7 @@ export default function CreateBusinessForm({
 
   return (
     <form
+      className="createform11"
       onSubmit={
         handleSubmit
       }
@@ -938,6 +951,7 @@ export default function CreateBusinessForm({
           ====================================================== */}
 
       <div
+        className="createform11-google"
         style={{
           padding: 18,
 
@@ -980,6 +994,7 @@ export default function CreateBusinessForm({
         {!googlePlaceId ? (
           <>
             <div
+              className="createform11-google-search"
               style={{
                 display: "grid",
 
@@ -1038,6 +1053,7 @@ export default function CreateBusinessForm({
                   searchGoogleBusiness
                 }
               >
+                <Search size={16} strokeWidth={2.2} aria-hidden="true" />
                 {googleSearching
                   ? "Buscando..."
                   : "Buscar en Google"}
@@ -1047,6 +1063,7 @@ export default function CreateBusinessForm({
             {googleCandidates.length >
               0 && (
               <div
+                className="createform11-candidates"
                 style={{
                   display:
                     "grid",
@@ -1065,7 +1082,7 @@ export default function CreateBusinessForm({
                     candidate
                   ) => (
                     <div
-                      className="card"
+                      className="createform11-candidate"
 
                       key={
                         candidate.placeId
@@ -1090,7 +1107,7 @@ export default function CreateBusinessForm({
                             marginTop: 6,
                           }}
                         >
-                          📍{" "}
+                          <MapPin size={15} aria-hidden="true" />{" "}
                           {
                             candidate.formattedAddress
                           }
@@ -1104,7 +1121,7 @@ export default function CreateBusinessForm({
                               marginTop: 8,
                             }}
                           >
-                            ☎{" "}
+                            <Phone size={15} aria-hidden="true" />{" "}
                             {
                               candidate.phone
                             }
@@ -1119,7 +1136,7 @@ export default function CreateBusinessForm({
                               marginTop: 6,
                             }}
                           >
-                            🌐 Web disponible
+                            <Globe2 size={15} aria-hidden="true" /> Web disponible
                           </div>
                         )}
 
@@ -1130,7 +1147,7 @@ export default function CreateBusinessForm({
                               marginTop: 8,
                             }}
                           >
-                            ⭐{" "}
+                            <Star size={15} fill="currentColor" aria-hidden="true" />{" "}
                             {candidate.rating.toFixed(
                               1
                             )}
@@ -1189,7 +1206,8 @@ export default function CreateBusinessForm({
 
                               className="btn"
                             >
-                              Ver en Google Maps ↗
+                              Ver en Google Maps
+                              <ExternalLink size={15} aria-hidden="true" />
                             </a>
                           )}
                         </div>
@@ -1202,6 +1220,7 @@ export default function CreateBusinessForm({
           </>
         ) : (
           <div
+            className="createform11-google-linked"
             style={{
               marginTop: 16,
             }}
@@ -1223,7 +1242,7 @@ export default function CreateBusinessForm({
               }}
             >
               <strong>
-                ✓ Negocio vinculado con
+                <Check size={17} strokeWidth={2.5} aria-hidden="true" /> Negocio vinculado con
                 Google Maps
               </strong>
 
@@ -1249,7 +1268,7 @@ export default function CreateBusinessForm({
                         marginTop: 5,
                       }}
                     >
-                      ⭐{" "}
+                      <Star size={15} fill="currentColor" aria-hidden="true" />{" "}
                       {selectedGoogleBusiness.rating.toFixed(
                         1
                       )}
@@ -1480,6 +1499,7 @@ export default function CreateBusinessForm({
       </label>
 
       <div
+        className="createform11-city-grid"
         style={{
           display: "grid",
 
@@ -1625,7 +1645,7 @@ export default function CreateBusinessForm({
       {latitude !== null &&
         longitude !== null && (
           <div
-            className="muted"
+            className="createform11-location"
 
             style={{
               padding: 12,
@@ -1636,7 +1656,7 @@ export default function CreateBusinessForm({
               borderRadius: 12,
             }}
           >
-            📍 Ubicación detectada:
+            <MapPin size={16} aria-hidden="true" /> Ubicación detectada:
             {" "}
             {latitude.toFixed(
               5
@@ -1653,7 +1673,7 @@ export default function CreateBusinessForm({
           ====================================================== */}
 
       <button
-        className="btn primary"
+        className="btn primary createform11-submit"
 
         disabled={loading}
 
@@ -1672,6 +1692,7 @@ export default function CreateBusinessForm({
 
       {message && (
         <div
+          className={`createform11-message is-${messageType}`}
           role="alert"
 
           style={{
@@ -1712,17 +1733,153 @@ export default function CreateBusinessForm({
             fontWeight: 600,
           }}
         >
-          {messageType ===
-          "error"
-            ? "⚠️ "
-            : messageType ===
-                "success"
-              ? "✓ "
-              : "ℹ️ "}
+          {messageType === "error" ? (
+            <AlertTriangle size={17} aria-hidden="true" />
+          ) : messageType === "success" ? (
+            <Check size={17} aria-hidden="true" />
+          ) : (
+            <Info size={17} aria-hidden="true" />
+          )}
 
           {message}
         </div>
       )}
+
+      <style jsx>{`
+        .createform11 {
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 17px 14px !important;
+          margin-top: 20px !important;
+        }
+
+        .createform11-google,
+        .createform11 > label:nth-of-type(3),
+        .createform11-location,
+        .createform11-submit,
+        .createform11-message {
+          grid-column: 1 / -1;
+        }
+
+        .createform11-google {
+          margin: 0 0 3px !important;
+          padding: 19px !important;
+          border-color: #ddd7f4 !important;
+          border-radius: 16px !important;
+          background: linear-gradient(135deg, #faf9ff, #fff 72%);
+        }
+
+        .createform11-google h2 { margin: 5px 0 6px !important; font-size: 19px; }
+        .createform11-google p { margin: 5px 0; font-size: 12.5px; line-height: 1.5; }
+
+        .createform11-google-search {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          gap: 9px !important;
+          margin-top: 14px !important;
+        }
+
+        .createform11-google-search .btn,
+        .createform11-candidate .btn,
+        .createform11-google-linked + label + .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+
+        .createform11-candidates { gap: 9px !important; margin-top: 16px !important; }
+
+        .createform11-candidate {
+          padding: 15px;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          background: #fff;
+        }
+
+        .createform11-candidate :global(.card-body) { padding: 0; }
+        .createform11-candidate :global(.muted),
+        .createform11-candidate :global(.meta) { display: flex; align-items: center; gap: 5px; }
+
+        .createform11-google-linked {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          margin-top: 14px !important;
+          padding: 14px !important;
+          border-color: #bde8cd !important;
+          border-radius: 13px !important;
+        }
+
+        .createform11 > label { min-width: 0; color: var(--text); font-size: 12px; }
+        .createform11 > label > strong { font-size: 12px; font-weight: 850; }
+
+        .createform11 input:not([type="checkbox"]),
+        .createform11 select,
+        .createform11 textarea {
+          width: 100% !important;
+          box-sizing: border-box;
+          margin-top: 7px !important;
+          padding: 12px 13px !important;
+          border-radius: 11px !important;
+          background: #fff !important;
+          font-size: 13px !important;
+          outline: none;
+          transition: border-color .15s ease, box-shadow .15s ease;
+        }
+
+        .createform11 input:focus,
+        .createform11 select:focus,
+        .createform11 textarea:focus {
+          border-color: #a99bf4 !important;
+          box-shadow: 0 0 0 3px rgba(112, 87, 245, .1);
+        }
+
+        .createform11-city-grid {
+          display: grid !important;
+          grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr) !important;
+          gap: 14px !important;
+          grid-column: 1 / -1;
+        }
+
+        .createform11-city-grid label { font-size: 12px; }
+        .createform11-city-grid strong { font-size: 12px; font-weight: 850; }
+
+        .createform11-location {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 12px 13px !important;
+          border-radius: 12px !important;
+          color: var(--muted);
+          font-size: 12px;
+        }
+
+        .createform11-location svg { color: var(--accent); }
+
+        .createform11-submit {
+          min-height: 46px;
+          margin-top: 2px !important;
+          font-size: 13px;
+          font-weight: 850;
+        }
+
+        .createform11-message {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          margin-top: 0 !important;
+          font-size: 12.5px;
+        }
+
+        @media (max-width: 650px) {
+          .createform11 { grid-template-columns: 1fr; }
+          .createform11-google, .createform11 > label:nth-of-type(3), .createform11-location, .createform11-submit, .createform11-message { grid-column: auto; }
+          .createform11-google-search, .createform11-city-grid { grid-template-columns: 1fr !important; }
+          .createform11-city-grid { grid-column: auto; }
+          .createform11-google-search .btn { width: 100%; }
+        }
+      `}</style>
     </form>
   );
 }

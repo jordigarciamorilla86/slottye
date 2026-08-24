@@ -5,6 +5,10 @@ import {
   useState,
 } from "react";
 
+import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui";
+import { X } from "lucide-react";
+import styles from "./AgendaModal.module.css";
+
 
 
 type Service = {
@@ -246,6 +250,16 @@ export default function AgendaEventModal(
     setError,
   ] =
     useState("");
+
+  type ConfirmationAction =
+    | "delete-manual"
+    | "delete-block"
+    | "delete-slot"
+    | "cancel-booking"
+    | "complete-booking"
+    | "no-show";
+  const [confirmationAction, setConfirmationAction] =
+    useState<ConfirmationAction | null>(null);
 
   /*
    * ============================================================
@@ -1265,17 +1279,6 @@ export default function AgendaEventModal(
       return;
     }
   
-    const confirmed =
-      window.confirm(
-        "¿Eliminar esta reserva manual?"
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
     setLoading(
       true
     );
@@ -1385,17 +1388,6 @@ export default function AgendaEventModal(
       return;
     }
   
-    const confirmed =
-      window.confirm(
-        "¿Eliminar este bloqueo?"
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
     setLoading(
       true
     );
@@ -1500,17 +1492,6 @@ export default function AgendaEventModal(
     if (
       props.type !==
       "slot"
-    ) {
-      return;
-    }
-  
-    const confirmed =
-      window.confirm(
-        "¿Eliminar esta disponibilidad? Dejará de aparecer como reservable para los clientes."
-      );
-  
-    if (
-      !confirmed
     ) {
       return;
     }
@@ -1644,17 +1625,6 @@ export default function AgendaEventModal(
     if (
       props.event.status !==
       "CONFIRMED"
-    ) {
-      return;
-    }
-  
-    const confirmed =
-      window.confirm(
-        "¿Seguro que quieres cancelar esta reserva?"
-      );
-  
-    if (
-      !confirmed
     ) {
       return;
     }
@@ -1794,17 +1764,6 @@ export default function AgendaEventModal(
       return;
     }
   
-    const confirmed =
-      window.confirm(
-        "¿Marcar esta cita como completada?"
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
     setLoading(
       true
     );
@@ -1889,17 +1848,6 @@ export default function AgendaEventModal(
       return;
     }
   
-    const confirmed =
-      window.confirm(
-        "¿Marcar que el cliente no se presentó?"
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
     setLoading(
       true
     );
@@ -1969,8 +1917,24 @@ export default function AgendaEventModal(
    * ============================================================
    */
 
+  const confirmationDetails: Record<
+    ConfirmationAction,
+    { title: string; description: string; confirmLabel: string; variant: ConfirmDialogVariant }
+  > = {
+    "delete-manual": { title: "Eliminar reserva manual", description: "¿Eliminar esta reserva manual? Esta acción no se puede deshacer.", confirmLabel: "Eliminar reserva", variant: "danger" },
+    "delete-block": { title: "Eliminar bloqueo", description: "¿Eliminar este bloqueo? El horario volverá a quedar disponible.", confirmLabel: "Eliminar bloqueo", variant: "danger" },
+    "delete-slot": { title: "Eliminar disponibilidad", description: "Dejará de aparecer como reservable para los clientes.", confirmLabel: "Eliminar disponibilidad", variant: "danger" },
+    "cancel-booking": { title: "Cancelar reserva", description: "¿Seguro que quieres cancelar esta reserva? Se avisará al cliente.", confirmLabel: "Cancelar reserva", variant: "danger" },
+    "complete-booking": { title: "Completar cita", description: "¿Marcar esta cita como completada?", confirmLabel: "Marcar completada", variant: "neutral" },
+    "no-show": { title: "Cliente no presentado", description: "¿Marcar que el cliente no se presentó?", confirmLabel: "Marcar no presentado", variant: "warning" },
+  };
+
+  const activeConfirmation = confirmationAction
+    ? confirmationDetails[confirmationAction]
+    : null;
+
   return (
-    <div
+    <div className={styles.backdrop}
       style={{
         position:
           "fixed",
@@ -2008,7 +1972,27 @@ export default function AgendaEventModal(
         }
       }}
     >
-      <div
+      <ConfirmDialog
+        open={activeConfirmation !== null}
+        onOpenChange={(open) => { if (!open) setConfirmationAction(null); }}
+        title={activeConfirmation?.title ?? "Confirmar acción"}
+        description={activeConfirmation?.description ?? ""}
+        confirmLabel={activeConfirmation?.confirmLabel}
+        variant={activeConfirmation?.variant}
+        pending={loading}
+        onConfirm={async () => {
+          const action = confirmationAction;
+          if (!action) return;
+          if (action === "delete-manual") await deleteManualBooking();
+          if (action === "delete-block") await deleteBlock();
+          if (action === "delete-slot") await deleteSlot();
+          if (action === "cancel-booking") await cancelOnlineBooking();
+          if (action === "complete-booking") await completeOnlineBooking();
+          if (action === "no-show") await noShowOnlineBooking();
+          setConfirmationAction(null);
+        }}
+      />
+      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Detalle de agenda"
         style={{
           width:
             "100%",
@@ -2037,7 +2021,7 @@ export default function AgendaEventModal(
       >
         {/* CABECERA */}
 
-        <div
+        <div className={styles.header}
           style={{
             display:
               "flex",
@@ -2078,7 +2062,8 @@ export default function AgendaEventModal(
 
           <button
             type="button"
-            className="btn"
+            className={`btn ${styles.close}`}
+            aria-label="Cerrar"
             disabled={
               loading
             }
@@ -2086,7 +2071,7 @@ export default function AgendaEventModal(
               props.onClose
             }
           >
-            ✕
+            <X aria-hidden="true" size={20} />
           </button>
         </div>
 
@@ -2228,18 +2213,16 @@ export default function AgendaEventModal(
                     )
                   }
                 >
-                  ✏️ Modificar
+                  Modificar
                 </button>
 
                 <button
                   type="button"
-                  className="btn"
+                  className={`btn ${styles.dangerAction}`}
                   disabled={
                     loading
                   }
-                  onClick={
-                    deleteManualBooking
-                  }
+                  onClick={() => setConfirmationAction("delete-manual")}
                   style={{
                     color:
                       "#b91c1c",
@@ -2688,6 +2671,7 @@ export default function AgendaEventModal(
               </div>
 
               <div
+                className={styles.slotActions}
                 style={{
                   marginTop:
                     22,
@@ -2704,7 +2688,7 @@ export default function AgendaEventModal(
               >
                 <button
                   type="button"
-                  className="btn primary"
+                  className={`btn ${styles.secondaryAction}`}
                   disabled={
                     loading
                   }
@@ -2718,12 +2702,12 @@ export default function AgendaEventModal(
                     );
                   }}
                 >
-                  ✏️ Modificar
+                  Modificar
                 </button>
 
                 <button
                   type="button"
-                  className="btn"
+                  className={`btn ${styles.manualChoice}`}
                   disabled={
                     loading
                   }
@@ -2736,18 +2720,16 @@ export default function AgendaEventModal(
                     )
                   }
                 >
-                  👤 Reservar manualmente
+                  Reservar manualmente
                 </button>
 
                 <button
                   type="button"
-                  className="btn"
+                  className={`btn ${styles.dangerAction}`}
                   disabled={
                     loading
                   }
-                  onClick={
-                    deleteSlot
-                  }
+                  onClick={() => setConfirmationAction("delete-slot")}
                   style={{
                     color:
                       "#b91c1c",
@@ -2761,18 +2743,6 @@ export default function AgendaEventModal(
                     : "Eliminar disponibilidad"}
                 </button>
 
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={
-                    loading
-                  }
-                  onClick={
-                    props.onClose
-                  }
-                >
-                  Cerrar
-                </button>
               </div>
             </div>
           )}
@@ -3130,7 +3100,7 @@ export default function AgendaEventModal(
                     );
                   }}
                 >
-                  ✏️ Modificar
+                  Modificar
                 </button>
 
                 <button
@@ -3139,9 +3109,7 @@ export default function AgendaEventModal(
                   disabled={
                     loading
                   }
-                  onClick={
-                    deleteBlock
-                  }
+                  onClick={() => setConfirmationAction("delete-block")}
                   style={{
                     color:
                       "#b91c1c",
@@ -3155,18 +3123,6 @@ export default function AgendaEventModal(
                     : "Eliminar bloqueo"}
                 </button>
 
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={
-                    loading
-                  }
-                  onClick={
-                    props.onClose
-                  }
-                >
-                  Cerrar
-                </button>
               </div>
             </div>
           )}
@@ -3578,7 +3534,7 @@ export default function AgendaEventModal(
         )
       }
     >
-      ✏️ Reprogramar
+      Reprogramar
     </button>
   )}
 
@@ -3592,9 +3548,7 @@ export default function AgendaEventModal(
                         disabled={
                           loading
                         }
-                        onClick={
-                          completeOnlineBooking
-                        }
+                        onClick={() => setConfirmationAction("complete-booking")}
                       >
                         {loading
                           ? "Procesando..."
@@ -3607,9 +3561,7 @@ export default function AgendaEventModal(
                         disabled={
                           loading
                         }
-                        onClick={
-                          noShowOnlineBooking
-                        }
+                        onClick={() => setConfirmationAction("no-show")}
                       >
                         {loading
                           ? "Procesando..."
@@ -3626,9 +3578,7 @@ export default function AgendaEventModal(
                     disabled={
                       loading
                     }
-                    onClick={
-                      cancelOnlineBooking
-                    }
+                    onClick={() => setConfirmationAction("cancel-booking")}
                     style={{
                       color:
                         "#b91c1c",
@@ -3642,19 +3592,6 @@ export default function AgendaEventModal(
                       : "Cancelar reserva"}
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={
-                    loading
-                  }
-                  onClick={
-                    props.onClose
-                  }
-                >
-                  Cerrar
-                </button>
               </div>
             </div>
           )}
@@ -3713,7 +3650,7 @@ function ErrorMessage({
           14,
       }}
     >
-      ⚠️ {message}
+      {message}
     </div>
   );
 }

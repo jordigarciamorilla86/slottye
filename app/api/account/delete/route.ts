@@ -3,6 +3,7 @@ import { Resend } from "resend";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit } from "@/lib/api/rate-limit";
 
 import {
   cleanupBusinessGoogleCalendar,
@@ -64,6 +65,20 @@ export async function DELETE() {
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "account-delete",
+      limit: 3,
+      window: "1 d",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

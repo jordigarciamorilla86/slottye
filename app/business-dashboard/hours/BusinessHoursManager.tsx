@@ -4,6 +4,14 @@ import {
   useState,
 } from "react";
 
+import {
+  CalendarDays,
+  Clock3,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
+
 type DatabaseHour = {
   id: string;
   day_of_week: number;
@@ -41,11 +49,13 @@ const DAY_NAMES = [
 type Props = {
   businessId: string;
   initialHours: DatabaseHour[];
+  endpoint?: string;
 };
 
 export default function BusinessHoursManager({
   businessId,
   initialHours,
+  endpoint = "/api/business/hours",
 }: Props) {
   const [
     loading,
@@ -253,7 +263,7 @@ export default function BusinessHoursManager({
     try {
       const response =
         await fetch(
-          "/api/business/hours",
+          endpoint,
           {
             method:
               "PUT",
@@ -340,73 +350,88 @@ export default function BusinessHoursManager({
     }
   }
 
+  const openDays =
+    days.filter(
+      (day) =>
+        !day.closed
+    ).length;
+
   return (
-    <div
-      style={{
-        display:
-          "grid",
+    <div className="hours10">
+      <section className="hours10-card">
+        <div className="hours10-head">
+          <div className="hours10-title">
+            <span className="hours10-icon">
+              <CalendarDays
+                size={20}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </span>
 
-        gap:
-          14,
+            <div>
+              <span className="hours10-kicker">
+                Horario semanal
+              </span>
 
-        marginTop:
-          28,
-      }}
-    >
-      {days.map(
-        (
-          day
-        ) => (
-          <div
-            key={
-              day.day_of_week
-            }
-            className="card"
-          >
-            <div className="card-body">
-              <div
-                style={{
-                  display:
-                    "flex",
+              <h2>
+                Horario habitual
+              </h2>
 
-                  justifyContent:
-                    "space-between",
+              <p>
+                Define cuándo está abierto el negocio y añade un segundo tramo si
+                haces una pausa al mediodía.
+              </p>
+            </div>
+          </div>
 
-                  alignItems:
-                    "center",
+          <div className="hours10-summary">
+            <strong>
+              {openDays}
+            </strong>
 
-                  gap:
-                    20,
+            <span>
+              días abiertos
+            </span>
+          </div>
+        </div>
 
-                  flexWrap:
-                    "wrap",
-                }}
+        <div className="hours10-week">
+          {days.map(
+            (day) => (
+              <article
+                key={
+                  day.day_of_week
+                }
+                className={
+                  day.closed
+                    ? "hours10-day is-closed"
+                    : "hours10-day"
+                }
               >
-                <h3
-                  style={{
-                    margin:
-                      0,
-                  }}
-                >
-                  {day.name}
-                </h3>
+                <div className="hours10-day-name">
+                  <strong>
+                    {day.name}
+                  </strong>
 
-                <label
-                  style={{
-                    display:
-                      "flex",
+                  {day.closed && (
+                    <span className="hours10-status is-closed">
+                      Cerrado
+                    </span>
+                  )}
+                </div>
 
-                    alignItems:
-                      "center",
+                <label className="hours10-switch">
+                  <span className="sr-only">
+                    {day.closed
+                      ? `Abrir ${day.name}`
+                      : `Cerrar ${day.name}`}
+                  </span>
 
-                    gap:
-                      8,
-                  }}
-                >
                   <input
                     type="checkbox"
                     checked={
-                      day.closed
+                      !day.closed
                     }
                     onChange={(
                       event
@@ -415,7 +440,7 @@ export default function BusinessHoursManager({
                         day.day_of_week,
                         {
                           closed:
-                            event
+                            !event
                               .target
                               .checked,
                         }
@@ -423,283 +448,651 @@ export default function BusinessHoursManager({
                     }
                   />
 
-                  Cerrado
+                  <span className="hours10-switch-track">
+                    <span className="hours10-switch-knob" />
+                  </span>
                 </label>
-              </div>
 
-              {!day.closed && (
-                <>
-                  <div
-                    style={
-                      timeRowStyle
-                    }
-                  >
-                    <strong>
-                      Horario 1
-                    </strong>
+                {!day.closed ? (
+                  <div className="hours10-day-body">
+                    <div className="hours10-shift">
+                      <div className="hours10-shift-label">
+                        <Clock3
+                          size={15}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
 
-                    <input
-                      type="time"
-                      value={
-                        day.open_time
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateDay(
-                          day.day_of_week,
-                          {
-                            open_time:
-                              event
-                                .target
-                                .value,
+                        <span>
+                          Primer tramo
+                        </span>
+                      </div>
+
+                      <div className="hours10-times">
+                        <input
+                          type="time"
+                          value={
+                            day.open_time
                           }
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-
-                    <span
-                      style={{
-                        textAlign:
-                          "center",
-                      }}
-                    >
-                      a
-                    </span>
-
-                    <input
-                      type="time"
-                      value={
-                        day.close_time
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateDay(
-                          day.day_of_week,
-                          {
-                            close_time:
-                              event
-                                .target
-                                .value,
+                          onChange={(
+                            event
+                          ) =>
+                            updateDay(
+                              day.day_of_week,
+                              {
+                                open_time:
+                                  event
+                                    .target
+                                    .value,
+                              }
+                            )
                           }
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
+                        />
 
-                  {day.secondShift && (
-                    <div
-                      style={{
-                        ...timeRowStyle,
+                        <span className="hours10-separator">
+                          a
+                        </span>
 
-                        marginTop:
-                          10,
-                      }}
-                    >
-                      <strong>
-                        Horario 2
-                      </strong>
-
-                      <input
-                        type="time"
-                        value={
-                          day.open_time_2
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateDay(
-                            day.day_of_week,
-                            {
-                              open_time_2:
-                                event
-                                  .target
-                                  .value,
-                            }
-                          )
-                        }
-                        style={
-                          inputStyle
-                        }
-                      />
-
-                      <span
-                        style={{
-                          textAlign:
-                            "center",
-                        }}
-                      >
-                        a
-                      </span>
-
-                      <input
-                        type="time"
-                        value={
-                          day.close_time_2
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateDay(
-                            day.day_of_week,
-                            {
-                              close_time_2:
-                                event
-                                  .target
-                                  .value,
-                            }
-                          )
-                        }
-                        style={
-                          inputStyle
-                        }
-                      />
+                        <input
+                          type="time"
+                          value={
+                            day.close_time
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateDay(
+                              day.day_of_week,
+                              {
+                                close_time:
+                                  event
+                                    .target
+                                    .value,
+                              }
+                            )
+                          }
+                        />
+                      </div>
                     </div>
-                  )}
 
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{
-                      marginTop:
-                        14,
-                    }}
-                    onClick={() =>
-                      updateDay(
-                        day.day_of_week,
-                        {
-                          secondShift:
-                            !day.secondShift,
-                        }
-                      )
-                    }
-                  >
-                    {day.secondShift
-                      ? "− Quitar segundo horario"
-                      : "+ Añadir segundo horario"}
-                  </button>
-                </>
-              )}
+                    {day.secondShift && (
+                      <div className="hours10-shift is-second">
+                        <div className="hours10-shift-label">
+                          <Clock3
+                            size={15}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+
+                          <span>
+                            Segundo tramo
+                          </span>
+                        </div>
+
+                        <div className="hours10-times">
+                          <input
+                            type="time"
+                            value={
+                              day.open_time_2
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              updateDay(
+                                day.day_of_week,
+                                {
+                                  open_time_2:
+                                    event
+                                      .target
+                                      .value,
+                                }
+                              )
+                            }
+                          />
+
+                          <span className="hours10-separator">
+                            a
+                          </span>
+
+                          <input
+                            type="time"
+                            value={
+                              day.close_time_2
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              updateDay(
+                                day.day_of_week,
+                                {
+                                  close_time_2:
+                                    event
+                                      .target
+                                      .value,
+                                }
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className={
+                        day.secondShift
+                          ? "hours10-secondary-action is-remove"
+                          : "hours10-secondary-action"
+                      }
+                      onClick={() =>
+                        updateDay(
+                          day.day_of_week,
+                          {
+                            secondShift:
+                              !day.secondShift,
+                          }
+                        )
+                      }
+                    >
+                      {day.secondShift ? (
+                        <X
+                          size={14}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Plus
+                          size={14}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      )}
+
+                      {day.secondShift
+                        ? "Quitar segundo tramo"
+                        : "Añadir segundo tramo"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="hours10-closed-copy">
+                    No se mostrarán horas disponibles este día.
+                  </div>
+                )}
+              </article>
+            )
+          )}
+        </div>
+      </section>
+
+      <div className="hours10-save">
+        <div className="hours10-save-copy">
+          {message ? (
+            <div
+              className="hours10-message is-success"
+              role="status"
+            >
+              {message}
             </div>
-          </div>
-        )
-      )}
-
-      <button
-        type="button"
-        className="btn primary"
-        disabled={
-          loading
-        }
-        onClick={
-          saveHours
-        }
-        style={{
-          marginTop:
-            10,
-        }}
-      >
-        {loading
-          ? "Guardando..."
-          : "Guardar horario"}
-      </button>
-
-      {message && (
-        <div
-          style={{
-            padding:
-              "12px 14px",
-
-            border:
-              "1px solid #bbf7d0",
-
-            borderRadius:
-              12,
-
-            background:
-              "#f0fdf4",
-
-            color:
-              "#166534",
-          }}
-        >
-          {message}
+          ) : errorMessage ? (
+            <div
+              className="hours10-message is-error"
+              role="alert"
+            >
+              {errorMessage}
+            </div>
+          ) : (
+            <span>
+              Guarda el horario habitual para aplicarlo a tu ficha y calendario.
+            </span>
+          )}
         </div>
-      )}
 
-      {errorMessage && (
-        <div
-          role="alert"
-          style={{
-            padding:
-              "12px 14px",
-
-            border:
-              "1px solid #fecaca",
-
-            borderRadius:
-              12,
-
-            background:
-              "#fef2f2",
-
-            color:
-              "#b91c1c",
-
-            fontWeight:
-              600,
-          }}
+        <button
+          type="button"
+          className="btn primary hours10-save-button"
+          disabled={
+            loading
+          }
+          onClick={
+            saveHours
+          }
         >
-          ⚠️ {errorMessage}
-        </div>
-      )}
+          <Save
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+
+          {loading
+            ? "Guardando..."
+            : "Guardar horario"}
+        </button>
+      </div>
+
+      <style jsx>{`
+        .hours10 {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+        }
+
+        .hours10-card {
+          border: 1px solid var(--border);
+          border-radius: 17px;
+          background: #fff;
+          box-shadow:
+            0 10px 28px
+            rgba(31,27,48,.025);
+          overflow: hidden;
+        }
+
+        .hours10-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 18px 19px;
+          border-bottom: 1px solid #efedf2;
+        }
+
+        .hours10-title {
+          display: flex;
+          align-items: flex-start;
+          gap: 11px;
+          min-width: 0;
+        }
+
+        .hours10-icon {
+          width: 36px;
+          height: 36px;
+          display: grid;
+          place-items: center;
+          flex: 0 0 36px;
+          border-radius: 10px;
+          background: #f0ecff;
+          color: var(--accent);
+        }
+
+        .hours10-kicker {
+          color: var(--accent-dark);
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .hours10-title h2 {
+          margin: 2px 0 3px;
+          font-size: 22px;
+          line-height: 1.18;
+          letter-spacing: -.025em;
+        }
+
+        .hours10-title p {
+          max-width: 620px;
+          margin: 0;
+          color: var(--muted);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .hours10-summary {
+          min-width: 92px;
+          padding: 9px 11px;
+          border-radius: 11px;
+          background: #f8f6ff;
+          text-align: center;
+        }
+
+        .hours10-summary strong,
+        .hours10-summary span {
+          display: block;
+        }
+
+        .hours10-summary strong {
+          color: var(--accent-dark);
+          font-size: 20px;
+          line-height: 1;
+        }
+
+        .hours10-summary span {
+          margin-top: 3px;
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        .hours10-week {
+          display: grid;
+        }
+
+        .hours10-day {
+          display: grid;
+          grid-template-columns:
+            135px
+            46px
+            minmax(520px, 680px);
+          align-items: center;
+          justify-content: center;
+          column-gap: 18px;
+          row-gap: 8px;
+          padding: 13px 18px;
+          border-bottom: 1px solid #efedf2;
+        }
+
+        .hours10-day:last-child {
+          border-bottom: 0;
+        }
+
+        .hours10-day.is-closed {
+          background: #fcfbfd;
+        }
+
+        .hours10-day-name {
+          min-width: 0;
+          align-self: center;
+        }
+
+        .hours10-day-name strong {
+          display: block;
+          font-size: 13px;
+        }
+
+        .hours10-status {
+          display: inline-flex;
+          margin-top: 4px;
+          padding: 3px 7px;
+          border-radius: 999px;
+          background: #eaf8ef;
+          color: #24774c;
+          font-size: 9px;
+          font-weight: 800;
+        }
+
+        .hours10-status.is-closed {
+          background: #f1eff4;
+          color: #77717c;
+        }
+
+        .hours10-switch {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          justify-self: center;
+          flex: 0 0 auto;
+          cursor: pointer;
+        }
+
+        .hours10-switch input {
+          position: absolute;
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .hours10-switch-track {
+          position: relative;
+          width: 38px;
+          height: 22px;
+          border-radius: 999px;
+          background: #d9d6df;
+          transition:
+            background .16s ease;
+        }
+
+        .hours10-switch-knob {
+          position: absolute;
+          top: 3px;
+          left: 3px;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow:
+            0 1px 4px
+            rgba(20,17,28,.22);
+          transition:
+            transform .16s ease;
+        }
+
+        .hours10-switch input:checked +
+        .hours10-switch-track {
+          background: var(--accent);
+        }
+
+        .hours10-switch input:checked +
+        .hours10-switch-track
+        .hours10-switch-knob {
+          transform: translateX(16px);
+        }
+
+        .hours10-day-body {
+          display: grid;
+          gap: 8px;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .hours10-shift {
+          display: grid;
+          grid-template-columns:
+            126px
+            minmax(0, 1fr);
+          align-items: center;
+          gap: 16px;
+        }
+
+        .hours10-shift-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #514d57;
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .hours10-shift-label :global(svg) {
+          color: #8276d9;
+        }
+
+        .hours10-times {
+          display: grid;
+          grid-template-columns:
+            minmax(175px, 1fr)
+            24px
+            minmax(175px, 1fr);
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .hours10-times input {
+          width: 100%;
+          padding: 8px 9px;
+          border: 1px solid #dedbe5;
+          border-radius: 9px;
+          background: #fff;
+          color: var(--text);
+          font: inherit;
+          font-size: 12px;
+          outline: none;
+        }
+
+        .hours10-times input:focus {
+          border-color: #b9adff;
+          box-shadow:
+            0 0 0 3px
+            rgba(112,87,245,.07);
+        }
+
+        .hours10-separator {
+          color: var(--muted);
+          text-align: center;
+          font-size: 12px;
+          font-weight: 650;
+        }
+
+        .hours10-secondary-action {
+          width: fit-content;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--accent-dark);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .hours10-secondary-action.is-remove {
+          color: #a64a4a;
+        }
+
+        .hours10-closed-copy {
+          grid-column: 3;
+          color: var(--muted);
+          font-size: 12px;
+        }
+
+        .hours10-save {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 12px 14px;
+          border: 1px solid #dcd8e5;
+          border-radius: 13px;
+          background:
+            linear-gradient(
+              90deg,
+              #fff,
+              #fbfaff
+            );
+          box-shadow:
+            0 8px 22px
+            rgba(31,27,48,.03);
+        }
+
+        .hours10-save-copy {
+          min-width: 0;
+        }
+
+        .hours10-save-copy span {
+          display: block;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .hours10-save-button {
+          min-width: 165px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          flex: 0 0 auto;
+        }
+
+        .hours10-message {
+          padding: 7px 9px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .hours10-message.is-success {
+          background: #edf9f1;
+          color: #237549;
+        }
+
+        .hours10-message.is-error {
+          background: #fff0f0;
+          color: #b42318;
+        }
+
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0,0,0,0);
+          white-space: nowrap;
+          border: 0;
+        }
+
+        @media (max-width: 820px) {
+          .hours10-day {
+            grid-template-columns:
+              minmax(0, 1fr)
+              auto;
+            justify-content: stretch;
+            align-items: center;
+            column-gap: 12px;
+          }
+
+          .hours10-day-name {
+            grid-column: 1;
+          }
+
+          .hours10-switch {
+            grid-column: 2;
+            justify-self: end;
+          }
+
+          .hours10-day-body,
+          .hours10-closed-copy {
+            grid-column: 1 / -1;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .hours10 {
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .hours10-head {
+            padding: 15px;
+          }
+
+          .hours10-summary {
+            display: none;
+          }
+
+          .hours10-title h2 {
+            font-size: 21px;
+          }
+
+          .hours10-day {
+            gap: 12px;
+            padding: 14px;
+          }
+
+          .hours10-shift {
+            grid-template-columns: 1fr;
+            gap: 6px;
+          }
+
+          .hours10-times {
+            grid-template-columns:
+              minmax(0,1fr)
+              18px
+              minmax(0,1fr);
+            justify-content: stretch;
+          }
+
+          .hours10-save {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .hours10-save-button {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 }
-
-const timeRowStyle = {
-  display:
-    "grid",
-
-  gridTemplateColumns:
-    "110px 1fr 40px 1fr",
-
-  alignItems:
-    "center",
-
-  gap:
-    10,
-
-  marginTop:
-    18,
-};
-
-const inputStyle = {
-  width:
-    "100%",
-
-  padding:
-    12,
-
-  border:
-    "1px solid var(--border)",
-
-  borderRadius:
-    12,
-
-  background:
-    "var(--card)",
-
-  color:
-    "var(--text)",
-
-  font:
-    "inherit",
-};

@@ -3,6 +3,7 @@
 import type {
   AgendaPendingMove,
 } from "../types/agenda";
+import styles from "../AgendaModal.module.css";
 
 type Props = {
   pendingMove: AgendaPendingMove;
@@ -124,6 +125,7 @@ export default function AgendaMoveConfirmModal({
 
   return (
     <div
+      className={styles.backdrop}
       style={{
         position:
           "fixed",
@@ -162,6 +164,7 @@ export default function AgendaMoveConfirmModal({
       }}
     >
       <div
+        className={`${styles.sheet} ${styles.confirmSheet}`}
         style={{
           width:
             "100%",
@@ -350,7 +353,7 @@ export default function AgendaMoveConfirmModal({
                 600,
             }}
           >
-            ⚠️ {error}
+            {error}
           </div>
         )}
 

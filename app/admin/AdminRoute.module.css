@@ -1,0 +1,2 @@
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+@media (max-width: 480px) { .actions { display: grid; grid-template-columns: 1fr; } .actions :global(.btn) { width: 100%; justify-content: center; } }

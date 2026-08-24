@@ -17,8 +17,21 @@ import {
 } from "@/lib/supabase/admin";
 
 import AdminAuditManager from "./AdminAuditManager";
+import { AdminContent, AdminPageHeader, AdminShell } from "@/components/admin/AdminShell";
+import routeStyles from "../AdminRoute.module.css";
 
-export default async function AdminAuditPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminAuditPage({ searchParams }: {
+  searchParams: Promise<{ page?: string; q?: string; entity?: string; action?: string }>;
+}) {
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const search = (params.q ?? "").trim().slice(0, 120);
+  const safeSearch = search.replace(/[,()%]/g, " ").trim();
+  const entityFilter = (params.entity ?? "ALL").slice(0, 80);
+  const actionFilter = (params.action ?? "ALL").slice(0, 100);
   const supabase =
     await createClient();
 
@@ -92,17 +105,15 @@ export default async function AdminAuditPage() {
    * ============================================================
    */
 
-  const {
-    data:
-      logs,
-    error:
-      logsError,
-  } =
-    await admin
-      .from(
-        "admin_audit_logs"
-      )
-      .select(`
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const [matchingProfiles, matchingBusinesses] = safeSearch
+    ? await Promise.all([
+        admin.from("profiles").select("id").or(`name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`),
+        admin.from("businesses").select("id").ilike("name", `%${safeSearch}%`),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  let logsQuery = admin.from("admin_audit_logs").select(`
         id,
         admin_user_id,
         action,
@@ -115,7 +126,25 @@ export default async function AdminAuditPage() {
         new_values,
         metadata,
         created_at
-      `)
+      `, { count: "exact" });
+
+  if (entityFilter !== "ALL") logsQuery = logsQuery.eq("entity_type", entityFilter);
+  if (actionFilter !== "ALL") logsQuery = logsQuery.eq("action", actionFilter);
+  if (safeSearch) {
+    const profileIds = (matchingProfiles.data ?? []).map((row) => row.id);
+    const businessIds = (matchingBusinesses.data ?? []).map((row) => row.id);
+    const clauses = [
+      `description.ilike.%${safeSearch}%`,
+      `action.ilike.%${safeSearch}%`,
+      `entity_type.ilike.%${safeSearch}%`,
+      ...(uuidPattern.test(search) ? [`entity_id.eq.${search}`] : []),
+      ...(profileIds.length ? [`admin_user_id.in.(${profileIds.join(",")})`, `target_user_id.in.(${profileIds.join(",")})`] : []),
+      ...(businessIds.length ? [`business_id.in.(${businessIds.join(",")})`] : []),
+    ];
+    logsQuery = logsQuery.or(clauses.join(","));
+  }
+
+  const { data: logs, error: logsError, count } = await logsQuery
       .order(
         "created_at",
         {
@@ -123,9 +152,18 @@ export default async function AdminAuditPage() {
             false,
         }
       )
-      .limit(
-        2000
-      );
+      .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+  const totalResults = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  if (currentPage > totalPages) {
+    const nextParams = new URLSearchParams();
+    if (search) nextParams.set("q", search);
+    if (entityFilter !== "ALL") nextParams.set("entity", entityFilter);
+    if (actionFilter !== "ALL") nextParams.set("action", actionFilter);
+    if (totalPages > 1) nextParams.set("page", String(totalPages));
+    redirect(`/admin/audit${nextParams.size ? `?${nextParams}` : ""}`);
+  }
 
   if (
     logsError
@@ -139,6 +177,12 @@ export default async function AdminAuditPage() {
   const auditLogs =
     logs ??
     [];
+
+  const { data: auditDimensions, count: totalLogs } = await admin
+    .from("admin_audit_logs")
+    .select("action,entity_type,target_user_id,business_id", { count: "exact" });
+  const entityTypes = Array.from(new Set((auditDimensions ?? []).map((row) => row.entity_type))).sort();
+  const actions = Array.from(new Set((auditDimensions ?? []).map((row) => row.action))).sort();
 
   const adminIds =
     Array.from(
@@ -348,75 +392,29 @@ export default async function AdminAuditPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1250,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Auditoría administrativa
-          </h1>
-
-          <p className="muted">
-            Consulta las acciones realizadas desde el panel de administración y los valores modificados.
-          </p>
-
-          <div
-            style={{
-              marginTop:
-                16,
-
-              padding:
-                "12px 14px",
-
-              border:
-                "1px solid #ddd6fe",
-
-              borderRadius:
-                12,
-
-              background:
-                "#f5f3ff",
-
-              color:
-                "#5b21b6",
-
-              fontSize:
-                13,
-            }}
-          >
-            Se muestran los 2.000 registros más recientes.
-          </div>
-
+      <AdminShell maxWidth={1250}>
+        <AdminPageHeader title="Auditoría administrativa" description="Consulta las acciones realizadas desde el panel de administración y los valores modificados." />
+        <AdminContent>
+          <section aria-label="Registros de auditoría">
           <AdminAuditManager
             initialLogs={
               normalizedLogs
             }
+            search={search}
+            entityFilter={entityFilter}
+            actionFilter={actionFilter}
+            entityTypes={entityTypes}
+            actions={actions}
+            currentPage={Math.min(currentPage, totalPages)}
+            totalPages={totalPages}
+            totalResults={totalResults}
+            totalLogs={totalLogs ?? 0}
+            affectedUsers={new Set((auditDimensions ?? []).map((row) => row.target_user_id).filter(Boolean)).size}
+            affectedBusinesses={new Set((auditDimensions ?? []).map((row) => row.business_id).filter(Boolean)).size}
           />
-        </section>
-
-        <section
-          style={{
-            display:
-              "flex",
-
-            gap:
-              10,
-
-            flexWrap:
-              "wrap",
-
-            marginTop:
-              20,
-          }}
-        >
+          </section>
+        </AdminContent>
+        <nav aria-label="Navegación administrativa" className={routeStyles.actions}>
           <Link
             href="/admin"
             className="btn primary"
@@ -430,8 +428,8 @@ export default async function AdminAuditPage() {
           >
             Volver a Slottye
           </Link>
-        </section>
-      </main>
+        </nav>
+      </AdminShell>
     </>
   );
 }

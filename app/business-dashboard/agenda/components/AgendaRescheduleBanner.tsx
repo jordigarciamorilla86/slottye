@@ -62,7 +62,7 @@ export default function AgendaRescheduleBanner({
               fontSize: 16,
             }}
           >
-            🔄 Reprogramando reserva
+            Reprogramando reserva
           </strong>
 
           <div
@@ -127,7 +127,7 @@ export default function AgendaRescheduleBanner({
             fontWeight: 600,
           }}
         >
-          ⚠️ {error}
+          {error}
         </div>
       )}
     </section>

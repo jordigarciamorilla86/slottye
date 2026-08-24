@@ -15,6 +15,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type SubmittedDay = {
   day_of_week: number;
   open_time: string | null;
@@ -219,6 +223,20 @@ export async function PUT(
           status:
             404,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "business-hours-update",
+      limit: 30,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

@@ -12,6 +12,10 @@ import {
 } from "@/lib/supabase/admin";
 
 import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
   writeAdminAuditLog,
 } from "@/lib/admin/audit";
 
@@ -370,6 +374,21 @@ export async function POST(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier: user.id,
+        prefix: "agenda-create",
+        limit: 30,
+        window: "1 m",
+      });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

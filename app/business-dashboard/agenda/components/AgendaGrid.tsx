@@ -253,6 +253,7 @@ export default function AgendaGrid({
 
   return (
     <div
+      className="agendagrid11"
       style={{
         marginLeft:
           isMobile
@@ -273,6 +274,7 @@ export default function AgendaGrid({
       {isMobile &&
         compactMobileWeek && (
         <div
+          className="agendagrid11-month"
           style={{
             padding:
               "2px 16px 10px",
@@ -298,6 +300,7 @@ export default function AgendaGrid({
       )}
 
       <div
+        className="agendagrid11-scroll"
         ref={
           agendaScrollRef
         }
@@ -343,6 +346,7 @@ export default function AgendaGrid({
           }}
         >
           <div
+            className="agendagrid11-head"
             style={{
               display:
                 "grid",
@@ -366,6 +370,7 @@ export default function AgendaGrid({
             }}
           >
             <div
+              className="agendagrid11-corner"
               style={{
                 padding:
                   isMobile
@@ -394,6 +399,11 @@ export default function AgendaGrid({
                 day,
               }) => (
                 <div
+                  className={
+                    sameLocalDay(day, currentTime)
+                      ? "agendagrid11-day is-today"
+                      : "agendagrid11-day"
+                  }
                   key={
                     day.toISOString()
                   }
@@ -505,6 +515,7 @@ export default function AgendaGrid({
               minute
             ) => (
               <div
+                className="agendagrid11-row"
                 key={
                   minute
                 }
@@ -522,6 +533,7 @@ export default function AgendaGrid({
                 }}
               >
                 <div
+                  className="agendagrid11-time"
                   style={{
                     padding:
                       isMobile
@@ -676,6 +688,60 @@ export default function AgendaGrid({
           )}
         </div>
       </div>
+
+      <style jsx>{`
+        .agendagrid11-scroll {
+          border-color: #e5e1e9 !important;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+          scrollbar-color: #c9c2d5 #f5f3f7;
+          scrollbar-width: thin;
+        }
+        .agendagrid11-head {
+          border-bottom-color: #ded9e5 !important;
+          background: #fbfafc !important;
+          box-shadow: 0 3px 12px rgba(31,27,48,.035);
+        }
+        .agendagrid11-corner {
+          background: #fbfafc !important;
+          border-right-color: #e2dee7 !important;
+        }
+        .agendagrid11-day {
+          background: #fbfafc !important;
+          border-left-color: #e8e5eb !important;
+        }
+        .agendagrid11-day.is-today {
+          position: relative;
+          background: #f1edff !important;
+          color: var(--accent-dark);
+        }
+        .agendagrid11-day.is-today::after {
+          content: "Hoy";
+          display: block;
+          width: fit-content;
+          margin: 5px auto 0;
+          padding: 3px 8px;
+          border-radius: 999px;
+          background: var(--accent);
+          color: #fff;
+          font-size: 10px;
+          font-weight: 850;
+          line-height: 1.15;
+        }
+        .agendagrid11-day strong { font-weight: 850 !important; }
+        .agendagrid11-row:nth-child(even) { background: rgba(248,247,250,.45); }
+        .agendagrid11-time {
+          background: #fbfafc !important;
+          border-right-color: #e2dee7 !important;
+          border-bottom-color: #ebe8ee !important;
+          color: #696473;
+          font-variant-numeric: tabular-nums;
+        }
+        @media (max-width: 768px) {
+          .agendagrid11-month { color: var(--accent-dark) !important; font-size: 10px !important; }
+          .agendagrid11-day.is-today::after { display: none; }
+          .agendagrid11-scroll { border-right: 0 !important; border-left: 0 !important; }
+        }
+      `}</style>
     </div>
   );
 }

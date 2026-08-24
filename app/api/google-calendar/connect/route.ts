@@ -19,6 +19,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  getGoogleCalendarRedirectUri,
+} from "@/lib/google-calendar-oauth";
+
 const GOOGLE_AUTH_URL =
   "https://accounts.google.com/o/oauth2/v2/auth";
 
@@ -33,12 +37,6 @@ const BUSINESS_COOKIE =
 
 const RETURN_TO_COOKIE =
   "slottye_google_calendar_return_to";
-
-function getRedirectUri(
-  request: NextRequest
-) {
-  return `${request.nextUrl.origin}/api/google-calendar/callback`;
-}
 
 function getSafeReturnTo(
   value: string
@@ -317,8 +315,8 @@ export async function GET(
       );
 
     const redirectUri =
-      getRedirectUri(
-        request
+      getGoogleCalendarRedirectUri(
+        request.nextUrl.origin
       );
 
     const params =

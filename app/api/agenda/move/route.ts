@@ -12,6 +12,10 @@ import {
 } from "@/lib/supabase/admin";
 
 import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
   isUuid,
   readJsonBody,
 } from "@/lib/api/request";
@@ -251,6 +255,21 @@ export async function POST(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier: user.id,
+        prefix: "agenda-move",
+        limit: 60,
+        window: "1 m",
+      });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

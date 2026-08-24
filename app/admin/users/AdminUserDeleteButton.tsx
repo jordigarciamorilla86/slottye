@@ -7,6 +7,7 @@ import {
 import {
   useRouter,
 } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   userId: string;
@@ -27,23 +28,13 @@ export default function AdminUserDeleteButton({
     setLoading,
   ] =
     useState(false);
+  const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function deleteUser() {
     if (
       isAdmin ||
       loading
-    ) {
-      return;
-    }
-
-    const confirmation =
-      window.prompt(
-        `Vas a eliminar definitivamente a "${userName}".\n\nSe borrarán su acceso, perfil y datos asociados. Si es propietario de un negocio, también se eliminará el negocio.\n\nEscribe ELIMINAR para continuar.`
-      );
-
-    if (
-      confirmation !==
-      "ELIMINAR"
     ) {
       return;
     }
@@ -68,19 +59,14 @@ export default function AdminUserDeleteButton({
       if (
         !response.ok
       ) {
-        window.alert(
-          result.error ??
-            "No se ha podido eliminar el usuario."
-        );
+        setFeedback({ type: "error", text: result.error ?? "No se ha podido eliminar el usuario." });
 
         return;
       }
 
-      window.alert(
-        result.emailSent
+      setFeedback({ type: "success", text: result.emailSent
           ? "Usuario eliminado correctamente. Se le ha enviado un correo informativo."
-          : "Usuario eliminado correctamente. No se ha podido enviar el correo informativo."
-      );
+          : "Usuario eliminado correctamente. No se ha podido enviar el correo informativo." });
 
       router.refresh();
     } catch (
@@ -91,9 +77,7 @@ export default function AdminUserDeleteButton({
         error
       );
 
-      window.alert(
-        "No se ha podido completar la eliminación."
-      );
+      setFeedback({ type: "error", text: "No se ha podido completar la eliminación." });
     } finally {
       setLoading(
         false
@@ -107,16 +91,14 @@ export default function AdminUserDeleteButton({
     return null;
   }
 
-  return (
+  return (<>
     <button
       type="button"
       className="btn"
       disabled={
         loading
       }
-      onClick={
-        deleteUser
-      }
+      onClick={() => { setFeedback(null); setOpen(true); }}
       style={{
         color:
           "#ffffff",
@@ -132,5 +114,7 @@ export default function AdminUserDeleteButton({
         ? "Eliminando..."
         : "Eliminar usuario"}
     </button>
-  );
+    {feedback && <p role="status" aria-live="polite" style={{ color: feedback.type === "error" ? "#b91c1c" : "#166534", margin: "8px 0 0", fontSize: 13 }}>{feedback.text}</p>}
+    <ConfirmDialog open={open} onOpenChange={setOpen} title="Eliminar usuario definitivamente" description={`Se eliminarán el acceso, perfil y datos asociados de “${userName}”. Si tiene un negocio, también se eliminará.`} variant="danger" confirmText="ELIMINAR" pending={loading} onConfirm={async () => { await deleteUser(); setOpen(false); }} />
+  </>);
 }

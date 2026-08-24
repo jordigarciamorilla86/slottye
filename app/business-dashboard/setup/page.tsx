@@ -3,6 +3,23 @@ import type {
   } from "react";
   
   import Link from "next/link";
+
+  import type {
+    LucideIcon,
+  } from "lucide-react";
+
+  import {
+    ArrowRight,
+    Building2,
+    CalendarPlus,
+    CalendarSync,
+    Camera,
+    Check,
+    ClipboardCheck,
+    Clock3,
+    Sparkles,
+    Wrench,
+  } from "lucide-react";
   
   import {
     redirect,
@@ -102,7 +119,7 @@ import type {
   
   type SetupCardProps = {
     number: number;
-    icon: string;
+    icon: LucideIcon;
     title: string;
     description: string;
     completed: boolean;
@@ -125,216 +142,60 @@ import type {
     secondary,
     disabled = false,
   }: SetupCardProps) {
+    const Icon =
+      icon;
+
     return (
       <article
-        className="panel"
-        style={{
-          display:
-            "grid",
-  
-          gap:
-            14,
-  
-          borderColor:
-            completed
-              ? "#bbf7d0"
-              : "var(--border)",
-  
-          background:
-            completed
-              ? "#f8fff9"
-              : "#ffffff",
-        }}
+        className={
+          completed
+            ? "setup11-card is-complete"
+            : "setup11-card"
+        }
       >
-        <div
-          style={{
-            display:
-              "flex",
-  
-            alignItems:
-              "flex-start",
-  
-            justifyContent:
-              "space-between",
-  
-            gap:
-              14,
-          }}
-        >
-          <div
-            style={{
-              display:
-                "flex",
-  
-              alignItems:
-                "flex-start",
-  
-              gap:
-                12,
-            }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                width:
-                  42,
-  
-                height:
-                  42,
-  
-                flexShrink:
-                  0,
-  
-                display:
-                  "flex",
-  
-                alignItems:
-                  "center",
-  
-                justifyContent:
-                  "center",
-  
-                borderRadius:
-                  12,
-  
-                background:
-                  completed
-                    ? "#dcfce7"
-                    : "#f0edff",
-  
-                fontSize:
-                  20,
-              }}
-            >
-              {icon}
-            </div>
-  
-            <div>
-              <div
-                className="muted"
-                style={{
-                  fontSize:
-                    12,
-  
-                  fontWeight:
-                    800,
-  
-                  textTransform:
-                    "uppercase",
-  
-                  letterSpacing:
-                    "0.04em",
-                }}
-              >
-                Paso {number}
-  
-                {optional
-                  ? " · Opcional"
-                  : ""}
-              </div>
-  
-              <h2
-                style={{
-                  margin:
-                    "5px 0 0",
-  
-                  fontSize:
-                    19,
-                }}
-              >
-                {title}
-              </h2>
-            </div>
-          </div>
-  
-          <div
-            style={{
-              flexShrink:
-                0,
-  
-              padding:
-                "5px 9px",
-  
-              borderRadius:
-                999,
-  
-              background:
-                completed
-                  ? "#dcfce7"
-                  : "#f3f4f6",
-  
-              color:
-                completed
-                  ? "#166534"
-                  : "#64748b",
-  
-              fontSize:
-                12,
-  
-              fontWeight:
-                800,
-            }}
-          >
-            {completed
-              ? "✓ Completado"
-              : "Pendiente"}
-          </div>
-        </div>
-  
-        <p
-          className="muted"
-          style={{
-            margin:
-              0,
-  
-            lineHeight:
-              1.65,
-          }}
-        >
-          {description}
-        </p>
-  
-        <div
-          style={{
-            display:
-              "flex",
-  
-            alignItems:
-              "center",
-  
-            gap:
-              10,
-  
-            flexWrap:
-              "wrap",
-          }}
-        >
-          {href &&
-          !disabled ? (
-            <Link
-              href={
-                href
-              }
-              className={
-                completed
-                  ? "btn"
-                  : "btn primary"
-              }
-            >
-              {actionLabel}
-            </Link>
+        <div className="setup11-card-icon" aria-hidden="true">
+          {completed ? (
+            <Check size={22} strokeWidth={2.6} />
           ) : (
-            <button
-              type="button"
-              className="btn"
-              disabled
-              title="Esta sección se añadirá en el siguiente paso"
-            >
-              {actionLabel}
-            </button>
+            <Icon size={22} strokeWidth={2} />
           )}
-  
-          {secondary}
+        </div>
+
+        <div className="setup11-card-content">
+          <div className="setup11-card-heading">
+            <div>
+              <span className="setup11-step-label">
+                Paso {number}
+                {optional ? " · Opcional" : ""}
+              </span>
+
+              <h2>{title}</h2>
+            </div>
+
+            <span className="setup11-status">
+              {completed ? "Completado" : "Pendiente"}
+            </span>
+          </div>
+
+          <p>{description}</p>
+
+          <div className="setup11-card-actions">
+            {href && !disabled ? (
+              <Link
+                href={href}
+                className={completed ? "btn" : "btn primary"}
+              >
+                {actionLabel}
+                <ArrowRight size={15} strokeWidth={2.2} aria-hidden="true" />
+              </Link>
+            ) : (
+              <button type="button" className="btn" disabled>
+                {actionLabel}
+              </button>
+            )}
+
+            {secondary}
+          </div>
         </div>
       </article>
     );
@@ -661,134 +522,63 @@ const totalSteps =
       <>
         <Header />
   
-        <main
-          className="shell detail"
-          style={{
-            maxWidth:
-              920,
-          }}
-        >
-          <section
-            className="panel"
-            style={{
-              background:
-                "linear-gradient(135deg, #f8f7ff 0%, #ffffff 65%)",
-            }}
-          >
-            <div className="kicker">
-              Configuración inicial
-            </div>
-  
-            <h1
-              className="business-title"
-              style={{
-                marginBottom:
-                  8,
-              }}
-            >
-              👋 Prepara {business.name}
-            </h1>
-  
-            <p
-              className="muted"
-              style={{
-                maxWidth:
-                  720,
-  
-                lineHeight:
-                  1.7,
-              }}
-            >
+        <main className="setup11">
+          <div className="setup11-shell">
+          <section className="setup11-hero">
+            <div className="setup11-hero-copy">
+              <span className="setup11-eyebrow">
+                <Sparkles size={14} strokeWidth={2.2} aria-hidden="true" />
+                Configuración inicial
+              </span>
+
+              <h1>Prepara {business.name}</h1>
+
+              <p>
               Vamos a ayudarte a dejar tu negocio preparado para recibir reservas. Ninguno de los pasos pendientes es obligatorio ahora: puedes configurarlos, omitirlos y volver más adelante desde el menú de Gestión.
-            </p>
-  
-            <div
-              style={{
-                marginTop:
-                  22,
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "flex",
-  
-                  justifyContent:
-                    "space-between",
-  
-                  gap:
-                    12,
-  
-                  marginBottom:
-                    8,
-  
-                  fontSize:
-                    13,
-  
-                  fontWeight:
-                    800,
-                }}
-              >
-                <span>
-                  Progreso de configuración
-                </span>
-  
-                <span>
-                  {completedSteps} de{" "}
-                  {totalSteps}
-                  {" · "}
-                  {progress}%
-                </span>
+              </p>
+            </div>
+
+            <div className="setup11-progress-card">
+              <div className="setup11-progress-value">
+                <strong>{progress}%</strong>
+                <span>completado</span>
               </div>
-  
-              <div
-                aria-label={`Configuración completada al ${progress}%`}
-                style={{
-                  height:
-                    10,
-  
-                  overflow:
-                    "hidden",
-  
-                  borderRadius:
-                    999,
-  
-                  background:
-                    "#e5e7eb",
-                }}
-              >
+
+              <div className="setup11-progress-details">
+                <div>
+                <span>
+                    Progreso de configuración
+                </span>
+                  <strong>{completedSteps} de {totalSteps} pasos</strong>
+                </div>
+
                 <div
-                  style={{
-                    width:
-                      `${progress}%`,
-  
-                    height:
-                      "100%",
-  
-                    borderRadius:
-                      999,
-  
-                    background:
-                      "var(--accent)",
-                  }}
-                />
+                  className="setup11-progress-track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progress}
+                  aria-label={`Configuración completada al ${progress}%`}
+                >
+                  <span style={{ width: `${progress}%` }} />
+                </div>
               </div>
             </div>
           </section>
-  
-          <section
-            className="section"
-            style={{
-              display:
-                "grid",
-  
-              gap:
-                14,
-            }}
-          >
+
+          <div className="setup11-section-heading">
+            <div>
+              <span>Tu lista de preparación</span>
+              <h2>Configura lo esencial</h2>
+            </div>
+
+            <p>Puedes completar los pasos en el orden que prefieras.</p>
+          </div>
+
+          <section className="setup11-list">
             <SetupCard
               number={1}
-              icon="🏢"
+              icon={Building2}
               title="Ficha del negocio"
               description="Tu ficha ya está creada. Revisa el nombre, la descripción, los datos de contacto y la información importada desde Google. También puedes decidir si quieres mostrar la valoración de Google en la ficha pública."
               completed={
@@ -799,27 +589,19 @@ const totalSteps =
               }
               href="/business-dashboard/edit?setup=1&review=policies#booking-policies"
               actionLabel="Revisar ficha"
-              secondary={
-                <Link
-                  href={`/business/${business.slug}`}
-                  className="btn"
-                >
-                  Ver ficha pública
-                </Link>
-              }
             />
   
   <SetupCard
   number={
     2
   }
-  icon="📷"
+  icon={Camera}
   title="Imágenes"
   description="Añade fotografías de tu negocio para que los clientes puedan conocer el espacio, las instalaciones y el ambiente antes de reservar."
   completed={
     imagesConfigured
   }
-  href="/business-dashboard/images?setup=1"
+  href="/business-dashboard/edit?setup=1#imagenes"
   actionLabel={
     imagesConfigured
       ? "Revisar imágenes"
@@ -831,7 +613,7 @@ const totalSteps =
   number={
     3
   }
-  icon="📋"
+  icon={ClipboardCheck}
   title="Políticas de reserva"
   description="Define con cuánta antelación pueden reservar tus clientes, hasta cuándo pueden cancelar y qué comportamiento quieres aplicar a las reservas. Podrás dejar los valores recomendados o personalizarlos."
   completed={
@@ -847,7 +629,7 @@ const totalSteps =
   
             <SetupCard
               number={4}
-              icon="🛠️"
+              icon={Wrench}
               title="Servicios"
               description="Crea los servicios que ofrece tu negocio. Indica el nombre y la duración habitual; después podrás crear disponibilidades con una duración distinta cuando lo necesites."
               completed={
@@ -863,7 +645,7 @@ const totalSteps =
   
             <SetupCard
               number={5}
-              icon="🕒"
+              icon={Clock3}
               title="Horarios"
               description="Configura los días y tramos en los que tu negocio abre habitualmente. La agenda seguirá permitiéndote crear excepciones, bloqueos y disponibilidades fuera de ese horario."
               completed={
@@ -879,7 +661,7 @@ const totalSteps =
   
             <SetupCard
               number={6}
-              icon="📅"
+              icon={CalendarPlus}
               title="Primera disponibilidad"
               description="Publica una primera cita disponible para comprobar cómo funciona la agenda y permitir que un cliente pueda reservarla desde la ficha pública."
               completed={
@@ -905,7 +687,7 @@ const totalSteps =
   number={
     7
   }
-  icon="📅"
+  icon={CalendarSync}
   title="Google Calendar"
   description="Conecta opcionalmente Google Calendar para mantener sincronizadas las reservas, bloqueos y horarios ocupados de tu negocio. Los cambios realizados en Google Calendar podrán reflejarse automáticamente en la agenda de Slottye."
   completed={
@@ -931,67 +713,278 @@ const totalSteps =
 />
           </section>
   
-          <section
-            className="panel section"
-            style={{
-              display:
-                "flex",
-  
-              alignItems:
-                "center",
-  
-              justifyContent:
-                "space-between",
-  
-              gap:
-                18,
-  
-              flexWrap:
-                "wrap",
-            }}
-          >
-            <div
-              style={{
-                maxWidth:
-                  610,
-              }}
-            >
-              <h2
-                style={{
-                  margin:
-                    0,
-                }}
-              >
+          <section className="setup11-finish">
+            <div>
+              <span className="setup11-finish-icon" aria-hidden="true">
+                <Check size={20} strokeWidth={2.4} />
+              </span>
+
+              <div>
+              <h2>
                 Puedes continuar cuando quieras
               </h2>
-  
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    "7px 0 0",
-  
-                  lineHeight:
-                    1.6,
-                }}
-              >
+
+              <p>
                 Finalizar no obliga a completar los pasos pendientes. Todas estas opciones seguirán disponibles desde el panel y el menú de Gestión.
               </p>
+              </div>
             </div>
-  
-            <form
-              action={
-                completeBusinessOnboarding
-              }
-            >
-              <button
-                type="submit"
-                className="btn primary"
-              >
+
+            <form action={completeBusinessOnboarding}>
+              <button type="submit" className="btn primary">
                 Finalizar configuración
+                <ArrowRight size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
             </form>
           </section>
+          </div>
+
+          <style>{`
+            .setup11 {
+              min-height: 100vh;
+              padding: 22px 20px 58px;
+              background: #f8f8fb;
+            }
+
+            .setup11-shell {
+              width: min(1180px, 100%);
+              margin: 0 auto;
+            }
+
+            .setup11-hero {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr) 300px;
+              align-items: center;
+              gap: 34px;
+              padding: 28px 30px;
+              border: 1px solid var(--border);
+              border-radius: 22px;
+              background: radial-gradient(circle at 88% 12%, rgba(112, 87, 245, .12), transparent 34%), #fff;
+              box-shadow: 0 16px 42px rgba(31, 27, 48, .04);
+            }
+
+            .setup11-eyebrow {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              color: var(--accent-dark);
+              font-size: 12px;
+              font-weight: 850;
+            }
+
+            .setup11-hero h1 {
+              margin: 7px 0 8px;
+              font-size: clamp(31px, 4vw, 43px);
+              line-height: 1.06;
+              letter-spacing: -.045em;
+            }
+
+            .setup11-hero-copy > p {
+              max-width: 650px;
+              margin: 0;
+              color: var(--muted);
+              font-size: 14px;
+              line-height: 1.65;
+            }
+
+            .setup11-progress-card {
+              padding: 18px;
+              border: 1px solid #ded8fa;
+              border-radius: 17px;
+              background: rgba(255, 255, 255, .82);
+              box-shadow: 0 10px 28px rgba(71, 52, 160, .06);
+            }
+
+            .setup11-progress-value {
+              display: flex;
+              align-items: baseline;
+              gap: 7px;
+            }
+
+            .setup11-progress-value strong {
+              font-size: 32px;
+              letter-spacing: -.04em;
+            }
+
+            .setup11-progress-value span,
+            .setup11-progress-details span {
+              color: var(--muted);
+              font-size: 12px;
+            }
+
+            .setup11-progress-details { margin-top: 12px; }
+
+            .setup11-progress-details > div:first-child {
+              display: flex;
+              justify-content: space-between;
+              gap: 10px;
+              margin-bottom: 8px;
+            }
+
+            .setup11-progress-details strong { font-size: 12px; }
+
+            .setup11-progress-track {
+              height: 9px;
+              overflow: hidden;
+              border-radius: 999px;
+              background: #e9e6f2;
+            }
+
+            .setup11-progress-track span {
+              display: block;
+              height: 100%;
+              border-radius: inherit;
+              background: linear-gradient(90deg, var(--accent), #8c78ff);
+            }
+
+            .setup11-section-heading {
+              display: flex;
+              align-items: end;
+              justify-content: space-between;
+              gap: 20px;
+              margin: 27px 3px 13px;
+            }
+
+            .setup11-section-heading span {
+              color: var(--accent-dark);
+              font-size: 11px;
+              font-weight: 850;
+            }
+
+            .setup11-section-heading h2 { margin: 4px 0 0; font-size: 23px; }
+            .setup11-section-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+
+            .setup11-list { display: grid; gap: 12px; }
+
+            .setup11-card {
+              display: grid;
+              grid-template-columns: 52px minmax(0, 1fr);
+              gap: 16px;
+              padding: 19px 20px;
+              border: 1px solid var(--border);
+              border-radius: 18px;
+              background: #fff;
+              box-shadow: 0 8px 24px rgba(31, 27, 48, .025);
+              transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+            }
+
+            .setup11-card:hover {
+              transform: translateY(-1px);
+              border-color: #d8d2e7;
+              box-shadow: 0 13px 32px rgba(31, 27, 48, .05);
+            }
+
+            .setup11-card.is-complete { border-color: #ccebd8; background: linear-gradient(90deg, #fbfffc, #fff 45%); }
+
+            .setup11-card-icon {
+              width: 52px;
+              height: 52px;
+              display: grid;
+              place-items: center;
+              border-radius: 15px;
+              background: #f0edff;
+              color: var(--accent-dark);
+            }
+
+            .setup11-card.is-complete .setup11-card-icon { background: #e4f8eb; color: #17834a; }
+            .setup11-card-content { min-width: 0; }
+
+            .setup11-card-heading {
+              display: flex;
+              align-items: flex-start;
+              justify-content: space-between;
+              gap: 14px;
+            }
+
+            .setup11-step-label {
+              color: var(--muted);
+              font-size: 10.5px;
+              font-weight: 850;
+              text-transform: uppercase;
+              letter-spacing: .055em;
+            }
+
+            .setup11-card h2 { margin: 4px 0 0; font-size: 19px; }
+
+            .setup11-status {
+              flex: 0 0 auto;
+              padding: 5px 9px;
+              border-radius: 999px;
+              background: #f1f1f5;
+              color: #696575;
+              font-size: 10.5px;
+              font-weight: 850;
+            }
+
+            .setup11-card.is-complete .setup11-status { background: #dcf6e5; color: #167442; }
+
+            .setup11-card-content > p {
+              max-width: 790px;
+              margin: 9px 0 0;
+              color: var(--muted);
+              font-size: 13px;
+              line-height: 1.55;
+            }
+
+            .setup11-card-actions {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              flex-wrap: wrap;
+              margin-top: 14px;
+            }
+
+            .setup11-card-actions .btn,
+            .setup11-finish .btn {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+            }
+
+            .setup11-finish {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 24px;
+              margin-top: 16px;
+              padding: 22px 23px;
+              border: 1px solid #dcd5fa;
+              border-radius: 19px;
+              background: linear-gradient(135deg, #f5f2ff, #fff 72%);
+            }
+
+            .setup11-finish > div { display: flex; align-items: flex-start; gap: 13px; }
+
+            .setup11-finish-icon {
+              width: 39px;
+              height: 39px;
+              display: grid;
+              place-items: center;
+              flex: 0 0 39px;
+              border-radius: 12px;
+              background: #e8e2ff;
+              color: var(--accent-dark);
+            }
+
+            .setup11-finish h2 { margin: 0; font-size: 19px; }
+            .setup11-finish p { max-width: 610px; margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+            @media (max-width: 760px) {
+              .setup11 { padding: 16px 11px 44px; }
+              .setup11-hero { grid-template-columns: 1fr; gap: 20px; padding: 21px 19px; }
+              .setup11-hero h1 { font-size: 31px; }
+              .setup11-section-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+              .setup11-card { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 16px; }
+              .setup11-card-icon { width: 44px; height: 44px; border-radius: 13px; }
+              .setup11-card-heading { align-items: stretch; flex-direction: column; gap: 8px; }
+              .setup11-status { width: fit-content; }
+              .setup11-card-actions { display: grid; grid-template-columns: 1fr; }
+              .setup11-card-actions .btn { width: 100%; }
+              .setup11-finish { align-items: stretch; flex-direction: column; padding: 18px; }
+              .setup11-finish form, .setup11-finish .btn { width: 100%; }
+            }
+          `}</style>
         </main>
       </>
     );

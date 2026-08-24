@@ -1,0 +1,17 @@
+.manager { margin-top: 0 !important; padding: clamp(18px, 3vw, 26px); }
+.manager label { display: grid; gap: 7px; color: #25273c; font-size: 13px; }
+.manager label > strong { font-weight: 800; }
+.manager input, .manager select { min-height: 44px; border-color: #dfe1eb !important; border-radius: 12px !important; background: #fff !important; outline: none; }
+.manager input:focus, .manager select:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.manager :global(.panel) { border-color: rgba(25,29,45,.09) !important; border-radius: 18px !important; background: #fff !important; box-shadow: 0 7px 22px rgba(29,25,72,.04); }
+.manager :global(.card) { overflow: hidden; transition: border-color .16s, box-shadow .16s; }
+.manager :global(.card):hover { border-color: rgba(109,94,252,.22); box-shadow: 0 10px 30px rgba(29,25,72,.07); }
+.manager pre { max-width: 100%; border-radius: 12px !important; background: #f7f8fc !important; }
+.manager button[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 620px) {
+  .manager { padding: 14px; }
+  .manager :global(.panel) { grid-template-columns: 1fr !important; }
+  .manager :global(.card-body) { padding: 16px !important; }
+  .manager nav { display: grid !important; grid-template-columns: 1fr 1fr; }
+  .manager nav button:first-child, .manager nav button:last-child { width: 100%; }
+}

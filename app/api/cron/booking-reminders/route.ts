@@ -6,6 +6,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  getBookingReminderWindow,
+} from "@/lib/cron/booking-reminder-window";
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -26,22 +30,16 @@ export async function GET(request: Request) {
     const now = new Date();
 
     /*
-     * Ventana exacta de una hora:
-     * desde dentro de 24 h hasta dentro de 25 h.
-     *
-     * El cron se ejecuta cada hora.
+     * Vercel Hobby solo permite una ejecución diaria y puede
+     * iniciarla con hasta 59 minutos de variación. Esta ventana
+     * solapada cubre las citas del día siguiente sin dejar huecos
+     * entre dos ejecuciones. La restricción única de notifications
+     * evita envíos duplicados en la zona de solapamiento.
      */
-    const from =
-      new Date(
-        now.getTime() +
-          24 * 60 * 60 * 1000
-      );
-
-    const to =
-      new Date(
-        now.getTime() +
-          25 * 60 * 60 * 1000
-      );
+    const {
+      from,
+      to,
+    } = getBookingReminderWindow(now);
     const { data: bookings, error } = await admin
       .from("bookings")
       .select(`

@@ -6,6 +6,20 @@ import { createClient } from "@/lib/supabase/server";
 import { NearbyBusinesses } from "@/components/NearbyBusinesses";
 import { HomeSearch } from "@/components/HomeSearch";
 
+import {
+  Bone,
+  Brain,
+  Eye,
+  Footprints,
+  HeartPulse,
+  LayoutGrid,
+  Scissors,
+  Sparkles,
+  Stethoscope,
+  UserRound,
+  Utensils,
+} from "lucide-react";
+
 /*
  * ============================================================
  * SEO
@@ -72,6 +86,152 @@ export const metadata: Metadata = {
  * HOME
  * ============================================================
  */
+
+
+function CategoryIcon({
+  slug,
+  name,
+}: {
+  slug: string;
+  name: string;
+}) {
+  const value =
+    `${slug} ${name}`
+      .toLocaleLowerCase(
+        "es-ES"
+      );
+
+  const props = {
+    size: 24,
+    strokeWidth: 1.8,
+    "aria-hidden": true,
+  } as const;
+
+  if (
+    value.includes(
+      "dent"
+    )
+  ) {
+    return (
+      <Stethoscope {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "estét"
+    ) ||
+    value.includes(
+      "estet"
+    )
+  ) {
+    return (
+      <Sparkles {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "fisio"
+    )
+  ) {
+    return (
+      <HeartPulse {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "masaj"
+    )
+  ) {
+    return (
+      <UserRound {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "nutri"
+    )
+  ) {
+    return (
+      <Utensils {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "oftal"
+    ) ||
+    value.includes(
+      "ojo"
+    )
+  ) {
+    return (
+      <Eye {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "pelu"
+    )
+  ) {
+    return (
+      <Scissors {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "podol"
+    )
+  ) {
+    return (
+      <Footprints {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "psic"
+    )
+  ) {
+    return (
+      <Brain {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "veter"
+    )
+  ) {
+    return (
+      <Bone {...props} />
+    );
+  }
+
+  if (
+    value.includes(
+      "medic"
+    ) ||
+    value.includes(
+      "salud"
+    )
+  ) {
+    return (
+      <Stethoscope {...props} />
+    );
+  }
+
+  return (
+    <LayoutGrid
+      {...props}
+    />
+  );
+}
 
 export default async function Home() {
   const supabase =
@@ -165,6 +325,36 @@ export default async function Home() {
       businessesError
     );
   }
+
+  const sortedCategories =
+    [...(categories ?? [])].sort(
+      (a, b) => {
+        const aIsOther =
+          a.name
+            .trim()
+            .toLocaleLowerCase("es-ES") ===
+          "otros";
+
+        const bIsOther =
+          b.name
+            .trim()
+            .toLocaleLowerCase("es-ES") ===
+          "otros";
+
+        if (aIsOther && !bIsOther) {
+          return 1;
+        }
+
+        if (!aIsOther && bIsOther) {
+          return -1;
+        }
+
+        return a.name.localeCompare(
+          b.name,
+          "es-ES"
+        );
+      }
+    );
 
   const now =
     new Date();
@@ -261,18 +451,40 @@ export default async function Home() {
             ? business.slots
             : [];
 
+        const availableSlots =
+          slots
+            .filter(
+              (
+                slot
+              ) =>
+                slot.status ===
+                  "AVAILABLE" &&
+                new Date(
+                  slot.start_at
+                ) >
+                  now
+            )
+            .sort(
+              (
+                a,
+                b
+              ) =>
+                new Date(
+                  a.start_at
+                ).getTime() -
+                new Date(
+                  b.start_at
+                ).getTime()
+            );
+
         const hasAvailableSlots =
-          slots.some(
-            (
-              slot
-            ) =>
-              slot.status ===
-                "AVAILABLE" &&
-              new Date(
-                slot.start_at
-              ) >
-                now
-          );
+          availableSlots.length >
+          0;
+
+        const nextAvailableAt =
+          availableSlots[0]
+            ?.start_at ??
+          null;
 
         /*
          * ========================================================
@@ -323,6 +535,8 @@ export default async function Home() {
           reviewCount,
 
           hasAvailableSlots,
+
+          nextAvailableAt,
         };
       }
     );
@@ -432,10 +646,6 @@ export default async function Home() {
 
   return (
     <>
-      {/* ======================================================
-          SEO JSON-LD
-          ====================================================== */}
-
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -464,247 +674,265 @@ export default async function Home() {
 
       <Header />
 
-      <main>
-        {/* ======================================================
-            HERO
-            ====================================================== */}
+      <main className="home4">
+        <section className="home4-hero">
+          <div className="shell home4-hero-grid">
+            <div className="home4-hero-copy">
+              <span className="home4-kicker">
+                Reservas fáciles,
+                negocios cerca
+              </span>
 
-        <section className="shell hero">
-          <span className="kicker">
-            Reservas fáciles,
-            negocios cerca
-          </span>
+              <h1>
+                Tu próxima cita,
+                <span>
+                  {" "}en segundos.
+                </span>
+              </h1>
 
-          <h1>
-            Tu próxima cita, en segundos.
-          </h1>
+              <p className="home4-lead">
+                Descubre negocios cerca de ti
+                y reserva tu cita sin llamadas
+                ni esperas.
+              </p>
 
-          <p className="lead">
-            Busca negocios cerca de ti,
-            encuentra un hueco disponible
-            y reserva sin llamadas ni
-            esperas.
-          </p>
+              <HomeSearch
+                categories={
+                  sortedCategories
+                }
+                availabilityInCategory
+              />
 
-          <HomeSearch
-  categories={
-    categories ?? []
-  }
-  availabilityInCategory
-/>
-            
+              <div className="home4-benefits">
+                <div>
+                  <span className="home4-benefit-icon">
+                    ✓
+                  </span>
+
+                  <span>
+                    <strong>
+                      Reserva online
+                    </strong>
+
+                    <small>
+                      Sin llamadas
+                    </small>
+                  </span>
+                </div>
+
+                <div>
+                  <span className="home4-benefit-icon">
+                    ✓
+                  </span>
+
+                  <span>
+                    <strong>
+                      Confirmación inmediata
+                    </strong>
+
+                    <small>
+                      Todo queda registrado
+                    </small>
+                  </span>
+                </div>
+
+                <div>
+                  <span className="home4-benefit-icon">
+                    ✓
+                  </span>
+
+                  <span>
+                    <strong>
+                      Gestiona tus citas
+                    </strong>
+
+                    <small>
+                      Desde tu cuenta
+                    </small>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="home4-hero-visual"
+              aria-hidden="true"
+            >
+              <div className="home4-visual-blob" />
+
+              <div className="home4-visual-card">
+                <div className="home4-visual-card-head">
+                  <span className="home4-visual-calendar">
+                    <span />
+                    <span />
+                  </span>
+
+                  <div>
+                    <strong>
+                      Próximas citas
+                    </strong>
+
+                    <small>
+                      Reserva en segundos
+                    </small>
+                  </div>
+                </div>
+
+                <div className="home4-visual-slots">
+                  <div>
+                    <span>
+                      Hoy
+                    </span>
+
+                    <strong>
+                      18:30
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Mañana
+                    </span>
+
+                    <strong>
+                      10:00
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Mañana
+                    </span>
+
+                    <strong>
+                      12:00
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Próximamente
+                    </span>
+
+                    <strong>
+                      Ver citas
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <span className="home4-visual-bell">
+                !
+              </span>
+
+              <span className="home4-visual-check">
+                ✓
+              </span>
+            </div>
+          </div>
         </section>
 
-        {/* ======================================================
-            CATEGORÍAS
-            ====================================================== */}
-
-        <section className="shell section">
-          <div className="section-head">
-            <div>
+        <section className="home4-categories">
+          <div className="shell">
+            <div className="home4-section-row">
               <h2>
                 Explora por categoría
               </h2>
 
-              <div className="muted">
-                Encuentra justo lo que
-                necesitas.
-              </div>
+              <Link
+                href="/category/todos"
+                className="home4-section-link"
+              >
+                Ver todas las categorías
+                <span aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            </div>
+
+            <div className="home4-category-grid">
+              {sortedCategories.map(
+                (
+                  category
+                ) => (
+                  <Link
+                    className="home4-category-card"
+                    href={`/category/${category.slug}`}
+                    key={
+                      category.id
+                    }
+                  >
+                    <span className="home4-category-icon">
+                      <CategoryIcon
+                        slug={
+                          category.slug
+                        }
+                        name={
+                          category.name
+                        }
+                      />
+                    </span>
+
+                    <strong>
+                      {
+                        category.name
+                      }
+                    </strong>
+                  </Link>
+                )
+              )}
             </div>
           </div>
+        </section>
 
-          <div className="category-grid">
-            {(categories ?? []).map(
-              (
-                category
-              ) => (
-                <Link
-                  className="category"
-                  href={`/category/${category.slug}`}
-                  key={
-                    category.id
-                  }
-                >
-                  <div className="category-icon">
-                    {
-                      category.icon
-                    }
-                  </div>
+        <section className="home4-market">
+          <div className="shell">
+            <div className="home4-market-head">
+              <div className="home4-market-title">
+                <h2>
+                  Negocios cerca de ti
+                </h2>
 
-                  <strong>
-                    {
-                      category.name
-                    }
-                  </strong>
-                </Link>
-              )
+                <span>
+                  {
+                    normalizedBusinesses.length
+                  }{" "}
+                  {normalizedBusinesses.length ===
+                  1
+                    ? "resultado"
+                    : "resultados"}
+                </span>
+              </div>
+
+              <Link
+                className="home4-section-link"
+                href="/category/todos"
+              >
+                Ver todos
+                <span aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            </div>
+
+            {normalizedBusinesses.length >
+            0 ? (
+              <NearbyBusinesses
+                businesses={
+                  normalizedBusinesses
+                }
+              />
+            ) : (
+              <div className="panel home4-empty">
+                <p className="muted">
+                  Todavía no hay negocios
+                  publicados.
+                </p>
+              </div>
             )}
           </div>
         </section>
-
-        {/* ======================================================
-            NEGOCIOS
-            ====================================================== */}
-
-        <section className="shell section">
-          <div className="section-head">
-            <div>
-              <h2>
-                Negocios cerca de ti
-              </h2>
-
-              <div className="muted">
-                Descubre negocios
-                disponibles en Slottye.
-              </div>
-            </div>
-
-            <Link
-              className="muted"
-              href="/category/todos"
-            >
-              Ver todos →
-            </Link>
-          </div>
-
-          {normalizedBusinesses.length >
-          0 ? (
-            <NearbyBusinesses
-              businesses={
-                normalizedBusinesses
-              }
-            />
-          ) : (
-            <div className="panel">
-              <p className="muted">
-                Todavía no hay negocios
-                publicados.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* ======================================================
-            INFORMACIÓN DE SLOTTYE
-            ====================================================== */}
-
-        <section
-          className="shell"
-          style={{
-            marginTop:
-              40,
-
-            paddingTop:
-              28,
-
-            paddingBottom:
-              28,
-
-            borderTop:
-              "1px solid var(--border)",
-
-            borderBottom:
-              "1px solid var(--border)",
-          }}
-        >
-          <div
-            style={{
-              maxWidth:
-                900,
-
-              margin:
-                "0 auto",
-            }}
-          >
-            <h2
-              style={{
-                fontSize:
-                  18,
-
-                margin:
-                  "0 0 10px",
-
-                letterSpacing:
-                  "-0.02em",
-              }}
-            >
-              Slottye — plataforma de reservas online
-            </h2>
-
-            <p
-              className="muted"
-              style={{
-                fontSize:
-                  14,
-
-                lineHeight:
-                  1.65,
-
-                margin:
-                  "0 0 12px",
-              }}
-            >
-              Slottye es una plataforma online para encontrar negocios y
-              profesionales, consultar sus citas disponibles y reservar
-              directamente por Internet.
-            </p>
-
-            <p
-              className="muted"
-              style={{
-                fontSize:
-                  14,
-
-                lineHeight:
-                  1.65,
-
-                margin:
-                  0,
-              }}
-            >
-              Puedes crear una cuenta o iniciar sesión con Google para
-              identificarte de forma segura y gestionar tus reservas,
-              negocios favoritos y citas desde tu cuenta de Slottye. Al
-              iniciar sesión con Google, Slottye utiliza la información
-              básica de tu cuenta necesaria para identificarte, como tu
-              dirección de correo electrónico y los datos básicos de tu
-              perfil proporcionados durante el inicio de sesión.
-            </p>
-
-            <div
-              style={{
-                display:
-                  "flex",
-
-                alignItems:
-                  "center",
-
-                gap:
-                  10,
-
-                marginTop:
-                  14,
-
-                fontSize:
-                  13,
-              }}
-            >
-              <Link href="/privacy">
-                Política de privacidad
-              </Link>
-
-              <span className="muted">
-                ·
-              </span>
-
-              <Link href="/terms">
-                Términos y condiciones
-              </Link>
-            </div>
-          </div>
-        </section>
       </main>
-
     </>
   );
 }

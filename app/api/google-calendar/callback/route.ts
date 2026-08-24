@@ -15,6 +15,10 @@ import {
   isUuid,
 } from "@/lib/api/request";
 
+import {
+  getGoogleCalendarRedirectUri,
+} from "@/lib/google-calendar-oauth";
+
 const GOOGLE_TOKEN_URL =
   "https://oauth2.googleapis.com/token";
 
@@ -36,12 +40,6 @@ type GoogleTokenResponse = {
   error?: string;
   error_description?: string;
 };
-
-function getRedirectUri(
-  request: NextRequest
-) {
-  return `${request.nextUrl.origin}/api/google-calendar/callback`;
-}
 
 function clearOAuthCookies(
   response: NextResponse
@@ -391,8 +389,8 @@ export async function GET(
      */
 
     const redirectUri =
-      getRedirectUri(
-        request
+      getGoogleCalendarRedirectUri(
+        request.nextUrl.origin
       );
 
     const tokenResponse =

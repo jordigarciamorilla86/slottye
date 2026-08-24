@@ -213,13 +213,14 @@ export default function CheckEmailClient({
 
   return (
     <section
-      className="panel"
+      className="auth-card auth-check-email"
       style={{
         textAlign:
           "center",
       }}
     >
       <div
+        className="auth-email-icon"
         style={{
           fontSize:
             48,
@@ -245,6 +246,7 @@ export default function CheckEmailClient({
 
       {email && (
         <div
+          className="auth-email-address"
           style={{
             marginTop:
               18,
@@ -269,6 +271,7 @@ export default function CheckEmailClient({
       )}
 
       <div
+        className="auth-notice"
         style={{
           marginTop:
             18,
@@ -300,6 +303,7 @@ export default function CheckEmailClient({
         </strong>
 
         <div
+          className={`auth-alert ${messageType === "error" ? "auth-alert-error" : "auth-alert-success"}`}
           style={{
             marginTop:
               5,
@@ -375,6 +379,7 @@ export default function CheckEmailClient({
       )}
 
       <div
+        className="auth-resend"
         style={{
           marginTop:
             22,
@@ -439,6 +444,7 @@ export default function CheckEmailClient({
       </div>
 
       <div
+        className="auth-actions"
         style={{
           display:
             "flex",

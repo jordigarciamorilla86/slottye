@@ -5,6 +5,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import { X } from "lucide-react";
+import styles from "./AgendaModal.module.css";
 
 
 
@@ -1015,7 +1017,7 @@ export default function AgendaSlotModal({
    */
 
   return (
-    <div
+    <div className={styles.backdrop}
       style={{
         position:
           "fixed",
@@ -1053,7 +1055,7 @@ export default function AgendaSlotModal({
         }
       }}
     >
-      <div
+      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Crear elemento de agenda"
         style={{
           width:
             "100%",
@@ -1084,7 +1086,7 @@ export default function AgendaSlotModal({
             CABECERA
             ================================================== */}
 
-        <div
+        <div className={styles.header}
           style={{
             display:
               "flex",
@@ -1126,63 +1128,12 @@ export default function AgendaSlotModal({
                 date
               )}
             </div>
-            <label
-  style={{
-    display:
-      "block",
-
-    marginTop:
-      16,
-
-    maxWidth:
-      180,
-  }}
->
-  <strong
-    style={{
-      display:
-        "block",
-
-      fontSize:
-        13,
-    }}
-  >
-    Hora de inicio
-  </strong>
-
-  <input
-    type="time"
-    step={60}
-    value={
-      selectedTime
-    }
-    disabled={
-      loading
-    }
-    onChange={(
-      event
-    ) => {
-      setSelectedTime(
-        event.target.value
-      );
-
-      setError(
-        ""
-      );
-    }}
-    style={{
-      ...inputStyle,
-
-      marginBottom:
-        0,
-    }}
-  />
-</label>
           </div>
 
           <button
             type="button"
-            className="btn"
+            className={`btn ${styles.close}`}
+            aria-label="Cerrar"
             disabled={
               loading
             }
@@ -1194,9 +1145,24 @@ export default function AgendaSlotModal({
                 "7px 11px",
             }}
           >
-            ✕
+            <X aria-hidden="true" size={20} />
           </button>
         </div>
+
+        <label className={styles.startTimeField}>
+          <strong>Hora de inicio</strong>
+          <input
+            type="time"
+            step={60}
+            value={selectedTime}
+            disabled={loading}
+            onChange={(event) => {
+              setSelectedTime(event.target.value);
+              setError("");
+            }}
+            style={{ ...inputStyle, marginBottom: 0 }}
+          />
+        </label>
 
         {/* ==================================================
             MENÚ
@@ -1218,49 +1184,40 @@ export default function AgendaSlotModal({
           >
             <button
               type="button"
-              className="btn primary"
+              className={`btn ${styles.actionChoice} ${styles.manualChoice}`}
               onClick={() =>
                 setMode(
                   "manual"
                 )
               }
             >
-              👤 Crear reserva manual
+              Crear reserva manual
             </button>
 
             <button
               type="button"
-              className="btn"
+              className={`btn ${styles.actionChoice} ${styles.availabilityChoice}`}
               onClick={() =>
                 setMode(
                   "availability"
                 )
               }
             >
-              🟢 Crear disponibilidad
+              Crear disponibilidad
             </button>
 
             <button
               type="button"
-              className="btn"
+              className={`btn ${styles.actionChoice} ${styles.blockChoice}`}
               onClick={() =>
                 setMode(
                   "block"
                 )
               }
             >
-              🔒 Bloquear horario
+              Bloquear horario
             </button>
 
-            <button
-              type="button"
-              className="btn"
-              onClick={
-                onClose
-              }
-            >
-              Cancelar
-            </button>
           </div>
         )}
 
@@ -1638,7 +1595,7 @@ export default function AgendaSlotModal({
                   goBack
                 }
               >
-                ← Volver
+                Volver
               </button>
             </div>
           </form>
@@ -1962,7 +1919,7 @@ export default function AgendaSlotModal({
                       goBack
                     }
                   >
-                    ← Volver
+                    Volver
                   </button>
                 </div>
               </>
@@ -1983,7 +1940,7 @@ export default function AgendaSlotModal({
                     goBack
                   }
                 >
-                  ← Volver
+                  Volver
                 </button>
               </div>
             )}
@@ -2215,7 +2172,7 @@ export default function AgendaSlotModal({
           goBack
         }
       >
-        ← Volver
+        Volver
       </button>
     </div>
   </form>
@@ -2268,7 +2225,7 @@ function ErrorMessage({
           1.5,
       }}
     >
-      ⚠️ {message}
+      {message}
     </div>
   );
 }

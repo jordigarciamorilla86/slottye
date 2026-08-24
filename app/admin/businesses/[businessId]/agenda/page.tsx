@@ -8,6 +8,7 @@ import {
 import {
   Header,
 } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, AdminSubnav } from "@/components/admin/AdminShell";
 
 import {
   createClient,
@@ -536,38 +537,8 @@ export default async function AdminBusinessAgendaPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1450,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            marginBottom:
-              16,
-
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f5f3ff 0%, #ffffff 75%)",
-          }}
-        >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Agenda de {business.name}
-          </h1>
-
-          <p className="muted">
-            Estás gestionando esta agenda como super administrador.
-            Los cambios afectan directamente al negocio y a sus clientes.
-          </p>
+      <AdminShell maxWidth={1450}>
+        <AdminPageHeader compact eyebrow="Gestión" title="Agenda" description={`Gestiona visualmente las citas y la disponibilidad semanal de ${business.name}.`}>
 
           {!business.active && (
             <div
@@ -598,21 +569,7 @@ export default async function AdminBusinessAgendaPage({
             </div>
           )}
 
-          <div
-            style={{
-              marginTop:
-                18,
-
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-            }}
-          >
+          <AdminSubnav>
             <Link
               href={`/admin/businesses/${business.id}`}
               className="btn primary"
@@ -626,10 +583,10 @@ export default async function AdminBusinessAgendaPage({
             >
               Ver ficha pública
             </Link>
-          </div>
-        </section>
+          </AdminSubnav>
+        </AdminPageHeader>
+        <AdminContent>
 
-        <section className="panel">
           <WeeklyAgenda
             businessId={
               business.id
@@ -664,8 +621,8 @@ export default async function AdminBusinessAgendaPage({
               normalizedManualBookings
             }
           />
-        </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

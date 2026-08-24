@@ -17,6 +17,10 @@ import {
 } from "@/lib/api/request";
 
 import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
   writeAdminAuditLog,
 } from "@/lib/admin/audit";
 
@@ -145,7 +149,7 @@ async function authorizeBusiness(
     } =
       await supabase.auth.getUser();
     
-    if (
+  if (
       userError ||
       !user
     ) {
@@ -164,6 +168,24 @@ async function authorizeBusiness(
               401,
           }
         ),
+    };
+  }
+
+  const rateLimit =
+    await checkRateLimit({
+      identifier: user.id,
+      prefix: "agenda-event",
+      limit: 60,
+      window: "1 m",
+    });
+
+  if (!rateLimit.ok) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      ),
     };
   }
 

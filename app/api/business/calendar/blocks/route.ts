@@ -15,6 +15,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type CreateBody = {
   businessId?: unknown;
   startAt?: unknown;
@@ -214,6 +218,20 @@ export async function POST(
       user,
     } =
       authorization;
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "business-calendar-blocks-create",
+      limit: 60,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
+    }
 
     const bodyResult =
       await readJsonBody<CreateBody>(
@@ -628,6 +646,20 @@ export async function DELETE(
       user,
     } =
       authorization;
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "business-calendar-blocks-delete",
+      limit: 60,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
+    }
 
     const bodyResult =
       await readJsonBody<DeleteBody>(

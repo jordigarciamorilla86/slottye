@@ -163,9 +163,15 @@ export default function useAgendaView({
      * Esto evita diferencias entre el HTML
      * generado por el servidor y el navegador.
      */
-    setCurrentTime(
-      new Date()
-    );
+    const initialTimeout =
+      window.setTimeout(
+        () => {
+          setCurrentTime(
+            new Date()
+          );
+        },
+        0
+      );
   
     const interval =
       window.setInterval(
@@ -178,6 +184,10 @@ export default function useAgendaView({
       );
   
     return () => {
+      window.clearTimeout(
+        initialTimeout
+      );
+
       window.clearInterval(
         interval
       );

@@ -16,6 +16,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   slotIds?: unknown;
 };
@@ -72,6 +76,20 @@ export async function DELETE(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "business-calendar-slots-delete",
+      limit: 60,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

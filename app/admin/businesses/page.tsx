@@ -2,11 +2,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Header } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, EmptyState, StatusBadge } from "@/components/admin/AdminShell";
+import { ServerPagination } from "@/components/ServerPagination";
 import { createClient } from "@/lib/supabase/server";
+import collectionStyles from "../AdminCollections.module.css";
 import AdminBusinessStatusButton from "./AdminBusinessStatusButton";
 import AdminBusinessDeleteButton from "./AdminBusinessDeleteButton";
 
-export default async function AdminBusinessesPage() {
+const PAGE_SIZE = 20;
+
+export default async function AdminBusinessesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const requestedPage = Number.parseInt((await searchParams).page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0
+    ? requestedPage
+    : 1;
   const supabase =
     await createClient();
 
@@ -63,6 +76,7 @@ export default async function AdminBusinessesPage() {
   const {
     data: businesses,
     error,
+    count,
   } =
     await supabase
       .from("businesses")
@@ -100,14 +114,17 @@ export default async function AdminBusinessesPage() {
           name,
           slug
         )
-      `)
+      `, { count: "exact" })
       .order(
         "created_at",
         {
           ascending:
             false,
         }
-      );
+      )
+      .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   if (error) {
     console.error(
@@ -161,27 +178,13 @@ export default async function AdminBusinessesPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1100,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Admin
-          </div>
-
-          <h1 className="business-title">
-            Negocios
-          </h1>
-
-          <p className="muted">
-            Consulta los negocios registrados en Slottye.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader title="Negocios" description="Consulta los negocios registrados en Slottye." />
+        <AdminContent>
+        <section className={`panel ${collectionStyles.panel}`}>
 
           <div
+            className={collectionStyles.grid}
             style={{
               marginTop:
                 24,
@@ -285,35 +288,11 @@ export default async function AdminBusinessesPage() {
                               }
                             </strong>
 
-                            <span
-                              style={{
-                                padding:
-                                  "4px 9px",
-
-                                borderRadius:
-                                  999,
-
-                                fontSize:
-                                  12,
-
-                                fontWeight:
-                                  800,
-
-                                background:
-                                  business.active
-                                    ? "#dcfce7"
-                                    : "#fee2e2",
-
-                                color:
-                                  business.active
-                                    ? "#166534"
-                                    : "#b91c1c",
-                              }}
-                            >
+                            <StatusBadge tone={business.active ? "success" : "danger"}>
                               {business.active
                                 ? "ACTIVO"
                                 : "INACTIVO"}
-                            </span>
+                            </StatusBadge>
                           </div>
 
                           {category?.name && (
@@ -690,18 +669,14 @@ export default async function AdminBusinessesPage() {
           {(businesses ?? [])
             .length ===
             0 && (
-            <div
-              className="panel"
-              style={{
-                marginTop:
-                  20,
-              }}
-            >
-              <p className="muted">
-                No hay negocios registrados.
-              </p>
-            </div>
+            <EmptyState title="No hay negocios registrados" />
           )}
+
+          <ServerPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pathname="/admin/businesses"
+          />
         </section>
 
         {/* ======================================================
@@ -737,7 +712,8 @@ export default async function AdminBusinessesPage() {
             Volver a Slottye
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

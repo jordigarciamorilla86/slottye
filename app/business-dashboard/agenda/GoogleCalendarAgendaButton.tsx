@@ -5,6 +5,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+
+import { ConfirmDialog } from "@/components/ui";
 
 type Props = {
   businessId: string;
@@ -104,6 +108,9 @@ function GoogleCalendarIcon() {
 export default function GoogleCalendarAgendaButton({
   businessId,
 }: Props) {
+  const router =
+    useRouter();
+
   const [
     loading,
     setLoading,
@@ -147,6 +154,8 @@ export default function GoogleCalendarAgendaButton({
     setDisconnecting,
   ] =
     useState(false);
+
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const [
     message,
@@ -361,12 +370,13 @@ export default function GoogleCalendarAgendaButton({
    */
 
   function connect() {
-    window.location.href =
-  `/api/google-calendar/connect?businessId=${encodeURIComponent(
-    businessId
-  )}&returnTo=${encodeURIComponent(
-    "/business-dashboard/agenda"
-  )}`;
+    router.push(
+      `/api/google-calendar/connect?businessId=${encodeURIComponent(
+        businessId
+      )}&returnTo=${encodeURIComponent(
+        "/business-dashboard/agenda"
+      )}`
+    );
   }
 
   /*
@@ -493,17 +503,6 @@ export default function GoogleCalendarAgendaButton({
    */
 
   async function disconnect() {
-    const confirmed =
-      window.confirm(
-        "¿Desconectar Google Calendar de Slottye?"
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
     try {
       setDisconnecting(
         true
@@ -691,6 +690,19 @@ export default function GoogleCalendarAgendaButton({
           "relative",
       }}
     >
+      <ConfirmDialog
+        open={confirmDisconnect}
+        onOpenChange={setConfirmDisconnect}
+        title="Desconectar Google Calendar"
+        description="Los eventos de Google dejarán de sincronizarse y de bloquear disponibilidad en Slottye."
+        variant="warning"
+        confirmLabel="Desconectar"
+        pending={disconnecting}
+        onConfirm={async () => {
+          await disconnect();
+          setConfirmDisconnect(false);
+        }}
+      />
       <button
   type="button"
   className="btn google-agenda-button"
@@ -724,9 +736,7 @@ export default function GoogleCalendarAgendaButton({
     className="google-agenda-arrow"
     aria-hidden="true"
   >
-    {open
-      ? "▲"
-      : "▼"}
+    {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
   </span>
 
   <style jsx>{`
@@ -757,13 +767,14 @@ export default function GoogleCalendarAgendaButton({
       color: ${automaticSyncActive
         ? "#166534"
         : "#92400e"};
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
     }
 
     .google-agenda-arrow {
       margin-left: 2px;
-      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
       color: #64748b;
     }
 
@@ -935,7 +946,7 @@ export default function GoogleCalendarAgendaButton({
                 700,
             }}
           >
-            🔄{" "}
+            {" "}
             {syncing
               ? "Sincronizando..."
               : "Sincronizar ahora"}
@@ -947,7 +958,13 @@ export default function GoogleCalendarAgendaButton({
             rel="noopener noreferrer"
             style={{
               display:
-                "block",
+                "flex",
+
+              alignItems:
+                "center",
+
+              gap:
+                7,
 
               padding:
                 "9px 8px",
@@ -968,14 +985,12 @@ export default function GoogleCalendarAgendaButton({
                 700,
             }}
           >
-            ↗ Abrir Google Calendar
+            <ExternalLink size={15} aria-hidden="true" /> Abrir Google Calendar
           </a>
 
           <button
             type="button"
-            onClick={
-              disconnect
-            }
+            onClick={() => setConfirmDisconnect(true)}
             disabled={
               syncing ||
               disconnecting

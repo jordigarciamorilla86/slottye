@@ -6,10 +6,11 @@ import {
 } from "next/navigation";
 
 import { Header } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, AdminSubnav } from "@/components/admin/AdminShell";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import AdminServicesManager from "./AdminServicesManager";
+import ServicesManager from "@/app/business-dashboard/services/ServicesManager";
 
 type Props = {
   params: Promise<{
@@ -137,34 +138,8 @@ export default async function AdminBusinessServicesPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            950,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f5f3ff 0%, #ffffff 75%)",
-          }}
-        >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Servicios de {business.name}
-          </h1>
-
-          <p className="muted">
-            Estás gestionando directamente los servicios de este negocio como super administrador.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader eyebrow="Configuración" title="Servicios" description={`Gestiona los servicios que ofrece ${business.name}.`}>
 
           {!business.active && (
             <div
@@ -195,21 +170,7 @@ export default async function AdminBusinessServicesPage({
             </div>
           )}
 
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-
-              marginTop:
-                18,
-            }}
-          >
+          <AdminSubnav>
             <Link
               href={`/admin/businesses/${business.id}`}
               className="btn primary"
@@ -221,7 +182,7 @@ export default async function AdminBusinessServicesPage({
               href={`/admin/businesses/${business.id}/agenda`}
               className="btn"
             >
-              📅 Gestionar agenda
+              Gestionar agenda
             </Link>
 
             <Link
@@ -230,27 +191,22 @@ export default async function AdminBusinessServicesPage({
             >
               Ver ficha pública
             </Link>
-          </div>
-        </section>
+          </AdminSubnav>
+        </AdminPageHeader>
+        <AdminContent>
 
-        <section
-          className="panel"
-          style={{
-            marginTop:
-              16,
-          }}
-        >
-          <AdminServicesManager
+          <ServicesManager
             businessId={
               business.id
             }
+            endpoint={`/api/admin/businesses/${business.id}/services`}
             initialServices={
               services ??
               []
             }
           />
-        </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

@@ -170,12 +170,12 @@ export default function ForgotPasswordPage() {
       <Header />
 
       <main
-        className="shell detail"
+        className="auth-page"
         style={{
           maxWidth: 600,
         }}
       >
-        <section className="panel">
+        <section className="auth-card">
           <div className="kicker">
             Seguridad
           </div>
@@ -199,6 +199,8 @@ export default function ForgotPasswordPage() {
               marginTop: 24,
             }}
           >
+            <label className="auth-field">
+              <span>Correo electrónico</span>
             <input
               required
               type="email"
@@ -215,10 +217,9 @@ export default function ForgotPasswordPage() {
               }
               placeholder="tu@email.com"
               autoComplete="email"
-              style={
-                inputStyle
-              }
+              className="auth-input"
             />
+            </label>
 
             <button
               type="submit"
@@ -243,6 +244,7 @@ export default function ForgotPasswordPage() {
 
           {message && (
             <div
+              className={`auth-alert ${isError ? "auth-alert-error" : "auth-alert-success"}`}
               role="alert"
               style={{
                 marginTop:
@@ -294,7 +296,7 @@ export default function ForgotPasswordPage() {
           >
             <Link
               href="/login"
-              className="btn"
+              className="btn auth-secondary-action"
             >
               ← Volver a iniciar sesión
             </Link>
@@ -311,25 +313,3 @@ export default function ForgotPasswordPage() {
  * ============================================================
  */
 
-const inputStyle = {
-  width:
-    "100%",
-
-  padding:
-    14,
-
-  border:
-    "1px solid var(--border)",
-
-  borderRadius:
-    14,
-
-  marginBottom:
-    12,
-
-  background:
-    "var(--card)",
-
-  color:
-    "var(--text)",
-};

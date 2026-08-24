@@ -1,0 +1,43 @@
+.backdrop { position: fixed !important; inset: 0 !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 24px !important; background: rgba(25,20,39,.64) !important; backdrop-filter: blur(9px) saturate(.8); }
+.sheet { width: min(100%,640px) !important; max-height: min(88vh,760px) !important; padding: 0 28px 26px !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-width: none; border: 1px solid rgba(255,255,255,.72) !important; border-radius: 26px !important; background: linear-gradient(180deg,#fff 0,#fff 76%,#fbfaff 100%) !important; box-shadow: 0 36px 110px rgba(13,9,24,.38),0 2px 8px rgba(13,9,24,.12) !important; }
+.sheet::-webkit-scrollbar { width: 0; height: 0; }
+.header { position: sticky; top: 0; z-index: 5; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 16px !important; margin: 0 -28px 20px; padding: 18px 28px 16px; border-bottom: 1px solid #ebe7f2; background: rgba(255,255,255,.96); backdrop-filter: blur(14px); }
+.header :global(.kicker) { display: inline-flex; width: fit-content; padding: 5px 9px; border-radius: 999px; background: #f0ebff; color: var(--accent-dark); font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+.header h2 { margin: 7px 0 0 !important; font-size: clamp(22px,3vw,27px) !important; line-height: 1.05; letter-spacing: -.04em; }
+.close { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; padding: 0 !important; border: 1px solid #e7e2ed !important; border-radius: 50% !important; color: #514b59; background: #faf9fb !important; transition: transform .15s ease,background .15s ease; }
+.close:hover { transform: rotate(4deg); background: #f1edff !important; }
+.sheet form { display: grid; gap: 14px; }
+.sheet { font-size: 14px; line-height: 1.5; }
+.sheet form > h3 { margin: 10px 0 -4px; color: #24212a; font-size: 18px; letter-spacing: -.02em; }
+.sheet label { margin: 0 !important; }
+.sheet label > strong { color: #36313c; font-size: 13px; }
+.sheet input,.sheet select,.sheet textarea { min-height: 43px !important; border-color: #dfd9e7 !important; border-radius: 12px !important; background: #fcfbfd !important; box-shadow: 0 1px 2px rgba(25,20,34,.025); }
+.sheet :global(.btn) { min-height: 43px; border-radius: 12px; font-size: 14px !important; }
+.actionChoice { min-height: 48px !important; border-width: 1px !important; font-weight: 850 !important; box-shadow: 0 5px 14px rgba(31,27,48,.05); }
+.manualChoice { border-color: #6d5efc !important; background: linear-gradient(135deg,#6d5efc,#5745ed) !important; color: #fff !important; }
+.manualChoice:hover { background: linear-gradient(135deg,#6252f2,#4938d9) !important; }
+.availabilityChoice { border-color: #86ddb0 !important; background: #ecfbf3 !important; color: #08783f !important; }
+.availabilityChoice:hover { border-color: #50c98a !important; background: #ddf8e9 !important; }
+.blockChoice,.dangerAction { border-color: #ffb5b5 !important; background: #fff1f1 !important; color: #c51f2b !important; }
+.blockChoice:hover,.dangerAction:hover { border-color: #fa8d8d !important; background: #ffe5e5 !important; }
+.secondaryAction { border-color: #d9d2e4 !important; background: #f8f6fb !important; color: #4f4858 !important; }
+.slotActions { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px !important; }
+.slotActions > :last-child { grid-column: 1 / -1; }
+.startTimeField { display: grid !important; grid-template-columns: 1fr 138px; align-items: center; gap: 16px; margin: 0 0 18px !important; padding: 12px 14px; border: 1px solid #e8e3ed; border-radius: 14px; background: #faf9fc; }
+.startTimeField strong { color: #514b59; font-size: 13px; }
+.startTimeField input { width: 100%; margin: 0 !important; }
+.sheet > .header ~ div > p { display: grid; grid-template-columns: minmax(84px,.35fr) minmax(0,1fr); gap: 12px; align-items: baseline; margin: 0; padding: 11px 2px; border-bottom: 1px solid #eeeaf2; line-height: 1.45; }
+.sheet > .header ~ div > p strong { color: #615a69; font-size: 12px; letter-spacing: .045em; text-transform: uppercase; }
+.confirmSheet { width: min(100%,570px) !important; padding: 24px !important; }
+.intro { margin: -2px 0 16px; color: #756f7e; font-size: 14px; line-height: 1.55; }
+.identity { padding: 13px 15px; border: 1px solid #e5e0eb; border-radius: 14px; background: #f8f7fa; }
+.identity strong,.timeCard strong { display: block; font-size: 13px; }
+.identity span { display: block; margin-top: 3px; color: #756f7e; font-size: 12px; }
+.timeGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 10px; }
+.timeCard { padding: 14px; border: 1px solid #ded7e9; border-radius: 15px; background: #faf8ff; }
+.timeCardNew { border-color: #bce8cf; background: #f1fcf5; }
+.timeCard div { margin-top: 6px; font-size: 13px; line-height: 1.45; text-transform: capitalize; }
+.alert { margin-top: 12px; padding: 11px 13px; border: 1px solid #fecaca; border-radius: 12px; background: #fff3f3; color: #b91c1c; font-size: 13px; font-weight: 700; }
+.actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid #eeeaf2; }
+@media (max-width:640px) { .backdrop { align-items: center !important; padding: 12px !important; } .sheet { width: min(100%,540px) !important; max-width: 100% !important; max-height: calc(100dvh - 24px) !important; padding: 0 20px calc(20px + env(safe-area-inset-bottom)) !important; border: 1px solid rgba(255,255,255,.72) !important; border-radius: 22px !important; } .confirmSheet { padding: 22px 20px calc(20px + env(safe-area-inset-bottom)) !important; } .sheet::before { content: none; } .header { margin: 0 -20px 15px; padding: 12px 20px 14px; } .header h2 { font-size: 22px !important; } .startTimeField { grid-template-columns: 1fr 125px; } .slotActions { grid-template-columns: 1fr; } .slotActions > :last-child { grid-column: auto; } .sheet > .header ~ div > p { grid-template-columns: 1fr; gap: 3px; } .sheet form > div:last-child,.actions { display: grid !important; grid-template-columns: 1fr !important; } .sheet form > div:last-child > *,.actions > * { width: 100%; } .timeGrid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion:reduce) { .backdrop { backdrop-filter: none; } }

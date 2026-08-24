@@ -18,6 +18,10 @@ import {
 } from "@/lib/api/request";
 
 import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
+import {
   deleteBookingGoogleCalendarEvent,
   updateBookingGoogleCalendarEvent,
 } from "@/lib/google-calendar";
@@ -642,6 +646,21 @@ export async function POST(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier: user.id,
+        prefix: "account-booking-manage",
+        limit: 10,
+        window: "1 m",
+      });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

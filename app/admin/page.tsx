@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { Building2, CalendarDays, Mail, ScrollText, Star, UserRound } from "lucide-react";
 
 import {
   redirect,
@@ -7,6 +9,8 @@ import {
 import {
   Header,
 } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell } from "@/components/admin/AdminShell";
+import styles from "./AdminDashboard.module.css";
 
 import {
   createClient,
@@ -597,38 +601,14 @@ export default async function AdminPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1200,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f8f7ff 0%, #ffffff 72%)",
-          }}
-        >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Panel de administración
-          </h1>
-
-          <p className="muted">
+      <AdminShell maxWidth={1200}>
+        <AdminPageHeader compact eyebrow="Slottye Super Admin" title="Panel de administración" description={<>
             Hola
             {profile.name
               ? `, ${profile.name}`
               : ""}
             . Aquí tienes una visión global del estado de Slottye.
-          </p>
+          </>}>
 
           {statisticErrors.length >
             0 && (
@@ -662,7 +642,8 @@ export default async function AdminPage() {
               Algunas métricas no se han podido cargar. Revisa la terminal del servidor.
             </div>
           )}
-        </section>
+        </AdminPageHeader>
+        <AdminContent className={styles.dashboard}>
 
         {/* ======================================================
             RESUMEN GENERAL
@@ -1069,41 +1050,41 @@ export default async function AdminPage() {
           >
             <AdminLink
               href="/admin/users"
-              icon="👤"
+              icon={<UserRound size={18} aria-hidden="true" />}
               title="Gestionar usuarios"
               description="Bloquear, desbloquear o eliminar cuentas."
             />
 
             <AdminLink
               href="/admin/businesses"
-              icon="🏢"
+              icon={<Building2 size={18} aria-hidden="true" />}
               title="Gestionar negocios"
               description="Administrar fichas, agendas y configuración."
             />
 
             <AdminLink
               href="/admin/bookings"
-              icon="📅"
+              icon={<CalendarDays size={18} aria-hidden="true" />}
               title="Gestionar reservas"
               description="Consultar el historial global de reservas."
             />
 
             <AdminLink
               href="/admin/reviews"
-              icon="⭐"
+              icon={<Star size={18} aria-hidden="true" />}
               title="Gestionar reseñas"
               description="Consultar, ocultar o restaurar opiniones."
             />
 
             <AdminLink
               href="/admin/notifications"
-              icon="📨"
+              icon={<Mail size={18} aria-hidden="true" />}
               title="Centro de notificaciones"
               description="Revisar correos enviados, pendientes y fallidos."
             />
             <AdminLink
   href="/admin/audit"
-  icon="📜"
+  icon={<ScrollText size={18} aria-hidden="true" />}
   title="Auditoría administrativa"
   description="Consultar acciones, cambios y entidades afectadas."
 />
@@ -1123,7 +1104,8 @@ export default async function AdminPage() {
             ← Volver a Slottye
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }
@@ -1139,28 +1121,12 @@ function SectionHeader({
     string;
 }) {
   return (
-    <div
-      style={{
-        marginBottom:
-          14,
-      }}
-    >
-      <h2
-        style={{
-          margin:
-            0,
-        }}
-      >
+    <div className={styles.sectionHeader}>
+      <h2>
         {title}
       </h2>
 
-      <p
-        className="muted"
-        style={{
-          margin:
-            "6px 0 0",
-        }}
-      >
+      <p>
         {description}
       </p>
     </div>
@@ -1182,118 +1148,15 @@ function StatCard({
   tone?:
     Tone;
 }) {
-  const tones: Record<
-    Tone,
-    {
-      background:
-        string;
-
-      borderColor:
-        string;
-
-      color:
-        string;
-    }
-  > = {
-    default: {
-      background:
-        "var(--card)",
-
-      borderColor:
-        "var(--border)",
-
-      color:
-        "var(--text)",
-    },
-
-    success: {
-      background:
-        "#f0fdf4",
-
-      borderColor:
-        "#bbf7d0",
-
-      color:
-        "#166534",
-    },
-
-    warning: {
-      background:
-        "#fffbeb",
-
-      borderColor:
-        "#fde68a",
-
-      color:
-        "#92400e",
-    },
-
-    error: {
-      background:
-        "#fef2f2",
-
-      borderColor:
-        "#fecaca",
-
-      color:
-        "#b91c1c",
-    },
-
-    purple: {
-      background:
-        "#f5f3ff",
-
-      borderColor:
-        "#ddd6fe",
-
-      color:
-        "#5b21b6",
-    },
-  };
-
-  const selectedTone =
-    tones[tone];
-
   return (
-    <div
-      className="panel"
-      style={{
-        background:
-          selectedTone.background,
-
-        borderColor:
-          selectedTone.borderColor,
-
-        color:
-          selectedTone.color,
-      }}
-    >
-      <div
-        style={{
-          opacity:
-            0.82,
-
-          fontSize:
-            14,
-        }}
-      >
+    <div className={`${styles.stat} ${styles[tone]}`}>
+      <span>
         {label}
-      </div>
+      </span>
 
-      <div
-        style={{
-          marginTop:
-            7,
-
-          fontSize:
-            30,
-
-          fontWeight:
-            800,
-        }}
-      >
+      <strong>
         {value}
-      </div>
+      </strong>
     </div>
   );
 }
@@ -1308,7 +1171,7 @@ function AdminLink({
     string;
 
   icon:
-    string;
+    ReactNode;
 
   title:
     string;
@@ -1321,52 +1184,15 @@ function AdminLink({
       href={
         href
       }
-      className="card"
-      style={{
-        display:
-          "block",
-
-        color:
-          "inherit",
-
-        textDecoration:
-          "none",
-      }}
+      className={styles.adminLink}
     >
-      <div className="card-body">
-        <div
-          style={{
-            fontSize:
-              25,
-          }}
-        >
+        <span className={styles.linkIcon}>
           {icon}
-        </div>
+        </span>
 
-        <h3
-          style={{
-            margin:
-              "10px 0 5px",
-          }}
-        >
-          {title}
-        </h3>
-
-        <p
-          className="muted"
-          style={{
-            margin:
-              0,
-
-            fontSize:
-              13,
-
-            lineHeight:
-              1.55,
-          }}
-        >
-          {description}
-        </p>
+      <div>
+        <h3>{title}</h3>
+        <p>{description}</p>
       </div>
     </Link>
   );

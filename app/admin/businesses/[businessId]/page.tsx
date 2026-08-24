@@ -8,6 +8,7 @@ import {
 import {
   Header,
 } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, AdminSubnav, StatusBadge } from "@/components/admin/AdminShell";
 
 import {
   createClient,
@@ -189,7 +190,6 @@ export default async function AdminBusinessDetailPage({
 
   const [
     servicesResult,
-    imagesResult,
     subscribersResult,
     reviewsResult,
     futureSlotsResult,
@@ -201,25 +201,6 @@ export default async function AdminBusinessDetailPage({
       admin
         .from(
           "services"
-        )
-        .select(
-          "id",
-          {
-            count:
-              "exact",
-
-            head:
-              true,
-          }
-        )
-        .eq(
-          "business_id",
-          business.id
-        ),
-
-      admin
-        .from(
-          "business_images"
         )
         .select(
           "id",
@@ -416,179 +397,36 @@ export default async function AdminBusinessDetailPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1150,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f8f7ff 0%, #ffffff 70%)",
-          }}
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader
+          compact
+          eyebrow="Slottye Super Admin"
+          title={business.name}
+          description="Estás administrando este negocio como super administrador."
         >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "flex-start",
-
-              justifyContent:
-                "space-between",
-
-              gap:
-                18,
-
-              flexWrap:
-                "wrap",
-            }}
-          >
-            <div>
-              <h1
-                className="business-title"
-                style={{
-                  marginBottom:
-                    8,
-                }}
-              >
-                {business.name}
-              </h1>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    0,
-                }}
-              >
-                Estás administrando este negocio como super administrador.
-              </p>
-            </div>
-
-            <span
-              style={{
-                padding:
-                  "6px 11px",
-
-                borderRadius:
-                  999,
-
-                background:
-                  business.active
-                    ? "#dcfce7"
-                    : "#fee2e2",
-
-                color:
-                  business.active
-                    ? "#166534"
-                    : "#b91c1c",
-
-                fontSize:
-                  12,
-
-                fontWeight:
-                  800,
-              }}
-            >
+          <div style={{ marginTop: 12 }}>
+            <StatusBadge tone={business.active ? "success" : "danger"}>
               {business.active
                 ? "ACTIVO"
                 : "INACTIVO"}
-            </span>
+            </StatusBadge>
           </div>
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-
-              marginTop:
-                22,
-            }}
-          >
+          <AdminSubnav>
             <Link
-  href={`/admin/businesses/${business.id}/agenda`}
-  className="btn primary"
->
-  📅 Gestionar agenda
-</Link>
+              href={`/admin/businesses/${business.id}/agenda`}
+              className="btn primary"
+            >Gestionar agenda</Link>
+            <Link href={`/admin/businesses/${business.id}/bookings`} className="btn">Reservas e historial</Link>
+            <Link href={`/admin/businesses/${business.id}/services`} className="btn">Servicios</Link>
+            <Link href={`/admin/businesses/${business.id}/hours`} className="btn">Horarios</Link>
+            <Link href={`/admin/businesses/${business.id}/edit`} className="btn">Editar negocio</Link>
+            <Link href={`/admin/businesses/${business.id}/subscribers`} className="btn">Suscriptores</Link>
+            <Link href={`/business/${business.slug}`} className="btn">Ver ficha pública</Link>
+            <Link href={`/admin/users?user=${business.owner_id}`} className="btn">Ver propietario</Link>
+          </AdminSubnav>
+        </AdminPageHeader>
 
-<Link
-  href={`/admin/businesses/${business.id}/bookings`}
-  className="btn"
->
-  📋 Reservas e historial
-</Link>
-
-<Link
-  href={`/admin/businesses/${business.id}/services`}
-  className="btn"
->
-  🧰 Gestionar servicios
-</Link>
-
-<Link
-  href={`/admin/businesses/${business.id}/hours`}
-  className="btn"
->
-  🕒 Gestionar horarios
-</Link>
-
-<Link
-  href={`/admin/businesses/${business.id}/images`}
-  className="btn"
->
-  🖼 Gestionar imágenes
-</Link>
-
-<Link
-  href={`/admin/businesses/${business.id}/edit`}
-  className="btn"
->
-  ✏️ Datos y políticas
-</Link>
-
-<Link
-  href={`/admin/businesses/${business.id}/subscribers`}
-  className="btn"
->
-  🔔 Gestionar suscriptores
-</Link>
-
-<Link
-  href={`/business/${business.slug}`}
-  className="btn"
->
-  🌐 Ver ficha pública
-</Link>
-
-<Link
-  href={`/admin/users?user=${business.owner_id}`}
-  className="btn"
->
-  👤 Ver propietario
-</Link>
-
-            
-          </div>
-        </section>
+        <AdminContent>
 
         <section
           className="section"
@@ -607,14 +445,6 @@ export default async function AdminBusinessDetailPage({
             label="Servicios"
             value={
               servicesResult.count ??
-              0
-            }
-          />
-
-          <StatCard
-            label="Imágenes"
-            value={
-              imagesResult.count ??
               0
             }
           />
@@ -952,7 +782,8 @@ export default async function AdminBusinessDetailPage({
             Panel de administración
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

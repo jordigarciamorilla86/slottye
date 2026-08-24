@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
-    useEffect,
-    useMemo,
-    useState,
-  } from "react";
+  useMemo,
+  useState,
+} from "react";
+import managerStyles from "../AdminManagement.module.css";
 
   
 
@@ -72,6 +73,16 @@ type AdminNotification = {
 type Props = {
   initialNotifications:
     AdminNotification[];
+  search: string;
+  statusFilter: NotificationStatus | "ALL";
+  typeFilter: NotificationType | "ALL";
+  currentPage: number;
+  totalPages: number;
+  totalResults: number;
+  totalNotifications: number;
+  sentCount: number;
+  pendingCount: number;
+  failedCount: number;
 };
 
 const NOTIFICATION_TYPES:
@@ -97,30 +108,21 @@ const NOTIFICATION_STATUSES:
 
 export default function AdminNotificationsManager({
   initialNotifications,
+  search,
+  statusFilter,
+  typeFilter,
+  currentPage,
+  totalPages,
+  totalResults,
+  totalNotifications,
+  sentCount,
+  pendingCount,
+  failedCount,
 }: Props) {
-  const [
-    search,
-    setSearch,
-  ] =
-    useState("");
-
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] =
-    useState<
-      NotificationStatus |
-      "ALL"
-    >("ALL");
-
-  const [
-    typeFilter,
-    setTypeFilter,
-  ] =
-    useState<
-      NotificationType |
-      "ALL"
-    >("ALL");
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlSearchParams = useSearchParams();
+  const [searchValue, setSearchValue] = useState(search);
 
   const [
     expandedId,
@@ -131,105 +133,6 @@ export default function AdminNotificationsManager({
       null
     >(null);
 
-    const [
-        currentPage,
-        setCurrentPage,
-      ] =
-        useState(1);
-
-  const sentCount =
-    initialNotifications.filter(
-      (
-        notification
-      ) =>
-        notification.status ===
-        "SENT"
-    ).length;
-
-  const pendingCount =
-    initialNotifications.filter(
-      (
-        notification
-      ) =>
-        notification.status ===
-        "PENDING"
-    ).length;
-
-  const failedCount =
-    initialNotifications.filter(
-      (
-        notification
-      ) =>
-        notification.status ===
-        "FAILED"
-    ).length;
-
-  const filteredNotifications =
-    useMemo(
-      () => {
-        const normalizedSearch =
-          search
-            .trim()
-            .toLowerCase();
-
-        return initialNotifications.filter(
-          (
-            notification
-          ) => {
-            if (
-              statusFilter !==
-                "ALL" &&
-              notification.status !==
-                statusFilter
-            ) {
-              return false;
-            }
-
-            if (
-              typeFilter !==
-                "ALL" &&
-              notification.type !==
-                typeFilter
-            ) {
-              return false;
-            }
-
-            if (
-              !normalizedSearch
-            ) {
-              return true;
-            }
-
-            const values = [
-              notification.subject,
-              notification.profiles
-                ?.name,
-              notification.profiles
-                ?.email,
-              notification.businesses
-                ?.name,
-              notification.id,
-              notification.booking_id,
-            ]
-              .filter(
-                Boolean
-              )
-              .join(" ")
-              .toLowerCase();
-
-            return values.includes(
-              normalizedSearch
-            );
-          }
-        );
-      },
-      [
-        initialNotifications,
-        search,
-        statusFilter,
-        typeFilter,
-      ]
-    );
 
     /*
  * ============================================================
@@ -237,20 +140,7 @@ export default function AdminNotificationsManager({
  * ============================================================
  */
 
-const totalPages =
-Math.max(
-  1,
-  Math.ceil(
-    filteredNotifications.length /
-      ITEMS_PER_PAGE
-  )
-);
-
-const safeCurrentPage =
-Math.min(
-  currentPage,
-  totalPages
-);
+const safeCurrentPage = currentPage;
 
 const firstVisibleIndex =
 (
@@ -263,52 +153,20 @@ const lastVisibleIndex =
 Math.min(
   firstVisibleIndex +
     ITEMS_PER_PAGE,
-  filteredNotifications.length
+  totalResults
 );
 
-const paginatedNotifications =
-filteredNotifications.slice(
-  firstVisibleIndex,
-  lastVisibleIndex
-);
+const paginatedNotifications = initialNotifications;
 
-/*
-* Al cambiar un filtro o una búsqueda,
-* volvemos automáticamente a la primera página.
-*/
-
-useEffect(() => {
-setCurrentPage(
-  1
-);
-
-setExpandedId(
-  null
-);
-}, [
-search,
-statusFilter,
-typeFilter,
-]);
-
-/*
-* Protección por si una eliminación futura o un cambio
-* en los resultados reduce el número total de páginas.
-*/
-
-useEffect(() => {
-if (
-  currentPage >
-  totalPages
-) {
-  setCurrentPage(
-    totalPages
-  );
+function navigate(updates: Record<string, string | null>) {
+  const params = new URLSearchParams(urlSearchParams.toString());
+  Object.entries(updates).forEach(([key, value]) => {
+    if (!value || value === "ALL") params.delete(key);
+    else params.set(key, value);
+  });
+  router.push(`${pathname}${params.size ? `?${params}` : ""}`);
+  setExpandedId(null);
 }
-}, [
-currentPage,
-totalPages,
-]);
 
 function changePage(
 page:
@@ -323,9 +181,7 @@ const nextPage =
     totalPages
   );
 
-setCurrentPage(
-  nextPage
-);
+navigate({ page: nextPage === 1 ? null : String(nextPage) });
 
 setExpandedId(
   null
@@ -480,6 +336,7 @@ window.scrollTo({
 
   return (
     <div
+      className={managerStyles.manager}
       style={{
         marginTop:
           28,
@@ -504,7 +361,7 @@ window.scrollTo({
         <StatCard
           label="Notificaciones"
           value={
-            initialNotifications.length
+            totalNotifications
           }
         />
 
@@ -563,15 +420,19 @@ window.scrollTo({
 
           <input
             value={
-              search
+              searchValue
             }
             onChange={(
               event
-            ) =>
-              setSearch(
+            ) => {
+              setSearchValue(
                 event.target.value
-              )
-            }
+              );
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") navigate({ q: searchValue.trim() || null, page: null });
+            }}
+            onBlur={() => navigate({ q: searchValue.trim() || null, page: null })}
             placeholder="Asunto, usuario, email o negocio"
             style={
               inputStyle
@@ -590,14 +451,9 @@ window.scrollTo({
             }
             onChange={(
               event
-            ) =>
-              setStatusFilter(
-                event.target
-                  .value as
-                  | NotificationStatus
-                  | "ALL"
-              )
-            }
+            ) => {
+              navigate({ status: event.target.value, page: null });
+            }}
             style={
               inputStyle
             }
@@ -638,14 +494,9 @@ window.scrollTo({
             }
             onChange={(
               event
-            ) =>
-              setTypeFilter(
-                event.target
-                  .value as
-                  | NotificationType
-                  | "ALL"
-              )
-            }
+            ) => {
+              navigate({ type: event.target.value, page: null });
+            }}
             style={
               inputStyle
             }
@@ -704,7 +555,7 @@ window.scrollTo({
         13,
     }}
   >
-    {filteredNotifications.length >
+    {totalResults >
     0 ? (
       <>
         Mostrando{" "}
@@ -718,7 +569,7 @@ window.scrollTo({
         </strong>{" "}
         de{" "}
         <strong>
-          {filteredNotifications.length}
+          {totalResults}
         </strong>{" "}
         resultados.
       </>
@@ -751,7 +602,7 @@ window.scrollTo({
           LISTADO
           ======================================================== */}
 
-      {filteredNotifications.length ===
+      {totalResults ===
       0 ? (
         <div
           className="panel"
@@ -1026,7 +877,7 @@ window.scrollTo({
                           href={`/admin/users?user=${notification.user_id}`}
                           className="btn"
                         >
-                          👤 Ver usuario
+                          Ver usuario
                         </Link>
                       )}
 
@@ -1035,7 +886,7 @@ window.scrollTo({
                           href={`/admin/businesses/${business.id}`}
                           className="btn"
                         >
-                          🏢 Ver negocio
+                          Ver negocio
                         </Link>
                       )}
 
@@ -1044,13 +895,15 @@ window.scrollTo({
                           href={`/admin/businesses/${business.id}/bookings`}
                           className="btn"
                         >
-                          📋 Reservas
+                          Reservas
                         </Link>
                       )}
 
                       <button
                         type="button"
                         className="btn"
+                        aria-expanded={expanded}
+                        aria-controls={`notification-details-${notification.id}`}
                         onClick={() =>
                           setExpandedId(
                             expanded
@@ -1067,6 +920,9 @@ window.scrollTo({
 
                     {expanded && (
                       <div
+                        id={`notification-details-${notification.id}`}
+                        role="region"
+                        aria-label="Metadatos de la notificación"
                         style={{
                           marginTop:
                             18,
@@ -1148,7 +1004,7 @@ window.scrollTo({
                </div>
       )}
 
-      {filteredNotifications.length >
+      {totalResults >
         ITEMS_PER_PAGE && (
         <Pagination
           currentPage={

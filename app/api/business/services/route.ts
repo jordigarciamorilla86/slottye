@@ -16,6 +16,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type ServiceInput = {
   serviceId?: unknown;
   name?: unknown;
@@ -470,6 +474,20 @@ export async function POST(
       return authorization.response;
     }
 
+    const rateLimit = await checkRateLimit({
+      identifier: authorization.user.id,
+      prefix: "business-services-create",
+      limit: 30,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
+    }
+
     const normalized =
       normalizeServiceData(
         body
@@ -656,6 +674,20 @@ export async function PATCH(
       !authorization.success
     ) {
       return authorization.response;
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: authorization.user.id,
+      prefix: "business-services-update",
+      limit: 120,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
     }
 
     const {
@@ -991,6 +1023,20 @@ export async function DELETE(
       !authorization.success
     ) {
       return authorization.response;
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: authorization.user.id,
+      prefix: "business-services-delete",
+      limit: 30,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
+      );
     }
 
     /*

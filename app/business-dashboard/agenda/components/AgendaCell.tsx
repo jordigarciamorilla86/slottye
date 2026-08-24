@@ -407,6 +407,12 @@ export default function AgendaCell({
           1000
     );
 
+  const cellStartTime =
+    cellStart.getTime();
+
+  const cellEndTime =
+    cellEnd.getTime();
+
   /*
    * Importante: getCellData devuelve todos los eventos que
    * atraviesan esta fila. Aquí dibujamos solamente los que
@@ -421,14 +427,18 @@ export default function AgendaCell({
           ) =>
             eventStartsInCell(
               event,
-              cellStart,
-              cellEnd
+              new Date(
+                cellStartTime
+              ),
+              new Date(
+                cellEndTime
+              )
             )
         ),
       [
         events,
-        cellStart.getTime(),
-        cellEnd.getTime(),
+        cellStartTime,
+        cellEndTime,
       ]
     );
 
@@ -695,6 +705,7 @@ export default function AgendaCell({
 
   return (
     <div
+      className={open ? "agendacell11 is-open" : "agendacell11 is-closed"}
       onClick={
         handleCellClick
       }
@@ -736,18 +747,12 @@ export default function AgendaCell({
               ? "#ffffff"
               : "#f8fafc",
 
-              zIndex:
-  dragOverMinute !==
-  null
-    ? 200
-    : positionedEvents.length >
-        0
-      ? 100 -
-        Math.floor(
-          minute /
-            SLOT_MINUTES
-        )
-      : 1,
+        /* Sin un z-index por fila, los eventos y la línea de hora
+         * comparten el mismo contexto y la línea puede quedar encima. */
+        zIndex:
+          dragOverMinute !== null
+            ? 200
+            : undefined,
 
         overflow:
           "visible",
@@ -763,6 +768,7 @@ export default function AgendaCell({
           {freeQuarterStarts.length ===
           2 ? (
             <button
+              className="agendacell11-empty"
               type="button"
               onClick={(
                 mouseEvent
@@ -855,6 +861,7 @@ export default function AgendaCell({
 
                 return (
                   <button
+                    className="agendacell11-quarter"
                     key={
                       quarterStartMinute
                     }
@@ -1141,6 +1148,7 @@ export default function AgendaCell({
 
           return (
             <button
+              className={`agendacell11-event is-${event.type}${completedBooking ? " is-completed" : ""}`}
               key={`${event.type}:${event.id}`}
               type="button"
               title={`${formatTime(
@@ -1556,14 +1564,68 @@ export default function AgendaCell({
             background:
               "#ef4444",
 
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,.9), 0 1px 5px rgba(220,38,38,.5)",
+
             zIndex:
-              25,
+              220,
 
             pointerEvents:
               "none",
           }}
-        />
+        >
+          <span
+            style={{
+              position: "absolute",
+              left: -4,
+              top: -4,
+              width: 9,
+              height: 9,
+              border: "2px solid #fff",
+              borderRadius: "50%",
+              background: "#ef4444",
+            }}
+          />
+        </div>
       )}
+
+      <style jsx>{`
+        .agendacell11 {
+          border-left-color: #ebe8ee !important;
+          border-bottom-color: #ebe8ee !important;
+        }
+        .agendacell11.is-open { background: #fff !important; }
+        .agendacell11.is-closed {
+          background-color: #f7f6f8 !important;
+          background-image: repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(96,88,105,.035) 7px, rgba(96,88,105,.035) 8px) !important;
+        }
+        .agendacell11-empty {
+          border-color: transparent !important;
+          border-radius: 7px !important;
+          opacity: .32;
+          transition: opacity .12s ease, background .12s ease, color .12s ease;
+        }
+        .agendacell11-empty:hover,
+        .agendacell11-quarter:hover {
+          opacity: 1;
+          background: #f1edff !important;
+          color: var(--accent-dark) !important;
+        }
+        .agendacell11-quarter { opacity: .2; transition: opacity .12s ease, background .12s ease; }
+        .agendacell11-event {
+          border-radius: 8px !important;
+          box-shadow: 0 3px 9px rgba(31,27,48,.1) !important;
+          transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease !important;
+        }
+        .agendacell11-event:hover {
+          z-index: 80 !important;
+          transform: translateY(-1px);
+          box-shadow: 0 7px 18px rgba(31,27,48,.16) !important;
+        }
+        .agendacell11-event.is-slot { box-shadow: none !important; }
+        .agendacell11-event.is-completed { filter: saturate(.45); box-shadow: none !important; }
+        .agendacell11-event strong { font-weight: 850 !important; }
+      `}</style>
     </div>
   );
 }

@@ -1,8 +1,30 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
 import {
-  useState,
-} from "react";
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Mail,
+  UserRound,
+  UserX,
+  XCircle,
+} from "lucide-react";
+import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui/ConfirmDialog";
+
+type Confirmation = {
+  title: string;
+  description: string;
+  variant: ConfirmDialogVariant;
+  confirmLabel: string;
+  resolve: (confirmed: boolean) => void;
+};
 
 type Booking = {
   id: string;
@@ -10,6 +32,7 @@ type Booking = {
   status: string;
   created_at: string;
   cancelled_at: string | null;
+  status_updated_at: string | null;
 
   slots:
     | {
@@ -38,6 +61,17 @@ type Booking = {
 
 type Props = {
   initialBookings: Booking[];
+  paginationPath?: string;
+  pagination?: {
+    upcoming: { page: number; total: number };
+    pending: { page: number; total: number };
+    history: { page: number; total: number };
+  };
+  statusTotals?: {
+    completed: number;
+    noShow: number;
+    cancelled: number;
+  };
 };
 
 type BookingAction =
@@ -45,9 +79,95 @@ type BookingAction =
   | "complete"
   | "no_show";
 
+function Pagination({
+  page,
+  pages,
+  param,
+  currentPages,
+  onChange,
+  paginationPath,
+}: {
+  page: number;
+  pages: number;
+  param: "upcomingPage" | "pendingPage" | "historyPage";
+  currentPages?: Record<string, number>;
+  onChange?: (page: number) => void;
+  paginationPath: string;
+}) {
+  if (pages <= 1) {
+    return null;
+  }
+
+  return (
+    <div className="bookings10-pagination">
+      {!currentPages ? (
+        <button type="button" className="btn" disabled={page <= 1} onClick={() => onChange?.(page - 1)}>
+          <ChevronLeft size={15} strokeWidth={2} aria-hidden="true" />
+          Anterior
+        </button>
+      ) : (
+      <Link
+        className={`btn${page <= 1 ? " is-disabled" : ""}`}
+        aria-disabled={page <= 1}
+        tabIndex={page <= 1 ? -1 : undefined}
+        href={{ pathname: paginationPath, query: page <= 1 ? currentPages : { ...currentPages, [param]: page - 1 } }}
+        scroll={false}
+      >
+        <ChevronLeft
+          size={15}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        Anterior
+      </Link>
+      )}
+
+      <span>
+        Página {page} de {pages}
+      </span>
+
+      {!currentPages ? (
+        <button type="button" className="btn" disabled={page >= pages} onClick={() => onChange?.(page + 1)}>
+          Siguiente
+          <ChevronRight size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
+      ) : (
+      <Link
+        className={`btn${page >= pages ? " is-disabled" : ""}`}
+        aria-disabled={page >= pages}
+        tabIndex={page >= pages ? -1 : undefined}
+        href={{ pathname: paginationPath, query: page >= pages ? currentPages : { ...currentPages, [param]: page + 1 } }}
+        scroll={false}
+      >
+        Siguiente
+        <ChevronRight
+          size={15}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+      </Link>
+      )}
+    </div>
+  );
+}
+
 export default function BusinessBookingsManager({
   initialBookings,
+  pagination,
+  statusTotals,
+  paginationPath = "/business-dashboard/bookings",
 }: Props) {
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+
+  function requestConfirmation(config: Omit<Confirmation, "resolve">) {
+    return new Promise<boolean>((resolve) => setConfirmation({ ...config, resolve }));
+  }
+
+  function finishConfirmation(confirmed: boolean) {
+    confirmation?.resolve(confirmed);
+    setConfirmation(null);
+  }
+  const router = useRouter();
   const [
     bookings,
     setBookings,
@@ -70,6 +190,12 @@ export default function BusinessBookingsManager({
   const [
     message,
     setMessage,
+  ] =
+    useState("");
+
+  const [
+    toast,
+    setToast,
   ] =
     useState("");
 
@@ -125,6 +251,46 @@ export default function BusinessBookingsManager({
     );
   }
 
+  function formatActionDateTime(
+    value:
+      string
+  ) {
+    return new Intl.DateTimeFormat(
+      "es-ES",
+      {
+        day:
+          "2-digit",
+
+        month:
+          "2-digit",
+
+        year:
+          "numeric",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+      }
+    ).format(
+      new Date(
+        value
+      )
+    );
+  }
+
+  function getActionDate(
+    booking:
+      Booking
+  ) {
+    return (
+      booking.status_updated_at ??
+      booking.cancelled_at ??
+      booking.created_at
+    );
+  }
+
   function statusLabel(
     status:
       string
@@ -153,6 +319,24 @@ export default function BusinessBookingsManager({
       default:
         return status;
     }
+  }
+
+  function showToast(
+    value:
+      string
+  ) {
+    setToast(
+      value
+    );
+
+    window.setTimeout(
+      () => {
+        setToast(
+          ""
+        );
+      },
+      3200
+    );
   }
 
   /*
@@ -219,10 +403,12 @@ export default function BusinessBookingsManager({
     bookingId:
       string
   ) {
-    const confirmed =
-      window.confirm(
-        "¿Seguro que quieres cancelar esta reserva?"
-      );
+    const confirmed = await requestConfirmation({
+      title: "Cancelar reserva",
+      description: "La reserva quedará cancelada y dejará de figurar como cita activa.",
+      variant: "danger",
+      confirmLabel: "Cancelar reserva",
+    });
 
     if (
       !confirmed
@@ -323,6 +509,10 @@ export default function BusinessBookingsManager({
                     cancelled_at:
                       new Date()
                         .toISOString(),
+
+                    status_updated_at:
+                      new Date()
+                        .toISOString(),
                   }
                 : booking
           )
@@ -331,6 +521,11 @@ export default function BusinessBookingsManager({
       setMessage(
         "Reserva cancelada correctamente."
       );
+
+      showToast(
+        "Reserva cancelada correctamente."
+      );
+      router.refresh();
     } catch (
       error
     ) {
@@ -362,10 +557,12 @@ export default function BusinessBookingsManager({
     bookingId:
       string
   ) {
-    const confirmed =
-      window.confirm(
-        "¿Marcar esta cita como completada?"
-      );
+    const confirmed = await requestConfirmation({
+      title: "Completar cita",
+      description: "La cita se marcará como completada.",
+      variant: "neutral",
+      confirmLabel: "Marcar como completada",
+    });
 
     if (
       !confirmed
@@ -454,6 +651,10 @@ export default function BusinessBookingsManager({
 
                     status:
                       "COMPLETED",
+
+                    status_updated_at:
+                      new Date()
+                        .toISOString(),
                   }
                 : booking
           )
@@ -462,6 +663,11 @@ export default function BusinessBookingsManager({
       setMessage(
         "Reserva marcada como completada. Se ha enviado al cliente una solicitud de reseña."
       );
+
+      showToast(
+        "Reserva completada correctamente."
+      );
+      router.refresh();
     } catch (
       error
     ) {
@@ -493,10 +699,12 @@ export default function BusinessBookingsManager({
     bookingId:
       string
   ) {
-    const confirmed =
-      window.confirm(
-        "¿Marcar que el cliente no se presentó?"
-      );
+    const confirmed = await requestConfirmation({
+      title: "Marcar ausencia",
+      description: "La reserva quedará registrada como cliente no presentado.",
+      variant: "warning",
+      confirmLabel: "Marcar no presentado",
+    });
 
     if (
       !confirmed
@@ -533,6 +741,10 @@ export default function BusinessBookingsManager({
 
                     status:
                       "NO_SHOW",
+
+                    status_updated_at:
+                      new Date()
+                        .toISOString(),
                   }
                 : booking
           )
@@ -541,6 +753,11 @@ export default function BusinessBookingsManager({
       setMessage(
         "Reserva marcada como no presentada."
       );
+
+      showToast(
+        "Reserva marcada como no presentada."
+      );
+      router.refresh();
     } catch (
       error
     ) {
@@ -561,6 +778,16 @@ export default function BusinessBookingsManager({
       );
     }
   }
+
+  // ============================================================
+  // PAGINACIÓN
+  // ============================================================
+
+  const BOOKINGS_PER_PAGE =
+    6;
+  const [localUpcomingPage, setLocalUpcomingPage] = useState(1);
+  const [localPendingPage, setLocalPendingPage] = useState(1);
+  const [localHistoryPage, setLocalHistoryPage] = useState(1);
 
   /*
    * ============================================================
@@ -676,14 +903,33 @@ export default function BusinessBookingsManager({
         (
           first,
           second
-        ) =>
-          new Date(
-            second.created_at
-          ).getTime() -
-          new Date(
-            first.created_at
-          ).getTime()
+        ) => {
+          const firstActionAt =
+            first.status_updated_at ??
+            first.cancelled_at ??
+            first.created_at;
+
+          const secondActionAt =
+            second.status_updated_at ??
+            second.cancelled_at ??
+            second.created_at;
+
+          return (
+            new Date(
+              secondActionAt
+            ).getTime() -
+            new Date(
+              firstActionAt
+            ).getTime()
+          );
+        }
       );
+
+  const pageData = pagination ?? {
+    upcoming: { page: localUpcomingPage, total: upcoming.length },
+    pending: { page: localPendingPage, total: pendingClosure.length },
+    history: { page: localHistoryPage, total: history.length },
+  };
 
   /*
    * ============================================================
@@ -691,142 +937,293 @@ export default function BusinessBookingsManager({
    * ============================================================
    */
 
+  const upcomingPages =
+    Math.max(
+      1,
+      Math.ceil(
+        pageData.upcoming.total /
+          BOOKINGS_PER_PAGE
+      )
+    );
+
+  const pendingPages =
+    Math.max(
+      1,
+      Math.ceil(
+        pageData.pending.total /
+          BOOKINGS_PER_PAGE
+      )
+    );
+
+  const historyPages =
+    Math.max(
+      1,
+      Math.ceil(
+        pageData.history.total /
+          BOOKINGS_PER_PAGE
+      )
+    );
+
+  const effectiveUpcomingPage =
+    Math.min(
+      pageData.upcoming.page,
+      upcomingPages
+    );
+
+  const effectivePendingPage =
+    Math.min(
+      pageData.pending.page,
+      pendingPages
+    );
+
+  const effectiveHistoryPage =
+    Math.min(
+      pageData.history.page,
+      historyPages
+    );
+
+  const visibleUpcoming = pagination ? upcoming : upcoming.slice((effectiveUpcomingPage - 1) * BOOKINGS_PER_PAGE, effectiveUpcomingPage * BOOKINGS_PER_PAGE);
+
+  const visiblePending = pagination ? pendingClosure : pendingClosure.slice((effectivePendingPage - 1) * BOOKINGS_PER_PAGE, effectivePendingPage * BOOKINGS_PER_PAGE);
+
+  const visibleHistory = pagination ? history : history.slice((effectiveHistoryPage - 1) * BOOKINGS_PER_PAGE, effectiveHistoryPage * BOOKINGS_PER_PAGE);
+
+  const completedTotal = statusTotals?.completed ?? bookings.filter((booking) => booking.status === "COMPLETED").length;
+  const noShowTotal = statusTotals?.noShow ?? bookings.filter((booking) => booking.status === "NO_SHOW").length;
+  const cancelledTotal = statusTotals?.cancelled ?? bookings.filter((booking) => booking.status.startsWith("CANCELLED_")).length;
+  const currentPages = pagination ? {
+    upcomingPage: effectiveUpcomingPage,
+    pendingPage: effectivePendingPage,
+    historyPage: effectiveHistoryPage,
+  } : undefined;
+
   return (
-    <div
-      style={{
-        marginTop:
-          28,
-      }}
-    >
-      {/* ======================================================
-          PRÓXIMAS RESERVAS
-          ====================================================== */}
-
-      <h2>
-        Próximas reservas
-      </h2>
-
-      {upcoming.length ===
-      0 ? (
-        <p className="muted">
-          No tienes próximas reservas.
-        </p>
-      ) : (
+    <div className="bookings10">
+      {toast && (
         <div
-          style={{
-            display:
-              "grid",
-
-            gap:
-              14,
-
-            marginTop:
-              16,
-          }}
+          className="bookings10-toast"
+          role="status"
+          aria-live="polite"
         >
-          {upcoming.map(
-            (
-              booking
-            ) => (
-              <div
-                className="card"
-                key={
-                  booking.id
-                }
-              >
-                <div className="card-body">
-                  <div className="kicker">
-                    Confirmada
-                  </div>
+          <CheckCircle2
+            size={18}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
 
-                  <h3>
-                    {booking.profiles
-                      ?.name ??
-                      "Cliente"}
-                  </h3>
+          <span>
+            {toast}
+          </span>
+        </div>
+      )}
 
-                  {booking.profiles
-                    ?.email && (
-                    <div className="meta">
-                      ✉{" "}
-                      {
-                        booking
-                          .profiles
-                          .email
-                      }
-                    </div>
-                  )}
+      <section className="bookings10-summary">
+        <div>
+          <span>
+            Próximas
+          </span>
 
-                  {booking.services && (
-                    <p
-                      style={{
-                        marginTop:
-                          12,
-                      }}
-                    >
-                      <strong>
-                        {
-                          booking
-                            .services
-                            .name
-                        }
-                      </strong>
-                    </p>
-                  )}
+          <strong>
+            {pageData.upcoming.total}
+          </strong>
+        </div>
 
-                  {booking.slots && (
-                    <>
-                      <div className="meta">
-                        📅{" "}
-                        {formatDate(
-                          booking
-                            .slots
-                            .start_at
-                        )}
-                      </div>
+        <div>
+          <span>
+            Pendientes
+          </span>
 
-                      <div
-                        style={{
-                          fontSize:
-                            22,
+          <strong>
+            {pageData.pending.total}
+          </strong>
+        </div>
 
-                          fontWeight:
-                            800,
+        <div>
+          <span>
+            Completadas
+          </span>
 
-                          marginTop:
-                            8,
-                        }}
-                      >
-                        {formatTime(
-                          booking
-                            .slots
-                            .start_at
-                        )}
-                      </div>
-                    </>
-                  )}
+          <strong>
+            {completedTotal}
+          </strong>
+        </div>
 
-                  <div
-                    style={{
-                      marginTop:
-                        18,
-                    }}
+        <div>
+          <span>
+            No presentadas
+          </span>
+
+          <strong>
+            {noShowTotal}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            Canceladas
+          </span>
+
+          <strong>
+            {cancelledTotal}
+          </strong>
+        </div>
+      </section>
+
+      {message && (
+        <div
+          className="bookings10-message"
+          role="status"
+        >
+          {message}
+        </div>
+      )}
+
+      <section className="bookings10-card">
+        <div className="bookings10-section-head">
+          <span className="bookings10-icon">
+            <CalendarCheck
+              size={20}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </span>
+
+          <div>
+            <span className="bookings10-kicker">
+              Próximas
+            </span>
+
+            <h2>
+              Próximas reservas
+            </h2>
+
+            <p>
+              Reservas confirmadas que todavía no han llegado.
+            </p>
+          </div>
+
+          <span className="bookings10-count">
+            {pageData.upcoming.total}
+          </span>
+        </div>
+
+        {pageData.upcoming.total ===
+        0 ? (
+          <div className="bookings10-empty">
+            <strong>
+              No tienes próximas reservas
+            </strong>
+
+            <p>
+              Las nuevas reservas confirmadas aparecerán aquí.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="bookings10-list">
+              {visibleUpcoming.map(
+                (
+                  booking
+                ) => (
+                  <article
+                    className="bookings10-row"
+                    key={
+                      booking.id
+                    }
                   >
-                    <div
-                      style={{
-                        display:
-                          "flex",
+                    <div className="bookings10-customer">
+                      <span className="bookings10-avatar">
+                        <UserRound
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      </span>
 
-                        gap:
-                          10,
+                      <div>
+                        <strong>
+                          {booking.profiles
+                            ?.name ??
+                            "Cliente"}
+                        </strong>
 
-                        flexWrap:
-                          "wrap",
-                      }}
-                    >
+                        {booking.profiles
+                          ?.email && (
+                          <span>
+                            <Mail
+                              size={13}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+
+                            {
+                              booking
+                                .profiles
+                                .email
+                            }
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bookings10-service">
+                      <span>
+                        Servicio
+                      </span>
+
+                      <strong>
+                        {booking.services
+                          ?.name ??
+                          "Servicio"}
+                      </strong>
+
+                      {booking.services && (
+                        <small>
+                          {booking.services.duration_minutes} min
+                        </small>
+                      )}
+                    </div>
+
+                    <div className="bookings10-date">
+                      <span>
+                        Fecha y hora
+                      </span>
+
+                      {booking.slots ? (
+                        <>
+                          <strong>
+                            {formatDate(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </strong>
+
+                          <small>
+                            <Clock3
+                              size={13}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+
+                            {formatTime(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </small>
+                        </>
+                      ) : (
+                        <strong>
+                          Sin horario
+                        </strong>
+                      )}
+                    </div>
+
+                    <div className="bookings10-action">
                       <button
                         type="button"
-                        className="btn"
+                        className="btn bookings10-cancel"
                         disabled={
                           loadingId ===
                           booking.id
@@ -837,159 +1234,176 @@ export default function BusinessBookingsManager({
                           )
                         }
                       >
+                        <XCircle
+                          size={15}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
                         {loadingId ===
                         booking.id
                           ? "Procesando..."
-                          : "Cancelar reserva"}
+                          : "Cancelar"}
                       </button>
                     </div>
-                  </div>
-                </div>
-              </div>
-            )
-          )}
+                  </article>
+                )
+              )}
+            </div>
+
+            <Pagination
+              paginationPath={paginationPath}
+              page={
+                effectiveUpcomingPage
+              }
+              pages={
+                upcomingPages
+              }
+              param="upcomingPage"
+              currentPages={currentPages}
+              onChange={setLocalUpcomingPage}
+            />
+          </>
+        )}
+      </section>
+
+      <section className="bookings10-card">
+        <div className="bookings10-section-head">
+          <span className="bookings10-icon is-warning">
+            <CalendarClock
+              size={20}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </span>
+
+          <div>
+            <span className="bookings10-kicker is-warning">
+              Revisión
+            </span>
+
+            <h2>
+              Pendientes de cerrar
+            </h2>
+
+            <p>
+              Citas cuya hora ya ha pasado y todavía siguen confirmadas.
+            </p>
+          </div>
+
+          <span className="bookings10-count is-warning">
+            {pageData.pending.total}
+          </span>
         </div>
-      )}
 
-      {/* ======================================================
-          PENDIENTES DE CERRAR
-          ====================================================== */}
-
-      <div
-        style={{
-          marginTop:
-            42,
-        }}
-      >
-        <h2>
-          Pendientes de cerrar
-        </h2>
-
-        <p className="muted">
-          Citas cuya hora ya ha pasado y todavía están confirmadas.
-        </p>
-
-        {pendingClosure.length ===
+        {pageData.pending.total ===
         0 ? (
-          <p className="muted">
-            No hay citas pendientes de cerrar.
-          </p>
+          <div className="bookings10-empty">
+            <strong>
+              No hay citas pendientes
+            </strong>
+
+            <p>
+              Cuando termine una cita podrás cerrarla como completada o no presentada.
+            </p>
+          </div>
         ) : (
-          <div
-            style={{
-              display:
-                "grid",
+          <>
+            <div className="bookings10-list">
+              {visiblePending.map(
+                (
+                  booking
+                ) => (
+                  <article
+                    className="bookings10-row"
+                    key={
+                      booking.id
+                    }
+                  >
+                    <div className="bookings10-customer">
+                      <span className="bookings10-avatar is-warning">
+                        <UserRound
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      </span>
 
-              gap:
-                14,
+                      <div>
+                        <strong>
+                          {booking.profiles
+                            ?.name ??
+                            "Cliente"}
+                        </strong>
 
-              marginTop:
-                16,
-            }}
-          >
-            {pendingClosure.map(
-              (
-                booking
-              ) => (
-                <div
-                  className="card"
-                  key={
-                    booking.id
-                  }
-                >
-                  <div className="card-body">
-                    <div
-                      className="kicker"
-                      style={{
-                        color:
-                          "#b45309",
-                      }}
-                    >
-                      Pendiente de cerrar
+                        {booking.profiles
+                          ?.email && (
+                          <span>
+                            <Mail
+                              size={13}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+
+                            {
+                              booking
+                                .profiles
+                                .email
+                            }
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <h3>
-                      {booking.profiles
-                        ?.name ??
-                        "Cliente"}
-                    </h3>
+                    <div className="bookings10-service">
+                      <span>
+                        Servicio
+                      </span>
 
-                    {booking.profiles
-                      ?.email && (
-                      <div className="meta">
-                        ✉{" "}
-                        {
-                          booking
-                            .profiles
-                            .email
-                        }
-                      </div>
-                    )}
+                      <strong>
+                        {booking.services
+                          ?.name ??
+                          "Servicio"}
+                      </strong>
+                    </div>
 
-                    {booking.services && (
-                      <p
-                        style={{
-                          marginTop:
-                            12,
-                        }}
-                      >
+                    <div className="bookings10-date">
+                      <span>
+                        Fecha y hora
+                      </span>
+
+                      {booking.slots ? (
+                        <>
+                          <strong>
+                            {formatDate(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </strong>
+
+                          <small>
+                            <Clock3
+                              size={13}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+
+                            {formatTime(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </small>
+                        </>
+                      ) : (
                         <strong>
-                          {
-                            booking
-                              .services
-                              .name
-                          }
+                          Sin horario
                         </strong>
-                      </p>
-                    )}
+                      )}
+                    </div>
 
-                    {booking.slots && (
-                      <>
-                        <div className="meta">
-                          📅{" "}
-                          {formatDate(
-                            booking
-                              .slots
-                              .start_at
-                          )}
-                        </div>
-
-                        <div
-                          style={{
-                            fontSize:
-                              22,
-
-                            fontWeight:
-                              800,
-
-                            marginTop:
-                              8,
-                          }}
-                        >
-                          {formatTime(
-                            booking
-                              .slots
-                              .start_at
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                    <div
-                      style={{
-                        display:
-                          "flex",
-
-                        gap:
-                          10,
-
-                        flexWrap:
-                          "wrap",
-
-                        marginTop:
-                          18,
-                      }}
-                    >
+                    <div className="bookings10-actions">
                       <button
                         type="button"
                         className="btn primary"
@@ -1003,10 +1417,16 @@ export default function BusinessBookingsManager({
                           )
                         }
                       >
+                        <CheckCircle2
+                          size={15}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
                         {loadingId ===
                         booking.id
                           ? "Procesando..."
-                          : "Marcar completada"}
+                          : "Completada"}
                       </button>
 
                       <button
@@ -1022,204 +1442,803 @@ export default function BusinessBookingsManager({
                           )
                         }
                       >
-                        {loadingId ===
-                        booking.id
-                          ? "Procesando..."
-                          : "No se presentó"}
+                        <UserX
+                          size={15}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
+                        No se presentó
                       </button>
                     </div>
-                  </div>
-                </div>
-              )
-            )}
-          </div>
+                  </article>
+                )
+              )}
+            </div>
+
+            <Pagination
+              paginationPath={paginationPath}
+              page={
+                effectivePendingPage
+              }
+              pages={
+                pendingPages
+              }
+              param="pendingPage"
+              currentPages={currentPages}
+              onChange={setLocalPendingPage}
+            />
+          </>
         )}
-      </div>
+      </section>
 
-      {/* ======================================================
-          HISTORIAL
-          ====================================================== */}
+      <section className="bookings10-card">
+        <div className="bookings10-section-head">
+          <span className="bookings10-icon">
+            <Clock3
+              size={20}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </span>
 
-      <div
-        style={{
-          marginTop:
-            42,
-        }}
-      >
-        <h2>
-          Historial
-        </h2>
+          <div>
+            <span className="bookings10-kicker">
+              Histórico
+            </span>
 
-        {history.length ===
+            <h2>
+              Historial
+            </h2>
+
+            <p>
+              Últimos cambios realizados sobre tus reservas, ordenados por actividad reciente.
+            </p>
+          </div>
+
+          <span className="bookings10-count">
+            {pageData.history.total}
+          </span>
+        </div>
+
+        {pageData.history.total ===
         0 ? (
-          <p className="muted">
-            Todavía no hay historial.
-          </p>
+          <div className="bookings10-empty">
+            <strong>
+              Todavía no hay historial
+            </strong>
+
+            <p>
+              Las reservas cerradas aparecerán aquí.
+            </p>
+          </div>
         ) : (
-          <div
-            style={{
-              display:
-                "grid",
+          <>
+            <div className="bookings10-history">
+              <div
+                className="bookings10-history-head"
+                aria-hidden="true"
+              >
+                <span>
+                  Cliente
+                </span>
 
-              gap:
-                12,
+                <span>
+                  Fecha de la cita
+                </span>
 
-              marginTop:
-                16,
-            }}
-          >
-            {history.map(
-              (
-                booking
-              ) => (
-                <div
-                  className="card"
-                  key={
-                    booking.id
-                  }
-                >
-                  <div className="card-body">
-                    <strong>
-                      {booking.status ===
-                      "CANCELLED_ACCOUNT_DELETED"
-                        ? "👤 Usuario eliminado"
-                        : booking.profiles
-                            ?.name ??
-                          "Cliente"}
-                    </strong>
+                <span>
+                  Última acción
+                </span>
 
-                    <div
-                      style={{
-                        display:
-                          "inline-flex",
+                <span>
+                  Estado
+                </span>
+              </div>
 
-                        alignItems:
-                          "center",
+              {visibleHistory.map(
+                (
+                  booking
+                ) => (
+                  <article
+                    className="bookings10-history-row"
+                    key={
+                      booking.id
+                    }
+                  >
+                    <div className="bookings10-history-customer">
+                      <strong>
+                        {booking.status ===
+                        "CANCELLED_ACCOUNT_DELETED"
+                          ? "Usuario eliminado"
+                          : booking.profiles
+                              ?.name ??
+                            "Cliente"}
+                      </strong>
 
-                        marginTop:
-                          8,
+                      <span>
+                        {booking.services
+                          ?.name ??
+                          "Servicio"}
+                      </span>
+                    </div>
 
-                        padding:
-                          "5px 9px",
+                    <div className="bookings10-history-date">
+                      {booking.slots ? (
+                        <>
+                          <strong>
+                            {formatDate(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </strong>
 
-                        borderRadius:
-                          999,
-
-                        background:
-                          booking.status ===
-                          "COMPLETED"
-                            ? "#dcfce7"
-                            : booking.status ===
-                                "NO_SHOW"
-                              ? "#ffedd5"
-                              : "#fee2e2",
-
-                        color:
-                          booking.status ===
-                          "COMPLETED"
-                            ? "#166534"
-                            : booking.status ===
-                                "NO_SHOW"
-                              ? "#9a3412"
-                              : "#b91c1c",
-
-                        fontSize:
-                          12,
-
-                        fontWeight:
-                          800,
-                      }}
-                    >
-                      {booking.status ===
-                      "COMPLETED"
-                        ? "✓ "
-                        : booking.status ===
-                            "NO_SHOW"
-                          ? "⚠ "
-                          : "× "}
-
-                      {statusLabel(
-                        booking.status
+                          <span>
+                            {formatTime(
+                              booking
+                                .slots
+                                .start_at
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        <strong>
+                          Sin horario
+                        </strong>
                       )}
                     </div>
 
-                    {booking.status ===
-                      "CANCELLED_ACCOUNT_DELETED" && (
-                      <div
-                        className="muted"
-                        style={{
-                          marginTop:
-                            8,
-
-                          fontSize:
-                            13,
-                        }}
-                      >
-                        La cuenta del cliente fue eliminada. Sus datos personales ya no están disponibles.
-                      </div>
-                    )}
-
-                    {booking.services && (
-                      <div
-                        className="meta"
-                        style={{
-                          marginTop:
-                            8,
-                        }}
-                      >
-                        {
-                          booking
-                            .services
-                            .name
-                        }
-                      </div>
-                    )}
-
-                    {booking.slots && (
-                      <div
-                        className="meta"
-                        style={{
-                          marginTop:
-                            8,
-                        }}
-                      >
-                        📅{" "}
-                        {formatDate(
-                          booking
-                            .slots
-                            .start_at
-                        )}{" "}
-                        ·{" "}
-                        {formatTime(
-                          booking
-                            .slots
-                            .start_at
+                    <div className="bookings10-history-action-date">
+                      <strong>
+                        {formatActionDateTime(
+                          getActionDate(
+                            booking
+                          )
                         )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
+                      </strong>
+                    </div>
+
+                    <div className="bookings10-history-status">
+                      <span
+                        className={`bookings10-status is-${booking.status.toLowerCase()}`}
+                      >
+                        {booking.status ===
+                        "COMPLETED" && (
+                          <CheckCircle2
+                            size={12}
+                            strokeWidth={2.5}
+                            aria-hidden="true"
+                          />
+                        )}
+
+                        {booking.status ===
+                        "NO_SHOW" && (
+                          <UserX
+                            size={12}
+                            strokeWidth={2.5}
+                            aria-hidden="true"
+                          />
+                        )}
+
+                        {booking.status.startsWith(
+                          "CANCELLED_"
+                        ) && (
+                          <XCircle
+                            size={12}
+                            strokeWidth={2.5}
+                            aria-hidden="true"
+                          />
+                        )}
+
+                        {statusLabel(
+                          booking.status
+                        )}
+                      </span>
+                    </div>
+                  </article>
+                )
+              )}
+            </div>
+
+            <Pagination
+              paginationPath={paginationPath}
+              page={
+                effectiveHistoryPage
+              }
+              pages={
+                historyPages
+              }
+              param="historyPage"
+              currentPages={currentPages}
+              onChange={setLocalHistoryPage}
+            />
+          </>
         )}
-      </div>
+      </section>
 
-      {/* ======================================================
-          MENSAJE
-          ====================================================== */}
+      <style jsx>{`
+        .bookings10 {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+        }
 
-      {message && (
-        <p
-          className="muted"
-          style={{
-            marginTop:
-              18,
-          }}
-        >
-          {message}
-        </p>
-      )}
+        .bookings10-summary {
+          display: grid;
+          grid-template-columns:
+            repeat(5, 1fr);
+          gap: 10px;
+        }
+
+        .bookings10-summary > div {
+          padding: 13px 15px;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          background: #fff;
+        }
+
+        .bookings10-summary span,
+        .bookings10-summary strong {
+          display: block;
+        }
+
+        .bookings10-summary span {
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        .bookings10-summary strong {
+          margin-top: 3px;
+          font-size: 22px;
+          line-height: 1;
+        }
+
+        .bookings10-message {
+          padding: 11px 13px;
+          border: 1px solid #d7d0ff;
+          border-radius: 11px;
+          background: #f5f2ff;
+          color: #5c4bc2;
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .bookings10-toast {
+          position: fixed;
+          top: 86px;
+          right: 22px;
+          z-index: 1200;
+          width: min(390px, calc(100vw - 28px));
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 13px 15px;
+          border: 1px solid #b8ebc9;
+          border-radius: 14px;
+          background: #effaf3;
+          color: #176b3a;
+          box-shadow:
+            0 18px 45px
+            rgba(31,27,48,.14);
+          font-size: 12px;
+          font-weight: 800;
+          animation:
+            bookings10ToastIn
+            .18s ease-out;
+        }
+
+        @keyframes bookings10ToastIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .bookings10-card {
+          border: 1px solid var(--border);
+          border-radius: 18px;
+          background: #fff;
+          box-shadow:
+            0 12px 32px
+            rgba(31,27,48,.025);
+          overflow: hidden;
+        }
+
+        .bookings10-section-head {
+          display: grid;
+          grid-template-columns:
+            auto
+            minmax(0, 1fr)
+            auto;
+          align-items: flex-start;
+          gap: 11px;
+          padding: 18px 19px 14px;
+          border-bottom:
+            1px solid #efedf2;
+        }
+
+        .bookings10-icon {
+          width: 36px;
+          height: 36px;
+          display: grid;
+          place-items: center;
+          border-radius: 10px;
+          background: #f0ecff;
+          color: var(--accent);
+        }
+
+        .bookings10-icon.is-warning {
+          background: #fff6df;
+          color: #b7791f;
+        }
+
+        .bookings10-kicker {
+          color: var(--accent-dark);
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .bookings10-kicker.is-warning {
+          color: #a56710;
+        }
+
+        .bookings10-section-head h2 {
+          margin: 2px 0 3px;
+          font-size: 22px;
+          line-height: 1.18;
+          letter-spacing: -.025em;
+        }
+
+        .bookings10-section-head p {
+          margin: 0;
+          color: var(--muted);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .bookings10-count {
+          min-width: 38px;
+          height: 30px;
+          display: grid;
+          place-items: center;
+          padding: 0 9px;
+          border-radius: 999px;
+          background: #f3f0ff;
+          color: var(--accent-dark);
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .bookings10-count.is-warning {
+          background: #fff6df;
+          color: #a56710;
+        }
+
+        .bookings10-list {
+          display: grid;
+        }
+
+        .bookings10-row {
+          display: grid;
+          grid-template-columns:
+            minmax(220px, 1.2fr)
+            minmax(145px, .7fr)
+            minmax(230px, 1fr)
+            auto;
+          align-items: center;
+          gap: 18px;
+          padding: 14px 18px;
+          border-bottom:
+            1px solid #efedf2;
+        }
+
+        .bookings10-row:last-child {
+          border-bottom: 0;
+        }
+
+        .bookings10-customer {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .bookings10-avatar {
+          width: 34px;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 34px;
+          border-radius: 10px;
+          background: #f0ecff;
+          color: var(--accent);
+        }
+
+        .bookings10-avatar svg {
+          display: block;
+          margin: 0;
+          flex: 0 0 auto;
+        }
+
+        .bookings10-avatar.is-warning {
+          background: #fff6df;
+          color: #a56710;
+        }
+        .bookings10-customer > div {
+          min-width: 0;
+        }
+
+        .bookings10-customer strong,
+        .bookings10-customer span {
+          display: block;
+        }
+
+        .bookings10-customer strong {
+          font-size: 13px;
+        }
+
+        .bookings10-customer span {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 4px;
+          overflow: hidden;
+          color: var(--muted);
+          font-size: 11px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .bookings10-service,
+        .bookings10-date {
+          min-width: 0;
+        }
+
+        .bookings10-service > span,
+        .bookings10-date > span {
+          display: block;
+          margin-bottom: 4px;
+          color: var(--muted);
+          font-size: 10px;
+          font-weight: 750;
+        }
+
+        .bookings10-service strong,
+        .bookings10-date strong {
+          display: block;
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
+        .bookings10-service small,
+        .bookings10-date small {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 4px;
+          color: var(--muted);
+          font-size: 10.5px;
+        }
+
+        .bookings10-action,
+        .bookings10-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 7px;
+          flex-wrap: wrap;
+        }
+
+        .bookings10-action .btn,
+        .bookings10-actions .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 10px;
+          font-size: 11px;
+        }
+
+        .bookings10-cancel {
+          border-color: #ffc9c9 !important;
+          background: #fff !important;
+          color: #b42318 !important;
+        }
+
+        .bookings10-history {
+          display: grid;
+        }
+
+        .bookings10-history-head,
+        .bookings10-history-row {
+          display: grid;
+          grid-template-columns:
+            minmax(190px, 1fr)
+            minmax(260px, 1.15fr)
+            minmax(180px, .78fr)
+            minmax(220px, auto);
+          align-items: center;
+          gap: 18px;
+        }
+
+        .bookings10-history-head {
+          padding: 9px 18px;
+          border-bottom:
+            1px solid #e9e7ed;
+          background: #faf9fc;
+        }
+
+        .bookings10-history-head span {
+          color: var(--muted);
+          font-size: 9.5px;
+          font-weight: 800;
+        }
+
+        .bookings10-history-head span:last-child {
+          text-align: right;
+        }
+
+        .bookings10-history-row {
+          min-height: 64px;
+          padding: 12px 18px;
+          border-bottom:
+            1px solid #efedf2;
+        }
+
+        .bookings10-history-row:last-child {
+          border-bottom: 0;
+        }
+
+        .bookings10-history-customer strong,
+        .bookings10-history-customer > span,
+        .bookings10-history-date strong,
+        .bookings10-history-date > span,
+        .bookings10-history-action-date strong {
+          display: block;
+        }
+
+        .bookings10-history-customer strong {
+          font-size: 12px;
+        }
+
+        .bookings10-history-customer > span,
+        .bookings10-history-date > span {
+          margin-top: 3px;
+          color: var(--muted);
+          font-size: 10.5px;
+        }
+
+        .bookings10-history-date strong,
+        .bookings10-history-action-date strong {
+          font-size: 11.5px;
+          line-height: 1.35;
+        }
+
+        .bookings10-history-status {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+        }
+
+        .bookings10-status {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          padding: 5px 8px;
+          border-radius: 999px;
+          font-size: 10px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .bookings10-status.is-completed {
+          background: #eaf8ef;
+          color: #24774c;
+        }
+
+        .bookings10-status.is-no_show {
+          background: #fff3df;
+          color: #a45f00;
+        }
+
+        .bookings10-status[class*="is-cancelled_"] {
+          background: #fff0f0;
+          color: #b42318;
+        }
+
+        :global(.bookings10-pagination) {
+          display: grid;
+          grid-template-columns:
+            minmax(112px, auto)
+            auto
+            minmax(112px, auto);
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          width: 100%;
+          padding: 14px 18px;
+          border-top:
+            1px solid #efedf2;
+          background: #fff;
+        }
+
+        :global(.bookings10-pagination .btn) {
+          min-width: 112px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          margin: 0;
+          padding: 8px 12px;
+          font-size: 11px;
+          line-height: 1.2;
+        }
+
+        :global(.bookings10-pagination .btn:disabled),
+        :global(.bookings10-pagination .btn.is-disabled) {
+          opacity: .45;
+        }
+
+        :global(.bookings10-pagination span) {
+          min-width: 96px;
+          color: var(--muted);
+          font-size: 11px;
+          font-weight: 750;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .bookings10-empty {
+          padding: 26px 18px;
+          text-align: center;
+        }
+
+        .bookings10-empty strong {
+          display: block;
+          font-size: 13px;
+        }
+
+        .bookings10-empty p {
+          margin: 4px 0 0;
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        @media (max-width: 920px) {
+          .bookings10-row {
+            grid-template-columns:
+              minmax(0, 1fr)
+              minmax(160px, auto);
+          }
+
+          .bookings10-service,
+          .bookings10-date {
+            grid-column: 1;
+          }
+
+          .bookings10-action,
+          .bookings10-actions {
+            grid-column: 2;
+            grid-row: 1 / span 3;
+            align-self: center;
+          }
+
+          .bookings10-history-head,
+          .bookings10-history-row {
+            grid-template-columns:
+              minmax(0, 1fr)
+              minmax(180px, .95fr)
+              minmax(155px, .75fr)
+              auto;
+            gap: 12px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .bookings10 {
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .bookings10-summary {
+            grid-template-columns:
+              repeat(2, 1fr);
+          }
+
+          .bookings10-section-head {
+            grid-template-columns:
+              auto
+              minmax(0, 1fr)
+              auto;
+            padding: 15px;
+          }
+
+          .bookings10-row {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 14px;
+          }
+
+          .bookings10-service,
+          .bookings10-date,
+          .bookings10-action,
+          .bookings10-actions {
+            grid-column: auto;
+            grid-row: auto;
+          }
+
+          .bookings10-action,
+          .bookings10-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+          }
+
+          .bookings10-action .btn,
+          .bookings10-actions .btn {
+            width: 100%;
+          }
+
+          .bookings10-history-head {
+            display: none;
+          }
+
+          .bookings10-history-row {
+            grid-template-columns: 1fr;
+            gap: 9px;
+            padding: 14px;
+          }
+
+          .bookings10-history-status {
+            justify-content: flex-start;
+          }
+
+          .bookings10-status {
+            width: fit-content;
+          }
+
+          .bookings10-toast {
+            top: 74px;
+            right: 14px;
+            left: 14px;
+            width: auto;
+          }
+
+          :global(.bookings10-pagination) {
+            grid-template-columns:
+              minmax(0, 1fr)
+              auto
+              minmax(0, 1fr);
+            gap: 8px;
+            padding: 12px 14px;
+          }
+
+          :global(.bookings10-pagination .btn) {
+            width: 100%;
+            min-width: 0;
+            padding: 8px 9px;
+          }
+
+          :global(.bookings10-pagination span) {
+            min-width: 0;
+          }
+        }
+      `}</style>
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        onOpenChange={(open) => { if (!open) finishConfirmation(false); }}
+        title={confirmation?.title ?? "Confirmar acción"}
+        description={confirmation?.description ?? ""}
+        variant={confirmation?.variant}
+        confirmLabel={confirmation?.confirmLabel}
+        onConfirm={() => finishConfirmation(true)}
+      />
     </div>
   );
 }

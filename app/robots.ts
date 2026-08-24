@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { getCanonicalBaseUrl } from "@/lib/seo/sitemap";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "https://slottye.com";
+  const baseUrl = getCanonicalBaseUrl(
+    process.env.NEXT_PUBLIC_APP_URL
+  );
 
   return {
     rules: {
@@ -17,9 +18,8 @@ export default function robots(): MetadataRoute.Robots {
 
       disallow: [
         "/account",
-        "/account/",
+        "/admin",
         "/business-dashboard",
-        "/business-dashboard/",
         "/login",
         "/auth/",
         "/api/",

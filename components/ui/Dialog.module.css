@@ -1,0 +1,196 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgb(19 17 35 / 62%);
+  backdrop-filter: blur(5px);
+  animation: backdrop-in 160ms ease-out;
+}
+
+.dialog {
+  width: min(100%, 520px);
+  max-height: min(720px, calc(100dvh - 48px));
+  overflow: auto;
+  color: #211f2d;
+  background: #fff;
+  border: 1px solid rgb(116 103 173 / 18%);
+  border-radius: 24px;
+  box-shadow: 0 28px 80px rgb(31 24 67 / 28%);
+  outline: none;
+  animation: dialog-in 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.dialog:focus-visible {
+  box-shadow: 0 0 0 4px rgb(110 82 255 / 20%), 0 28px 80px rgb(31 24 67 / 28%);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 24px 0;
+}
+
+.heading {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: #1f1c2c;
+  font-size: 1.25rem;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+
+.description {
+  margin: 8px 0 0;
+  color: #706b7d;
+  font-size: .95rem;
+  line-height: 1.55;
+}
+
+.close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: #625d6e;
+  background: #f6f4fb;
+  border: 1px solid #e9e5f2;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.close:hover {
+  color: #342b62;
+  background: #eeebfa;
+}
+
+.close:active {
+  transform: scale(.96);
+}
+
+.close:focus-visible,
+.button:focus-visible,
+.confirmationInput:focus-visible {
+  outline: 3px solid rgb(110 82 255 / 28%);
+  outline-offset: 2px;
+}
+
+.body {
+  padding: 22px 24px 24px;
+}
+
+.confirmIntro {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.neutralIcon { color: #5f45dc; background: #eeebff; }
+.warningIcon { color: #a65b00; background: #fff1d9; }
+.dangerIcon { color: #c23343; background: #ffe9ec; }
+
+.confirmCopy {
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.confirmText {
+  margin: 0;
+  color: #5f596c;
+  line-height: 1.6;
+}
+
+.confirmationField {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.confirmationLabel {
+  color: #484251;
+  font-size: .88rem;
+  font-weight: 750;
+}
+
+.confirmationInput {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 13px;
+  color: #24202c;
+  background: #fbfafd;
+  border: 1px solid #dcd7e6;
+  border-radius: 12px;
+}
+
+.confirmationInput::placeholder { color: #9a94a4; }
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 24px 24px;
+}
+
+.button {
+  min-height: 44px;
+  padding: 10px 17px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  cursor: pointer;
+  font-weight: 780;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.button:active { transform: translateY(1px); }
+.button:disabled { cursor: not-allowed; opacity: .52; }
+.cancel { color: #4e4858; background: #fff; border-color: #ddd9e5; }
+.cancel:hover:not(:disabled) { background: #f7f5fa; border-color: #cbc5d6; }
+.neutral { color: #fff; background: #6848e8; border-color: #6848e8; }
+.neutral:hover:not(:disabled) { background: #5638cc; }
+.warning { color: #2e210c; background: #f5ae36; border-color: #f5ae36; }
+.warning:hover:not(:disabled) { background: #e99d20; }
+.danger { color: #fff; background: #d43b4b; border-color: #d43b4b; }
+.danger:hover:not(:disabled) { background: #bb293a; }
+
+@keyframes backdrop-in { from { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+
+@media (max-width: 520px) {
+  .backdrop { align-items: end; padding: 12px; }
+  .dialog { max-height: calc(100dvh - 24px); border-radius: 22px; }
+  .header { padding: 21px 20px 0; }
+  .body { padding: 20px; }
+  .actions { padding: 0 20px 20px; }
+  .actions .button { flex: 1; }
+}
+
+@media (max-width: 360px) {
+  .actions { flex-direction: column-reverse; }
+  .actions .button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .dialog { animation: none; }
+}

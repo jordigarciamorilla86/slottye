@@ -11,6 +11,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 
 import {
   isUuid,
@@ -242,6 +246,21 @@ export async function POST(
             status:
               401,
           }
+        );
+      }
+
+      const rateLimit =
+        await checkRateLimit({
+          identifier: user.id,
+          prefix: "agenda-booking-status",
+          limit: 30,
+          window: "1 m",
+        });
+
+      if (!rateLimit.ok) {
+        return NextResponse.json(
+          { error: rateLimit.error },
+          { status: rateLimit.status }
         );
       }
 

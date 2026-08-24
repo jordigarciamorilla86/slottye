@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
-import { NearbyBusinesses } from "@/components/NearbyBusinesses";
-import { HomeSearch } from "@/components/HomeSearch";
 import { createClient } from "@/lib/supabase/server";
 import CategoryAvailabilityResults from "./CategoryAvailabilityResults";
+import CategorySearchControls from "./CategorySearchControls";
+import CategoryNearbyBusinesses from "./CategoryNearbyBusinesses";
 
 type Props = {
   params: Promise<{
@@ -743,180 +743,233 @@ export default async function CategoryPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html:
-              JSON.stringify(
-                jsonLd
-              ).replace(
-                /</g,
-                "\\u003c"
-              ),
+            __html: JSON.stringify(jsonLd).replace(
+              /</g,
+              "\\u003c"
+            ),
           }}
         />
       )}
 
       <Header />
 
-      <main className="shell detail">
-        <section className="section">
-          <div className="section-head">
+      <main className="category12-page">
+        <div className="category12-shell">
+          <section className="category12-hero">
             <div>
-              <div className="kicker">
+              <span className="category12-kicker">
                 Explora Slottye
-              </div>
+              </span>
 
-              <h1 className="business-title">
-              {availabilityMode
-  ? `Citas de ${categoryName}`
-  : q?.trim()
-    ? `Resultados para "${q.trim()}"`
-    : categoryName}
+              <h1>
+                {availabilityMode
+                  ? `Citas de ${categoryName}`
+                  : q?.trim()
+                    ? `Resultados para "${q.trim()}"`
+                    : categoryName}
               </h1>
 
-              {!availabilityMode && (
-  <p className="muted">
-    {
-      normalizedBusinesses.length
-    }{" "}
-    negocio
-    {normalizedBusinesses.length ===
-    1
-      ? ""
-      : "s"}{" "}
-    encontrado
-    {normalizedBusinesses.length ===
-    1
-      ? ""
-      : "s"}
-    .
-  </p>
-)}
+              <p>
+                {availabilityMode
+                  ? `Encuentra y reserva la próxima cita disponible de ${categoryName.toLocaleLowerCase("es")}.`
+                  : `${normalizedBusinesses.length} negocio${
+                      normalizedBusinesses.length === 1 ? "" : "s"
+                    } encontrado${
+                      normalizedBusinesses.length === 1 ? "" : "s"
+                    }.`}
+              </p>
             </div>
 
             <Link
               href="/"
-              className="btn"
+              className="btn category12-back"
             >
               ← Volver
             </Link>
-          </div>
+          </section>
 
-        {/* ====================================================
-    BUSCADOR
-    ==================================================== */}
+          <section className="category12-workspace">
+            {availabilityMode ? (
+              categoryId ? (
+                <CategoryAvailabilityResults
+                  categoryId={categoryId}
+                  categorySlug={slug}
+                  categoryName={categoryName}
+                  when={when}
+                  selectedDate={date}
+                  requestedPage={page}
+                  sort={sort}
+                  latitude={lat}
+                  longitude={lng}
+                  maxDistance={distance}
+                  searchCategories={
+                    searchCategories ??
+                    []
+                  }
+                  initialQuery={
+                    q ??
+                    ""
+                  }
+                  initialCategorySlug={
+                    slug === "todos"
+                      ? ""
+                      : slug
+                  }
+                />
+              ) : (
+                <div className="category12-tools">
+                  <CategorySearchControls
+                    categories={
+                      searchCategories ??
+                      []
+                    }
+                    categorySlug={
+                      slug
+                    }
+                    initialQuery={
+                      q ??
+                      ""
+                    }
+                    initialCategorySlug=""
+                    initialMode="availability"
+                    initialWhen={
+                      when
+                    }
+                    initialSelectedDate={
+                      date
+                    }
+                  />
 
-<div
-  style={{
-    marginBottom:
-      24,
-  }}
->
-<HomeSearch
-  categories={
-    searchCategories ??
-    []
-  }
-  businessAction={
-    `/category/${slug}`
-  }
-  initialQuery={
-    q ??
-    ""
-  }
-  initialCategorySlug={
-    slug ===
-    "todos"
-      ? ""
-      : slug
-  }
-  initialMode={
-    availabilityMode
-      ? "availability"
-      : "business"
-  }
-  availabilityInCategory
-/>
-</div>
-          {/* ====================================================
-              RESULTADOS
-              ==================================================== */}
+                  <div className="panel category12-empty">
+                    <h3>
+                      Selecciona una categoría
+                    </h3>
 
-{availabilityMode ? (
-  categoryId ? (
-    <CategoryAvailabilityResults
-      categoryId={
-        categoryId
-      }
-      categorySlug={
-        slug
-      }
-      categoryName={
-        categoryName
-      }
-      when={
-        when
-      }
-      selectedDate={
-        date
-      }
-      requestedPage={
-        page
-      }
-      sort={
-        sort
-      }
-      latitude={
-        lat
-      }
-      longitude={
-        lng
-      }
-      maxDistance={
-        distance
-      }
-    />
-  ) : (
-    <div className="panel">
-      <h3>
-        Selecciona una categoría
-      </h3>
+                    <p className="muted">
+                      Elige qué tipo de cita necesitas.
+                    </p>
+                  </div>
+                </div>
+              )
+            ) : (
+              <CategoryNearbyBusinesses
+                businesses={
+                  normalizedBusinesses
+                }
+                categories={
+                  searchCategories ??
+                  []
+                }
+                categorySlug={
+                  slug
+                }
+                initialQuery={
+                  q ??
+                  ""
+                }
+                initialCategorySlug={
+                  slug === "todos"
+                    ? ""
+                    : slug
+                }
+              />
+            )}
+          </section>
+        </div>
 
-      <p className="muted">
-        Elige qué tipo de cita necesitas en el buscador superior.
-      </p>
-    </div>
-  )
-) : normalizedBusinesses.length >
-  0 ? (
-  <NearbyBusinesses
-    businesses={
-      normalizedBusinesses
-    }
-  />
-) : (
-  <div className="panel">
-    <h3>
-      No hemos encontrado negocios
-    </h3>
+        <style>{`
+          .category12-page {
+            min-height: 100vh;
+            padding: 22px 20px 54px;
+            background: #f8f8fb;
+          }
 
-    <p className="muted">
-      Prueba con otro nombre, ciudad, categoría o término de búsqueda.
-    </p>
+          .category12-shell {
+            width: min(1220px,100%);
+            margin: 0 auto;
+          }
 
-    {q?.trim() && (
-      <Link
-        href={`/category/${slug}`}
-        className="btn"
-        style={{
-          marginTop:
-            12,
-        }}
-      >
-        Limpiar búsqueda
-      </Link>
-    )}
-  </div>
-)}
-        </section>
+          .category12-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 23px 25px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+              radial-gradient(
+                circle at 88% 12%,
+                rgba(112,87,245,.09),
+                transparent 30%
+              ),
+              #fff;
+            box-shadow:
+              0 16px 42px
+              rgba(31,27,48,.035);
+          }
+
+          .category12-kicker {
+            color: var(--accent-dark);
+            font-size: 10.5px;
+            font-weight: 850;
+          }
+
+          .category12-hero h1 {
+            margin: 5px 0 4px;
+            font-size: clamp(
+              30px,
+              3vw,
+              38px
+            );
+            line-height: 1.08;
+            letter-spacing: -.04em;
+          }
+
+          .category12-hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12.5px;
+          }
+
+          .category12-back {
+            flex: 0 0 auto;
+          }
+
+          .category12-workspace {
+            margin-top: 14px;
+          }
+
+          .category12-tools {
+            display: grid;
+            gap: 16px;
+          }
+
+          .category12-empty {
+            padding: 24px;
+          }
+
+          @media (max-width: 700px) {
+            .category12-page {
+              padding: 18px 12px 46px;
+            }
+
+            .category12-hero {
+              flex-direction: column;
+              align-items: stretch;
+              padding: 19px;
+            }
+
+            .category12-hero h1 {
+              font-size: 30px;
+            }
+
+            .category12-back {
+              width: 100%;
+              justify-content: center;
+            }
+          }
+        `}</style>
       </main>
     </>
   );

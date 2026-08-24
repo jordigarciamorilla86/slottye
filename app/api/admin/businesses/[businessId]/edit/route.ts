@@ -28,6 +28,7 @@ type RouteContext = {
 
 type RequestBody = {
   name?: unknown;
+  categoryId?: unknown;
   description?: unknown;
   address?: unknown;
   city?: unknown;
@@ -45,6 +46,7 @@ type RequestBody = {
   maxBookingAdvanceDays?: unknown;
   allowCancellations?: unknown;
   minCancellationNoticeHours?: unknown;
+  autoCompleteBookings?: unknown;
 };
 
 /*
@@ -353,6 +355,13 @@ export async function PUT(
       );
     }
 
+    const categoryId =
+      typeof body.categoryId === "string" ? body.categoryId.trim() : "";
+
+    if (!categoryId || !isUuid(categoryId)) {
+      return NextResponse.json({ error: "La categoría no es válida." }, { status: 400 });
+    }
+
     /*
      * ==========================================================
      * EMAIL
@@ -549,7 +558,7 @@ export async function PUT(
     if (
       typeof body.allowCancellations !==
         "boolean" ||
-      typeof body.showGoogleReviews !==
+      typeof body.autoCompleteBookings !==
         "boolean"
     ) {
       return NextResponse.json(
@@ -587,6 +596,7 @@ export async function PUT(
         .select(`
           id,
           name,
+          category_id,
           description,
           address,
           city,
@@ -602,6 +612,7 @@ export async function PUT(
           max_booking_advance_days,
           allow_cancellations,
           min_cancellation_notice_hours,
+          auto_complete_bookings,
           booking_policies_reviewed_at,
           owner_id
         `)
@@ -669,6 +680,9 @@ export async function PUT(
         .update({
           name,
 
+          category_id:
+            categoryId,
+
           description:
             optionalText(
               body.description
@@ -708,7 +722,9 @@ export async function PUT(
             ),
 
           show_google_reviews:
-            body.showGoogleReviews,
+            typeof body.showGoogleReviews === "boolean"
+              ? body.showGoogleReviews
+              : previousBusiness.show_google_reviews,
 
           min_booking_notice_hours:
             minBookingNoticeHours,
@@ -721,6 +737,9 @@ export async function PUT(
 
           min_cancellation_notice_hours:
             minCancellationNoticeHours,
+
+          auto_complete_bookings:
+            body.autoCompleteBookings,
 
           booking_policies_reviewed_at:
             now,
@@ -735,6 +754,7 @@ export async function PUT(
         .select(`
           id,
           name,
+          category_id,
           description,
           address,
           city,
@@ -750,6 +770,7 @@ export async function PUT(
           max_booking_advance_days,
           allow_cancellations,
           min_cancellation_notice_hours,
+          auto_complete_bookings,
           booking_policies_reviewed_at
         `)
         .maybeSingle();

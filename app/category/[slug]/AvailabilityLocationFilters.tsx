@@ -6,8 +6,14 @@ import {
 } from "next/navigation";
 
 import {
+  MapPin,
+} from "lucide-react";
+
+import {
   useState,
 } from "react";
+
+import { storeLocation } from "@/lib/locationPreference";
 
 type Props = {
   categorySlug:
@@ -111,8 +117,13 @@ export default function AvailabilityLocationFilters({
       "page"
     );
 
+    const query =
+      params.toString();
+
     router.push(
-      `/category/${categorySlug}?${params.toString()}`
+      query
+        ? `/category/${categorySlug}?${query}`
+        : `/category/${categorySlug}`
     );
   }
 
@@ -147,6 +158,11 @@ export default function AvailabilityLocationFilters({
             position.coords
               .longitude
               .toString();
+
+          storeLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
 
           setLocating(
             false
@@ -237,136 +253,71 @@ export default function AvailabilityLocationFilters({
   }
 
   return (
-    <div
-      style={{
-        marginBottom:
-          20,
+    <div className="categoryfilters12">
+      <div className="categoryfilters12-head">
+        <div>
+          <span>
+            Refinar
+          </span>
 
-        padding:
-          16,
+          <strong>
+            Filtros
+          </strong>
+        </div>
 
-        border:
-          "1px solid var(--border)",
-
-        borderRadius:
-          18,
-
-        background:
-          "#f8fafc",
-      }}
-    >
-      <div
-        style={{
-          display:
-            "flex",
-
-          alignItems:
-            "center",
-
-          gap:
-            12,
-
-          flexWrap:
-            "wrap",
-        }}
-      >
-        {/* ================================================
-            UBICACIÓN
-            ================================================ */}
-
-        {hasLocation ? (
-          <div
-            style={{
-              display:
-                "inline-flex",
-
-              alignItems:
-                "center",
-
-              justifyContent:
-                "center",
-
-              minHeight:
-                46,
-
-              padding:
-                "0 16px",
-
-              border:
-                "1px solid #6d5dfc",
-
-              borderRadius:
-                14,
-
-              background:
-                "#6d5dfc",
-
-              color:
-                "#ffffff",
-
-              fontWeight:
-                800,
-
-              fontSize:
-                14,
-
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            📍 Ubicación activada
-          </div>
-        ) : (
+        {hasFilters && (
           <button
             type="button"
-            className="btn primary"
-            disabled={
-              locating
+            onClick={
+              clearFilters
+            }
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
+      <div className="categoryfilters12-grid">
+        <div>
+          <label>
+            Ubicación
+          </label>
+
+          <button
+            type="button"
+            className={
+              hasLocation
+                ? "categoryfilters12-location is-active"
+                : "categoryfilters12-location"
             }
             onClick={
               requestLocation
             }
-            style={{
-              minHeight:
-                46,
-
-              whiteSpace:
-                "nowrap",
-            }}
+            disabled={
+              locating
+            }
           >
+            <MapPin
+              size={14}
+              strokeWidth={2.2}
+              aria-hidden="true"
+            />
+
             {locating
-              ? "Obteniendo ubicación..."
-              : "📍 Activar ubicación"}
+              ? "Localizando..."
+              : hasLocation
+                ? "Ubicación activada"
+                : "Usar mi ubicación"}
           </button>
-        )}
+        </div>
 
-        {/* ================================================
-            ORDEN
-            ================================================ */}
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            gap:
-              8,
-          }}
-        >
-          <span
-            className="muted"
-            style={{
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            Ordenar:
-          </span>
+        <div>
+          <label htmlFor="availability-sort">
+            Ordenar
+          </label>
 
           <select
+            id="availability-sort"
             value={
               sortMode
             }
@@ -379,9 +330,6 @@ export default function AvailabilityLocationFilters({
                   SortMode
               )
             }
-            style={
-              selectStyle
-            }
           >
             <option value="time">
               Próxima cita
@@ -393,33 +341,13 @@ export default function AvailabilityLocationFilters({
           </select>
         </div>
 
-        {/* ================================================
-            DISTANCIA MÁXIMA
-            ================================================ */}
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            gap:
-              8,
-          }}
-        >
-          <span
-            className="muted"
-            style={{
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            Distancia máxima:
-          </span>
+        <div>
+          <label htmlFor="availability-distance">
+            Distancia máxima
+          </label>
 
           <select
+            id="availability-distance"
             value={
               maxDistance
             }
@@ -434,127 +362,181 @@ export default function AvailabilityLocationFilters({
                   .value
               )
             }
-            style={{
-              ...selectStyle,
-
-              opacity:
-                hasLocation
-                  ? 1
-                  : 0.55,
-
-              cursor:
-                hasLocation
-                  ? "pointer"
-                  : "not-allowed",
-            }}
           >
             <option value="">
               Cualquier distancia
             </option>
 
+            <option value="1">
+              Hasta 1 km
+            </option>
+
             <option value="5">
-              5 km
+              Hasta 5 km
             </option>
 
             <option value="10">
-              10 km
+              Hasta 10 km
             </option>
 
             <option value="25">
-              25 km
+              Hasta 25 km
             </option>
 
             <option value="50">
-              50 km
-            </option>
-
-            <option value="100">
-              100 km
+              Hasta 50 km
             </option>
           </select>
         </div>
-
-        {/* ================================================
-            LIMPIAR
-            ================================================ */}
-
-        {hasFilters && (
-          <button
-            type="button"
-            className="btn"
-            onClick={
-              clearFilters
-            }
-            style={{
-              minHeight:
-                46,
-
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            Limpiar filtros
-          </button>
-        )}
       </div>
-
-      {hasLocation && (
-        <p
-          className="muted"
-          style={{
-            margin:
-              "14px 0 0",
-
-            fontSize:
-              14,
-          }}
-        >
-          📍 Distancias calculadas desde tu ubicación actual.
-        </p>
-      )}
 
       {locationError && (
         <p
-          style={{
-            margin:
-              "14px 0 0",
-
-            color:
-              "#b91c1c",
-
-            fontSize:
-              13,
-          }}
+          className="categoryfilters12-error"
+          role="alert"
         >
           {locationError}
         </p>
       )}
+
+      <style jsx>{`
+        .categoryfilters12 {
+          min-width: 0;
+          padding-left: 18px;
+          border-left: 1px solid #efedf2;
+        }
+
+        .categoryfilters12-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+
+        .categoryfilters12-head > div {
+          display: grid;
+          gap: 1px;
+        }
+
+        .categoryfilters12-head span {
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        .categoryfilters12-head strong {
+          font-size: 15px;
+        }
+
+        .categoryfilters12-head button {
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--accent-dark);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 850;
+          cursor: pointer;
+        }
+
+        .categoryfilters12-grid {
+          display: grid;
+          grid-template-columns:
+            repeat(
+              2,
+              minmax(0, 1fr)
+            );
+          gap: 9px;
+        }
+
+        .categoryfilters12-grid > div {
+          min-width: 0;
+        }
+
+        .categoryfilters12-grid > div:last-child {
+          grid-column: 1 / -1;
+        }
+
+        .categoryfilters12-grid label {
+          display: block;
+          margin-bottom: 4px;
+          color: var(--muted);
+          font-size: 10.5px;
+          font-weight: 850;
+          text-transform: uppercase;
+          letter-spacing: .04em;
+        }
+
+        .categoryfilters12-location,
+        .categoryfilters12-grid select {
+          width: 100%;
+          min-height: 38px;
+          box-sizing: border-box;
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          background: #fff;
+          color: var(--text);
+          font: inherit;
+          font-size: 11.5px;
+          font-weight: 750;
+        }
+
+        .categoryfilters12-location {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 5px;
+          padding: 0 8px;
+          cursor: pointer;
+        }
+
+        .categoryfilters12-location svg {
+          flex: 0 0 auto;
+          color: var(--accent);
+        }
+
+        .categoryfilters12-location.is-active {
+          border-color: #c9bfff;
+          background: #f4f1ff;
+          color: var(--accent-dark);
+        }
+
+        .categoryfilters12-grid select {
+          padding: 0 8px;
+        }
+
+        .categoryfilters12-grid select:disabled {
+          opacity: .5;
+          background: #f8f8fb;
+        }
+
+        .categoryfilters12-error {
+          margin: 8px 0 0;
+          color: #b91c1c;
+          font-size: 10.5px;
+          line-height: 1.35;
+        }
+
+        @media (max-width: 900px) {
+          .categoryfilters12 {
+            padding-top: 14px;
+            padding-left: 0;
+            border-top: 1px solid #efedf2;
+            border-left: 0;
+          }
+
+          .categoryfilters12-grid > div:last-child {
+            grid-column: auto;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .categoryfilters12-grid {
+            grid-template-columns:
+              minmax(0, 1fr);
+          }
+        }
+      `}</style>
     </div>
   );
 }
-
-const selectStyle = {
-  minHeight:
-    46,
-
-  padding:
-    "0 14px",
-
-  border:
-    "1px solid var(--border)",
-
-  borderRadius:
-    12,
-
-  background:
-    "#ffffff",
-
-  color:
-    "var(--text)",
-
-  font:
-    "inherit",
-
-  cursor:
-    "pointer",
-};

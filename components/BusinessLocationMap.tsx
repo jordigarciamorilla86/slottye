@@ -16,7 +16,28 @@ type Props = {
 
 declare global {
   interface Window {
-    google: any;
+    google: {
+      maps: {
+        Map: new (
+          element: HTMLElement,
+          options: Record<string, unknown>
+        ) => unknown;
+        Marker: new (
+          options: Record<string, unknown>
+        ) => {
+          addListener: (
+            eventName: string,
+            listener: () => void
+          ) => void;
+          getPosition: () =>
+            | {
+                lat: () => number;
+                lng: () => number;
+              }
+            | null;
+        };
+      };
+    };
   }
 }
 

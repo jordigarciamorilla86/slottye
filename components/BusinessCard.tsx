@@ -1,5 +1,12 @@
 import Link from "next/link";
 
+import {
+  ArrowRight,
+  MapPin,
+  Phone,
+  Star,
+} from "lucide-react";
+
 type Business = {
   slug: string;
   name: string;
@@ -13,128 +20,260 @@ type Business = {
 
   averageRating?: number | null;
   reviewCount?: number;
+
+  nextAvailableAt?: string | null;
 };
+
+function formatAvailability(
+  value?: string | null
+) {
+  if (
+    !value
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  const now =
+    new Date();
+
+  const today =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
+  const tomorrow =
+    new Date(
+      today
+    );
+
+  tomorrow.setDate(
+    tomorrow.getDate() +
+      1
+  );
+
+  const target =
+    new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+
+  let dayLabel =
+    date.toLocaleDateString(
+      "es-ES",
+      {
+        day:
+          "2-digit",
+
+        month:
+          "short",
+      }
+    );
+
+  if (
+    target.getTime() ===
+    today.getTime()
+  ) {
+    dayLabel =
+      "Hoy";
+  } else if (
+    target.getTime() ===
+    tomorrow.getTime()
+  ) {
+    dayLabel =
+      "Mañana";
+  }
+
+  return {
+    dayLabel,
+
+    time:
+      date.toLocaleTimeString(
+        "es-ES",
+        {
+          hour:
+            "2-digit",
+
+          minute:
+            "2-digit",
+        }
+      ),
+  };
+}
 
 export function BusinessCard({
   business,
 }: {
   business: Business;
 }) {
-  const fullAddress = [
-    business.address,
-    business.city,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const fullAddress =
+    [
+      business.address,
+      business.city,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   const hasReviews =
     business.averageRating !== null &&
     business.averageRating !== undefined &&
     (business.reviewCount ?? 0) > 0;
 
+  const availability =
+    formatAvailability(
+      business.nextAvailableAt
+    );
+
   return (
     <Link
-      className="card"
+      className={
+        business.imageUrl
+          ? "business4-card has-image"
+          : "business4-card"
+      }
       href={`/business/${business.slug}`}
+      aria-label={`Ver ${business.name}`}
     >
       <div
-        className="card-image"
+        className="business4-media"
         style={
           business.imageUrl
             ? {
-                backgroundImage: `url(${business.imageUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
+                backgroundImage:
+                  `url(${business.imageUrl})`,
               }
             : undefined
         }
       >
-        <span className="distance">
-          📍{" "}
+        <span className="business4-distance">
+          <MapPin
+            size={14}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+
           {business.distance ??
             "Ver ubicación"}
         </span>
       </div>
 
-      <div className="card-body">
-        <h3>{business.name}</h3>
+      <div className="business4-main">
+        <div className="business4-copy">
+          <h3>
+            {business.name}
+          </h3>
 
-        {hasReviews ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 6,
-              marginBottom: 10,
-            }}
-          >
-            <span
-              style={{
-                color: "#f59e0b",
-                fontSize: 18,
-              }}
-            >
-              ★
+          {business.description && (
+            <p className="business4-description">
+              {business.description}
+            </p>
+          )}
+
+          {hasReviews ? (
+            <div className="business4-rating">
+              <Star
+                size={15}
+                fill="currentColor"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+
+              <strong>
+                {business.averageRating!.toFixed(1)}
+              </strong>
+
+              <span>
+                ({business.reviewCount}{" "}
+                {business.reviewCount === 1
+                  ? "opinión"
+                  : "opiniones"})
+              </span>
+            </div>
+          ) : (
+            <span className="business4-no-reviews">
+              Sin opiniones todavía
             </span>
+          )}
 
-            <strong>
-              {business.averageRating!.toFixed(1)}
-            </strong>
+          <div className="business4-meta">
+            {fullAddress && (
+              <div>
+                <MapPin
+                  size={15}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-            <span className="muted">
-              · {business.reviewCount}{" "}
-              {business.reviewCount === 1
-                ? "opinión"
-                : "opiniones"}
-            </span>
+                <span>
+                  {fullAddress}
+                </span>
+              </div>
+            )}
+
+            {business.phone && (
+              <div>
+                <Phone
+                  size={15}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+
+                <span>
+                  {business.phone}
+                </span>
+              </div>
+            )}
           </div>
-        ) : (
-          <div
-            className="muted"
-            style={{
-              marginTop: 6,
-              marginBottom: 10,
-              fontSize: 14,
-            }}
-          >
-            Sin opiniones todavía
-          </div>
-        )}
+        </div>
 
-        {business.description && (
-          <p
-            className="muted"
-            style={{
-              marginTop: 6,
-              marginBottom: 12,
-            }}
-          >
-            {business.description}
-          </p>
-        )}
-
-        {fullAddress && (
-          <div className="meta">
-            <span>
-              📍 {fullAddress}
-            </span>
-          </div>
-        )}
-
-        {business.phone && (
-          <div className="meta">
-            ☎ {business.phone}
-          </div>
-        )}
-
-        <div className="next-slot">
-          <span className="muted">
-            Próximas citas
+        <div className="business4-availability">
+          <span className="business4-availability-label">
+            Próxima disponibilidad
           </span>
 
-          <span className="slot-pill">
-            Ver disponibilidad
+          {availability ? (
+            <>
+              <strong className="business4-day">
+                {
+                  availability.dayLabel
+                }
+              </strong>
+
+              <span className="business4-time">
+                {
+                  availability.time
+                }
+              </span>
+            </>
+          ) : (
+            <strong className="business4-no-slot">
+              Consultar
+            </strong>
+          )}
+
+          <span className="business4-link">
+            Ver todas las citas
+
+            <ArrowRight
+              size={14}
+              strokeWidth={2.2}
+              aria-hidden="true"
+            />
           </span>
         </div>
       </div>

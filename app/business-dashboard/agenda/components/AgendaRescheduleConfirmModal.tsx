@@ -4,6 +4,7 @@ import type {
   AgendaBooking,
   AgendaSlot,
 } from "../types/agenda";
+import styles from "../AgendaModal.module.css";
 
 type Props = {
   booking: AgendaBooking;
@@ -58,6 +59,7 @@ export default function AgendaRescheduleConfirmModal({
 }: Props) {
   return (
     <div
+      className={styles.backdrop}
       style={{
         position:
           "fixed",
@@ -96,6 +98,7 @@ export default function AgendaRescheduleConfirmModal({
       }}
     >
       <div
+        className={`${styles.sheet} ${styles.confirmSheet}`}
         style={{
           width:
             "100%",
@@ -283,7 +286,7 @@ export default function AgendaRescheduleConfirmModal({
                 600,
             }}
           >
-            ⚠️ {error}
+            {error}
           </div>
         )}
 

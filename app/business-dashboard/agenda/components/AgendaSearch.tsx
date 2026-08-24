@@ -5,6 +5,8 @@ import {
   useRef,
 } from "react";
 
+import { CalendarClock, Search, X } from "lucide-react";
+
 export type AgendaSearchResult<
   TManualEvent = unknown,
   TBookingEvent = unknown,
@@ -158,6 +160,7 @@ export default function AgendaSearch<
 
   return (
     <div
+      className="agendasearch11"
       ref={
         containerRef
       }
@@ -180,6 +183,8 @@ export default function AgendaSearch<
           "isolate",
       }}
     >
+      <div className="agendasearch11-field">
+      <Search size={17} strokeWidth={2} aria-hidden="true" />
       <input
         type="search"
         value={
@@ -207,7 +212,7 @@ export default function AgendaSearch<
             event.currentTarget.blur();
           }
         }}
-        placeholder="🔎 Buscar cualquier cita..."
+        placeholder="Buscar por cliente, servicio o teléfono..."
         style={{
           width:
             "100%",
@@ -237,10 +242,15 @@ export default function AgendaSearch<
             902,
         }}
       />
+      {searchText && (
+        <button type="button" onClick={() => onSearchTextChange("")} aria-label="Limpiar búsqueda"><X size={15} /></button>
+      )}
+      </div>
 
       {showResults &&
         searchText.trim() && (
           <div
+            className="agendasearch11-results"
             role="listbox"
             style={{
               position:
@@ -319,9 +329,11 @@ export default function AgendaSearch<
 
                   return (
                     <button
+                      className="agendasearch11-result"
                       key={`${result.type}-${result.id}`}
                       type="button"
                       role="option"
+                      aria-selected="false"
                       onClick={() => {
                         onSelectResult(
                           result
@@ -403,6 +415,7 @@ export default function AgendaSearch<
                             12,
                         }}
                       >
+                        <CalendarClock size={14} aria-hidden="true" />
                         {date.toLocaleDateString(
                           "es-ES",
                           {
@@ -440,6 +453,30 @@ export default function AgendaSearch<
             )}
           </div>
         )}
+
+      <style jsx>{`
+        .agendasearch11 { max-width: none !important; margin-bottom: 12px !important; }
+        .agendasearch11-field {
+          min-height: 45px;
+          display: grid;
+          grid-template-columns: 21px minmax(0,1fr) auto;
+          align-items: center;
+          gap: 7px;
+          padding: 0 9px 0 13px;
+          border: 1px solid #e1dde7;
+          border-radius: 13px;
+          background: #fff;
+          color: #918b99;
+          transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .agendasearch11-field:focus-within { border-color: #a99bf4; box-shadow: 0 0 0 3px rgba(112,87,245,.09); }
+        .agendasearch11-field input { width: 100% !important; padding: 0 !important; border: 0 !important; outline: 0; background: transparent !important; font-size: 12.5px; }
+        .agendasearch11-field button { width: 29px; height: 29px; display: grid; place-items: center; border: 0; border-radius: 8px; background: #f3f1f6; color: var(--muted); cursor: pointer; }
+        .agendasearch11-results { top: calc(100% + 7px) !important; overflow: hidden; border-color: #ded9e8 !important; border-radius: 15px !important; box-shadow: 0 18px 45px rgba(31,27,48,.15) !important; }
+        .agendasearch11-result { transition: background .12s ease; }
+        .agendasearch11-result:hover { background: #f8f6fc !important; }
+        .agendasearch11-result div:last-child { display: flex; align-items: center; gap: 5px; color: var(--accent-dark); }
+      `}</style>
     </div>
   );
 }

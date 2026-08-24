@@ -12,9 +12,17 @@ import {
 } from "@/lib/google-calendar";
 
 import {
+  POST as sendBookingConfirmation,
+} from "@/app/api/notifications/booking-confirmed/route";
+
+import {
   isUuid,
   readJsonBody,
 } from "@/lib/api/request";
+
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
 
 type RequestBody = {
   slotId?: unknown;
@@ -407,6 +415,103 @@ const body =
       );
     }
 
+    const rateLimit =
+      await checkRateLimit({
+        identifier:
+          user.id,
+
+        prefix:
+          "booking-create",
+
+        limit:
+          10,
+
+        window:
+          "1 m",
+      });
+
+    if (
+      !rateLimit.ok
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.error,
+        },
+        {
+          status:
+            rateLimit.status,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * CONFIRMACIÓN POR EMAIL
+     * ============================================================
+     *
+     * La confirmación se inicia en el servidor, dentro del mismo
+     * flujo que ha creado la reserva. Así no depende de que el
+     * navegador permanezca abierto ni de una segunda petición del
+     * cliente.
+     *
+     * La ruta de notificación conserva sus comprobaciones de usuario,
+     * rate limit e idempotencia. Un fallo de correo nunca invalida una
+     * reserva que book_slot() ya ha confirmado.
+     */
+
+    let confirmationSent =
+      false;
+
+    try {
+      const confirmationResponse =
+        await sendBookingConfirmation(
+          new Request(
+            new URL(
+              "/api/notifications/booking-confirmed",
+              request.url
+            ),
+            {
+              method:
+                "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  bookingId,
+                }),
+            }
+          )
+        );
+
+      confirmationSent =
+        confirmationResponse.ok;
+
+      if (
+        !confirmationResponse.ok
+      ) {
+        console.error(
+          "Booking created but confirmation notification failed:",
+          {
+            bookingId,
+            status:
+              confirmationResponse.status,
+          }
+        );
+      }
+    } catch (
+      confirmationError
+    ) {
+      console.error(
+        "Booking created but confirmation notification failed:",
+        confirmationError
+      );
+    }
+
     /*
      * ============================================================
      * OK
@@ -416,6 +521,7 @@ const body =
     return NextResponse.json({
       bookingId,
       calendarSynced,
+      confirmationSent,
     });
   } catch (
     error

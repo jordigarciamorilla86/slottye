@@ -4,6 +4,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import styles from "./AdminSubscribersManager.module.css";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type SubscriberProfile = {
   id: string;
@@ -30,6 +32,8 @@ export default function AdminSubscribersManager({
   businessId,
   initialSubscriptions,
 }: Props) {
+  const [subscriptionToToggle, setSubscriptionToToggle] = useState<Subscription | null>(null);
+  const [subscriptionToDelete, setSubscriptionToDelete] = useState<Subscription | null>(null);
   const [
     subscriptions,
     setSubscriptions,
@@ -167,19 +171,6 @@ export default function AdminSubscribersManager({
     const nextValue =
       !subscription.email_enabled;
 
-    const confirmed =
-      window.confirm(
-        nextValue
-          ? "¿Activar los avisos por correo para este suscriptor?"
-          : "¿Desactivar los avisos por correo para este suscriptor?"
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
     setLoadingId(
       subscription.id
     );
@@ -273,24 +264,6 @@ export default function AdminSubscribersManager({
       return;
     }
 
-    const subscriberName =
-      subscription.profiles
-        ?.name?.trim() ||
-      subscription.profiles
-        ?.email ||
-      "este usuario";
-
-    const confirmed =
-      window.confirm(
-        `¿Eliminar la suscripción de "${subscriberName}"? La cuenta del usuario no se eliminará.`
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
     setLoadingId(
       subscription.id
     );
@@ -369,6 +342,7 @@ export default function AdminSubscribersManager({
 
   return (
     <div
+      className={styles.manager}
       style={{
         marginTop:
           28,
@@ -624,7 +598,7 @@ export default function AdminSubscribersManager({
                               6,
                           }}
                         >
-                          🔔 Suscrito desde{" "}
+                          Suscrito desde{" "}
                           {formatDate(
                             subscription.created_at
                           )}
@@ -720,7 +694,7 @@ export default function AdminSubscribersManager({
                           href={`/admin/users?user=${subscription.user_id}`}
                           className="btn"
                         >
-                          👤 Ver usuario
+                          Ver usuario
                         </a>
 
                         <button
@@ -730,11 +704,7 @@ export default function AdminSubscribersManager({
                             loadingId ===
                             subscription.id
                           }
-                          onClick={() =>
-                            toggleEmailEnabled(
-                              subscription
-                            )
-                          }
+                          onClick={() => setSubscriptionToToggle(subscription)}
                         >
                           {loadingId ===
                           subscription.id
@@ -751,11 +721,7 @@ export default function AdminSubscribersManager({
                             loadingId ===
                             subscription.id
                           }
-                          onClick={() =>
-                            deleteSubscription(
-                              subscription
-                            )
-                          }
+                          onClick={() => setSubscriptionToDelete(subscription)}
                           style={{
                             color:
                               "#b91c1c",
@@ -775,6 +741,8 @@ export default function AdminSubscribersManager({
           )}
         </div>
       )}
+      <ConfirmDialog open={subscriptionToToggle !== null} onOpenChange={(open) => { if (!open) setSubscriptionToToggle(null); }} title={subscriptionToToggle?.email_enabled ? "Desactivar avisos" : "Activar avisos"} description={subscriptionToToggle?.email_enabled ? "Este suscriptor dejará de recibir avisos por correo." : "Este suscriptor volverá a recibir avisos por correo."} variant="warning" confirmLabel={subscriptionToToggle?.email_enabled ? "Desactivar" : "Activar"} pending={loadingId !== null} onConfirm={async () => { if (subscriptionToToggle) { await toggleEmailEnabled(subscriptionToToggle); setSubscriptionToToggle(null); } }} />
+      <ConfirmDialog open={subscriptionToDelete !== null} onOpenChange={(open) => { if (!open) setSubscriptionToDelete(null); }} title="Eliminar suscripción" description={`Se eliminará la suscripción de “${subscriptionToDelete?.profiles?.name?.trim() || subscriptionToDelete?.profiles?.email || "este usuario"}”. Su cuenta seguirá activa.`} variant="danger" pending={loadingId !== null} onConfirm={async () => { if (subscriptionToDelete) { await deleteSubscription(subscriptionToDelete); setSubscriptionToDelete(null); } }} />
     </div>
   );
 }

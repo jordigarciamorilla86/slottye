@@ -8,6 +8,7 @@ import {
 import {
   Header,
 } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, AdminSubnav } from "@/components/admin/AdminShell";
 
 import {
   createClient,
@@ -17,7 +18,7 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
-import AdminBusinessHoursManager from "./AdminBusinessHoursManager";
+import BusinessHoursManager from "@/app/business-dashboard/hours/BusinessHoursManager";
 
 type Props = {
   params: Promise<{
@@ -141,34 +142,8 @@ export default async function AdminBusinessHoursPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            900,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f5f3ff 0%, #ffffff 75%)",
-          }}
-        >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Horarios de {business.name}
-          </h1>
-
-          <p className="muted">
-            Estás modificando directamente el horario habitual de este negocio.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader eyebrow="Configuración" title="Horarios" description={`Configura el horario habitual de ${business.name}.`}>
 
           {!business.active && (
             <div
@@ -199,21 +174,7 @@ export default async function AdminBusinessHoursPage({
             </div>
           )}
 
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-
-              marginTop:
-                18,
-            }}
-          >
+          <AdminSubnav>
             <Link
               href={`/admin/businesses/${business.id}`}
               className="btn primary"
@@ -225,7 +186,7 @@ export default async function AdminBusinessHoursPage({
               href={`/admin/businesses/${business.id}/agenda`}
               className="btn"
             >
-              📅 Gestionar agenda
+              Gestionar agenda
             </Link>
 
             <Link
@@ -234,27 +195,22 @@ export default async function AdminBusinessHoursPage({
             >
               Ver ficha pública
             </Link>
-          </div>
-        </section>
+          </AdminSubnav>
+        </AdminPageHeader>
+        <AdminContent>
 
-        <section
-          className="panel"
-          style={{
-            marginTop:
-              16,
-          }}
-        >
-          <AdminBusinessHoursManager
+          <BusinessHoursManager
             businessId={
               business.id
             }
+            endpoint={`/api/admin/businesses/${business.id}/hours`}
             initialHours={
               hours ??
               []
             }
           />
-        </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

@@ -2,9 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Header } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell } from "@/components/admin/AdminShell";
+import { ServerPagination } from "@/components/ServerPagination";
 import { createClient } from "@/lib/supabase/server";
+import collectionStyles from "../AdminCollections.module.css";
 
-export default async function AdminBookingsPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const requestedPage = Number.parseInt((await searchParams).page ?? "1", 10);
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0
+    ? requestedPage
+    : 1;
   const supabase =
     await createClient();
 
@@ -61,6 +74,7 @@ export default async function AdminBookingsPage() {
   const {
     data: bookings,
     error,
+    count,
   } =
     await supabase
       .from("bookings")
@@ -99,14 +113,17 @@ export default async function AdminBookingsPage() {
           end_at,
           status
         )
-      `)
+      `, { count: "exact" })
       .order(
         "created_at",
         {
           ascending:
             false,
         }
-      );
+      )
+      .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   if (error) {
     console.error(
@@ -271,27 +288,13 @@ export default async function AdminBookingsPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1150,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Admin
-          </div>
-
-          <h1 className="business-title">
-            Reservas
-          </h1>
-
-          <p className="muted">
-            Consulta todas las reservas realizadas en Slottye.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader title="Reservas" description="Consulta todas las reservas realizadas en Slottye." />
+        <AdminContent>
+        <section className={`panel ${collectionStyles.panel}`}>
 
           <div
+            className={collectionStyles.grid}
             style={{
               marginTop:
                 24,
@@ -676,6 +679,12 @@ export default async function AdminBookingsPage() {
               </p>
             </div>
           )}
+
+          <ServerPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pathname="/admin/bookings"
+          />
         </section>
 
         {/* NAVEGACIÓN */}
@@ -709,7 +718,8 @@ export default async function AdminBookingsPage() {
             Volver a Slottye
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

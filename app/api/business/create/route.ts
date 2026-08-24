@@ -15,6 +15,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   name?: unknown;
   categoryId?: unknown;
@@ -109,6 +113,21 @@ export async function POST(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier: user.id,
+        prefix: "business-create",
+        limit: 3,
+        window: "1 h",
+      });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

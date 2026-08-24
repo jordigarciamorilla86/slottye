@@ -15,10 +15,15 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   businessId?: unknown;
 
   name?: unknown;
+  categoryId?: unknown;
   description?: unknown;
   address?: unknown;
   city?: unknown;
@@ -34,6 +39,7 @@ type RequestBody = {
   maxBookingAdvanceDays?: unknown;
   allowCancellations?: unknown;
   minCancellationNoticeHours?: unknown;
+  autoCompleteBookings?: unknown;
 };
 
 function optionalText(
@@ -132,6 +138,21 @@ export async function PUT(
           status:
             401,
         }
+      );
+    }
+
+    const rateLimit =
+      await checkRateLimit({
+        identifier: user.id,
+        prefix: "business-edit",
+        limit: 20,
+        window: "1 m",
+      });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 
@@ -291,7 +312,8 @@ export async function PUT(
         )
         .select(`
           id,
-          owner_id
+          owner_id,
+          category_id
         `)
         .eq(
           "id",
@@ -357,6 +379,93 @@ export async function PUT(
         {
           error:
             "El nombre del negocio es obligatorio.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * VALIDAR CATEGORÍA
+     * ============================================================
+     */
+
+    const categoryId =
+      body.categoryId ===
+      undefined
+        ? currentBusiness.category_id
+        : typeof body.categoryId ===
+            "string"
+          ? body.categoryId.trim()
+          : "";
+
+    if (
+      !categoryId ||
+      !isUuid(
+        categoryId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Selecciona una categoría válida.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    const {
+      data:
+        category,
+      error:
+        categoryError,
+    } =
+      await admin
+        .from(
+          "categories"
+        )
+        .select(`
+          id
+        `)
+        .eq(
+          "id",
+          categoryId
+        )
+        .maybeSingle();
+
+    if (
+      categoryError
+    ) {
+      console.error(
+        "Error checking business category:",
+        categoryError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se ha podido comprobar la categoría.",
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
+
+    if (
+      !category
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La categoría seleccionada no existe.",
         },
         {
           status:
@@ -574,6 +683,21 @@ export async function PUT(
       );
     }
 
+    if (
+      typeof body.autoCompleteBookings !==
+      "boolean"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "La política de autocompletado no es válida.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     /*
      * ============================================================
      * ACTUALIZAR NEGOCIO
@@ -592,6 +716,9 @@ export async function PUT(
         )
         .update({
           name,
+
+          category_id:
+            categoryId,
 
           description:
             optionalText(
@@ -637,6 +764,9 @@ export async function PUT(
           min_cancellation_notice_hours:
             minCancellationNoticeHours,
 
+          auto_complete_bookings:
+            body.autoCompleteBookings,
+
           booking_policies_reviewed_at:
             new Date()
               .toISOString(),
@@ -656,6 +786,7 @@ export async function PUT(
         .select(`
           id,
           name,
+          category_id,
           description,
           address,
           city,
@@ -669,6 +800,7 @@ export async function PUT(
           max_booking_advance_days,
           allow_cancellations,
           min_cancellation_notice_hours,
+          auto_complete_bookings,
           booking_policies_reviewed_at
         `)
         .maybeSingle();

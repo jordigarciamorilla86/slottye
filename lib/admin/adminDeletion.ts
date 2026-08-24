@@ -863,7 +863,7 @@ export async function sendPreparedBusinessDeletionNotifications({
  * ==============================================================
  */
 
-async function notifyFutureBusinessBookings({
+export async function notifyFutureBusinessBookings({
   admin,
   businesses,
 }: {

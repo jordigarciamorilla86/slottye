@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  useEffect,
   useState,
 } from "react";
 
 import {
   useRouter,
 } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   reviewId: string;
@@ -34,14 +34,8 @@ export default function AdminReviewVisibilityButton({
     useState(
       visible
     );
-
-  useEffect(() => {
-    setCurrentVisible(
-      visible
-    );
-  }, [
-    visible,
-  ]);
+  const [open, setOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function changeVisibility() {
     if (loading) {
@@ -50,17 +44,6 @@ export default function AdminReviewVisibilityButton({
 
     const nextVisible =
       !currentVisible;
-
-    const confirmed =
-      window.confirm(
-        nextVisible
-          ? "¿Volver a mostrar esta reseña públicamente?"
-          : "¿Ocultar esta reseña de Slottye?"
-      );
-
-    if (!confirmed) {
-      return;
-    }
 
     setLoading(true);
 
@@ -89,10 +72,7 @@ export default function AdminReviewVisibilityButton({
         await response.json();
 
       if (!response.ok) {
-        window.alert(
-          result.error ??
-            "No se pudo cambiar la visibilidad de la reseña."
-        );
+        setErrorMessage(result.error ?? "No se pudo cambiar la visibilidad de la reseña.");
 
         return;
       }
@@ -100,6 +80,7 @@ export default function AdminReviewVisibilityButton({
       setCurrentVisible(
         result.visible
       );
+      setErrorMessage("");
 
       router.refresh();
     } catch (error) {
@@ -108,24 +89,20 @@ export default function AdminReviewVisibilityButton({
         error
       );
 
-      window.alert(
-        "No se pudo cambiar la visibilidad de la reseña."
-      );
+      setErrorMessage("No se pudo cambiar la visibilidad de la reseña.");
     } finally {
       setLoading(false);
     }
   }
 
-  return (
+  return (<>
     <button
       type="button"
       className="btn"
       disabled={
         loading
       }
-      onClick={
-        changeVisibility
-      }
+      onClick={() => setOpen(true)}
       style={
         currentVisible
           ? {
@@ -150,5 +127,7 @@ export default function AdminReviewVisibilityButton({
           ? "Ocultar reseña"
           : "Mostrar reseña"}
     </button>
-  );
+    {errorMessage && <p role="alert" style={{ color: "#b91c1c", margin: "8px 0 0", fontSize: 13 }}>{errorMessage}</p>}
+    <ConfirmDialog open={open} onOpenChange={setOpen} title={currentVisible ? "Ocultar reseña" : "Mostrar reseña"} description={currentVisible ? "La reseña dejará de mostrarse públicamente en Slottye." : "La reseña volverá a mostrarse públicamente en Slottye."} variant="warning" confirmLabel={currentVisible ? "Ocultar" : "Mostrar"} pending={loading} onConfirm={async () => { await changeVisibility(); setOpen(false); }} />
+  </>);
 }

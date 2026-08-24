@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  useEffect,
   useState,
 } from "react";
 
 import {
   useRouter,
 } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   userId: string;
@@ -38,14 +38,8 @@ export default function AdminUserBlockButton({
     useState(
       blocked
     );
-
-  useEffect(() => {
-    setCurrentBlocked(
-      blocked
-    );
-  }, [
-    blocked,
-  ]);
+  const [open, setOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function changeBlockedStatus() {
     if (
@@ -57,17 +51,6 @@ export default function AdminUserBlockButton({
 
     const nextBlocked =
       !currentBlocked;
-
-    const confirmed =
-      window.confirm(
-        nextBlocked
-          ? `¿Bloquear a "${userName}"? No podrá acceder a las zonas privadas de Slottye.`
-          : `¿Desbloquear a "${userName}"? Podrá volver a utilizar su cuenta normalmente.`
-      );
-
-    if (!confirmed) {
-      return;
-    }
 
     setLoading(true);
 
@@ -96,10 +79,7 @@ export default function AdminUserBlockButton({
         await response.json();
 
       if (!response.ok) {
-        window.alert(
-          result.error ??
-            "No se pudo cambiar el estado del usuario."
-        );
+        setErrorMessage(result.error ?? "No se pudo cambiar el estado del usuario.");
 
         return;
       }
@@ -107,6 +87,7 @@ export default function AdminUserBlockButton({
       setCurrentBlocked(
         result.blocked
       );
+      setErrorMessage("");
 
       router.refresh();
     } catch (error) {
@@ -115,9 +96,7 @@ export default function AdminUserBlockButton({
         error
       );
 
-      window.alert(
-        "No se pudo cambiar el estado del usuario."
-      );
+      setErrorMessage("No se pudo cambiar el estado del usuario.");
     } finally {
       setLoading(false);
     }
@@ -136,16 +115,14 @@ export default function AdminUserBlockButton({
     );
   }
 
-  return (
+  return (<>
     <button
       type="button"
       className="btn"
       disabled={
         loading
       }
-      onClick={
-        changeBlockedStatus
-      }
+      onClick={() => setOpen(true)}
       style={
         currentBlocked
           ? {
@@ -170,5 +147,7 @@ export default function AdminUserBlockButton({
           ? "Desbloquear usuario"
           : "Bloquear usuario"}
     </button>
-  );
+    {errorMessage && <p role="alert" style={{ color: "#b91c1c", margin: "8px 0 0", fontSize: 13 }}>{errorMessage}</p>}
+    <ConfirmDialog open={open} onOpenChange={setOpen} title={currentBlocked ? "Desbloquear usuario" : "Bloquear usuario"} description={currentBlocked ? `“${userName}” podrá volver a utilizar su cuenta normalmente.` : `“${userName}” no podrá acceder a las zonas privadas de Slottye.`} variant="warning" confirmLabel={currentBlocked ? "Desbloquear" : "Bloquear"} pending={loading} onConfirm={async () => { await changeBlockedStatus(); setOpen(false); }} />
+  </>);
 }

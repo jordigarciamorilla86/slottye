@@ -247,9 +247,25 @@ const endpoint =
    */
 
   useEffect(() => {
-    void loadWeekData(
-      weekStart
+    let cancelled =
+      false;
+
+    queueMicrotask(
+      () => {
+        if (
+          !cancelled
+        ) {
+          void loadWeekData(
+            weekStart
+          );
+        }
+      }
     );
+
+    return () => {
+      cancelled =
+        true;
+    };
   }, [
     weekStart,
     loadWeekData,

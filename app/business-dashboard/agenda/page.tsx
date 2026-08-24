@@ -7,65 +7,149 @@ import { requireActiveUser } from "@/lib/auth/requireActiveUser";
 import WeeklyAgenda from "./WeeklyAgenda";
 import GoogleCalendarAgendaButton from "./GoogleCalendarAgendaButton";
 
+import {
+  ArrowLeft,
+  CalendarDays,
+  CalendarRange,
+} from "lucide-react";
+
 type Props = {
   searchParams: Promise<{
     setup?: string;
+    date?: string;
   }>;
 };
+
+function getReferenceDate(
+  dateParam?: string
+) {
+  if (
+    !dateParam ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      dateParam
+    )
+  ) {
+    return new Date();
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    dateParam
+      .split("-")
+      .map(Number);
+
+  const parsed =
+    new Date(
+      year,
+      month - 1,
+      day
+    );
+
+  const isValid =
+    !Number.isNaN(
+      parsed.getTime()
+    ) &&
+    parsed.getFullYear() ===
+      year &&
+    parsed.getMonth() ===
+      month - 1 &&
+    parsed.getDate() ===
+      day;
+
+  return isValid
+    ? parsed
+    : new Date();
+}
 
 export default async function AgendaPage({
   searchParams,
 }: Props) {
   const {
     setup,
+    date,
   } =
     await searchParams;
 
   const fromSetup =
     setup === "1";
+
   const {
     supabase,
     user,
     profile,
-  } = await requireActiveUser();
+  } =
+    await requireActiveUser();
 
-  if (profile.role !== "business") {
-    redirect("/account");
+  if (
+    profile.role !==
+    "business"
+  ) {
+    redirect(
+      "/account"
+    );
   }
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select(`
-      id,
-      name
-    `)
-    .eq("owner_id", user.id)
-    .maybeSingle();
+  const {
+    data: business,
+  } =
+    await supabase
+      .from(
+        "businesses"
+      )
+      .select(`
+        id,
+        name
+      `)
+      .eq(
+        "owner_id",
+        user.id
+      )
+      .maybeSingle();
 
-  if (!business) {
-    redirect("/business-dashboard/create");
+  if (
+    !business
+  ) {
+    redirect(
+      "/business-dashboard/create"
+    );
   }
 
   /*
    * ============================================================
-   * SEMANA ACTUAL
+   * SEMANA A MOSTRAR
    * lunes -> domingo
+   *
+   * Sin ?date= conserva exactamente el comportamiento anterior:
+   * abre la semana actual.
+   *
+   * Con ?date=YYYY-MM-DD abre la semana que contiene esa fecha.
    * ============================================================
    */
 
-  const now = new Date();
+  const referenceDate =
+    getReferenceDate(
+      date
+    );
 
-  const day = now.getDay();
+  const day =
+    referenceDate
+      .getDay();
 
   const diffToMonday =
     day === 0
       ? -6
       : 1 - day;
 
-  const weekStart = new Date(now);
+  const weekStart =
+    new Date(
+      referenceDate
+    );
 
   weekStart.setDate(
-    now.getDate() +
+    referenceDate.getDate() +
       diffToMonday
   );
 
@@ -77,7 +161,9 @@ export default async function AgendaPage({
   );
 
   const weekEnd =
-    new Date(weekStart);
+    new Date(
+      weekStart
+    );
 
   weekEnd.setDate(
     weekStart.getDate() +
@@ -93,21 +179,28 @@ export default async function AgendaPage({
   const {
     data: services,
     error: servicesError,
-  } = await supabase
-    .from("services")
-    .select(`
-      id,
-      name,
-      duration_minutes,
-      active
-    `)
-    .eq(
-      "business_id",
-      business.id
-    )
-    .order("name");
+  } =
+    await supabase
+      .from(
+        "services"
+      )
+      .select(`
+        id,
+        name,
+        duration_minutes,
+        active
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .order(
+        "name"
+      );
 
-  if (servicesError) {
+  if (
+    servicesError
+  ) {
     console.error(
       "Error loading agenda services:",
       servicesError
@@ -123,23 +216,30 @@ export default async function AgendaPage({
   const {
     data: businessHours,
     error: hoursError,
-  } = await supabase
-    .from("business_hours")
-    .select(`
-      day_of_week,
-      open_time,
-      close_time,
-      open_time_2,
-      close_time_2,
-      closed
-    `)
-    .eq(
-      "business_id",
-      business.id
-    )
-    .order("day_of_week");
+  } =
+    await supabase
+      .from(
+        "business_hours"
+      )
+      .select(`
+        day_of_week,
+        open_time,
+        close_time,
+        open_time_2,
+        close_time_2,
+        closed
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .order(
+        "day_of_week"
+      );
 
-  if (hoursError) {
+  if (
+    hoursError
+  ) {
     console.error(
       "Error loading agenda business hours:",
       hoursError
@@ -155,30 +255,37 @@ export default async function AgendaPage({
   const {
     data: slots,
     error: slotsError,
-  } = await supabase
-    .from("slots")
-    .select(`
-      id,
-      service_id,
-      start_at,
-      end_at,
-      status
-    `)
-    .eq(
-      "business_id",
-      business.id
-    )
-    .gte(
-      "start_at",
-      weekStart.toISOString()
-    )
-    .lt(
-      "start_at",
-      weekEnd.toISOString()
-    )
-    .order("start_at");
+  } =
+    await supabase
+      .from(
+        "slots"
+      )
+      .select(`
+        id,
+        service_id,
+        start_at,
+        end_at,
+        status
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .gte(
+        "start_at",
+        weekStart.toISOString()
+      )
+      .lt(
+        "start_at",
+        weekEnd.toISOString()
+      )
+      .order(
+        "start_at"
+      );
 
-  if (slotsError) {
+  if (
+    slotsError
+  ) {
     console.error(
       "Error loading agenda slots:",
       slotsError
@@ -194,41 +301,46 @@ export default async function AgendaPage({
   const {
     data: bookings,
     error: bookingsError,
-  } = await supabase
-    .from("bookings")
-    .select(`
-      id,
-      slot_id,
-      user_id,
-      service_id,
-      status,
-      cancelled_at,
-
-      profiles (
-        id,
-        name,
-        email
-      ),
-
-      services (
-        id,
-        name,
-        duration_minutes
-      ),
-
-      slots (
-        id,
-        start_at,
-        end_at,
-        status
+  } =
+    await supabase
+      .from(
+        "bookings"
       )
-    `)
-    .eq(
-      "business_id",
-      business.id
-    );
+      .select(`
+        id,
+        slot_id,
+        user_id,
+        service_id,
+        status,
+        cancelled_at,
 
-  if (bookingsError) {
+        profiles (
+          id,
+          name,
+          email
+        ),
+
+        services (
+          id,
+          name,
+          duration_minutes
+        ),
+
+        slots (
+          id,
+          start_at,
+          end_at,
+          status
+        )
+      `)
+      .eq(
+        "business_id",
+        business.id
+      );
+
+  if (
+    bookingsError
+  ) {
     console.error(
       "Error loading agenda bookings:",
       bookingsError
@@ -244,29 +356,36 @@ export default async function AgendaPage({
   const {
     data: blocks,
     error: blocksError,
-  } = await supabase
-    .from("business_blocks")
-    .select(`
-      id,
-      start_at,
-      end_at,
-      reason
-    `)
-    .eq(
-      "business_id",
-      business.id
-    )
-    .lt(
-      "start_at",
-      weekEnd.toISOString()
-    )
-    .gt(
-      "end_at",
-      weekStart.toISOString()
-    )
-    .order("start_at");
+  } =
+    await supabase
+      .from(
+        "business_blocks"
+      )
+      .select(`
+        id,
+        start_at,
+        end_at,
+        reason
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .lt(
+        "start_at",
+        weekEnd.toISOString()
+      )
+      .gt(
+        "end_at",
+        weekStart.toISOString()
+      )
+      .order(
+        "start_at"
+      );
 
-  if (blocksError) {
+  if (
+    blocksError
+  ) {
     console.error(
       "Error loading agenda blocks:",
       blocksError
@@ -282,42 +401,49 @@ export default async function AgendaPage({
   const {
     data: manualBookings,
     error: manualBookingsError,
-  } = await supabase
-    .from("manual_bookings")
-    .select(`
-      id,
-      business_id,
-      service_id,
-      customer_name,
-      customer_phone,
-      customer_email,
-      start_at,
-      end_at,
-      notes,
-      created_at,
-      updated_at,
-
-      services (
-        id,
-        name,
-        duration_minutes
+  } =
+    await supabase
+      .from(
+        "manual_bookings"
       )
-    `)
-    .eq(
-      "business_id",
-      business.id
-    )
-    .gte(
-      "start_at",
-      weekStart.toISOString()
-    )
-    .lt(
-      "start_at",
-      weekEnd.toISOString()
-    )
-    .order("start_at");
+      .select(`
+        id,
+        business_id,
+        service_id,
+        customer_name,
+        customer_phone,
+        customer_email,
+        start_at,
+        end_at,
+        notes,
+        created_at,
+        updated_at,
 
-  if (manualBookingsError) {
+        services (
+          id,
+          name,
+          duration_minutes
+        )
+      `)
+      .eq(
+        "business_id",
+        business.id
+      )
+      .gte(
+        "start_at",
+        weekStart.toISOString()
+      )
+      .lt(
+        "start_at",
+        weekEnd.toISOString()
+      )
+      .order(
+        "start_at"
+      );
+
+  if (
+    manualBookingsError
+  ) {
     console.error(
       "Error loading agenda manual bookings:",
       manualBookingsError
@@ -331,15 +457,22 @@ export default async function AgendaPage({
    */
 
   const normalizedBookings =
-    (bookings ?? []).map(
-      (booking) => ({
+    (
+      bookings ??
+      []
+    ).map(
+      (
+        booking
+      ) => ({
         ...booking,
 
         profiles:
           Array.isArray(
             booking.profiles
           )
-            ? booking.profiles[0] ??
+            ? booking.profiles[
+                0
+              ] ??
               null
             : booking.profiles,
 
@@ -347,7 +480,9 @@ export default async function AgendaPage({
           Array.isArray(
             booking.services
           )
-            ? booking.services[0] ??
+            ? booking.services[
+                0
+              ] ??
               null
             : booking.services,
 
@@ -355,7 +490,9 @@ export default async function AgendaPage({
           Array.isArray(
             booking.slots
           )
-            ? booking.slots[0] ??
+            ? booking.slots[
+                0
+              ] ??
               null
             : booking.slots,
       })
@@ -368,15 +505,22 @@ export default async function AgendaPage({
    */
 
   const normalizedManualBookings =
-    (manualBookings ?? []).map(
-      (booking) => ({
+    (
+      manualBookings ??
+      []
+    ).map(
+      (
+        booking
+      ) => ({
         ...booking,
 
         services:
           Array.isArray(
             booking.services
           )
-            ? booking.services[0] ??
+            ? booking.services[
+                0
+              ] ??
               null
             : booking.services,
       })
@@ -386,89 +530,75 @@ export default async function AgendaPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth: 1450,
-        }}
-      >
-        <section className="panel">
-        <div
-  style={{
-    marginBottom:
-      4,
-  }}
->
-  <div
-    style={{
-      display:
-        "flex",
+      <main className="agenda11">
+        <div className="agenda11-shell">
+        <section className="agenda11-hero">
+          <div className="agenda11-hero-copy">
+            <span className="agenda11-eyebrow">
+              <CalendarDays size={14} strokeWidth={2.2} aria-hidden="true" />
+              Slottye Business
+            </span>
 
-      alignItems:
-        "center",
+            <h1>Agenda</h1>
 
-      justifyContent:
-        "space-between",
+            <p>Gestiona visualmente las citas y la disponibilidad semanal de {business.name}.</p>
+          </div>
 
-      gap:
-        12,
+          <div className="agenda11-hero-actions">
+            {fromSetup && (
+              <Link
+                href="/business-dashboard/setup"
+                className="btn primary"
+              >
+                <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+                Volver a la configuración inicial
+              </Link>
+            )}
 
-      marginBottom:
-        6,
-    }}
-  >
-    <div className="kicker">
-      Slottye Business
-    </div>
+            <GoogleCalendarAgendaButton businessId={business.id} />
 
-    <GoogleCalendarAgendaButton
-      businessId={
-        business.id
-      }
-    />
-  </div>
+            {!fromSetup && (
+              <Link
+                href="/business-dashboard/calendar"
+                className="btn primary"
+              >
+                <CalendarRange size={16} strokeWidth={2.1} aria-hidden="true" />
+                Calendario y disponibilidad
+              </Link>
+            )}
+          </div>
+        </section>
 
-  <h1
-    className="business-title"
-    style={{
-      marginBottom:
-        6,
-    }}
-  >
-    Agenda
-  </h1>
-
-  <p
-    className="muted"
-    style={{
-      marginBottom:
-        0,
-    }}
-  >
-    Gestiona visualmente la semana de {business.name}.
-  </p>
-</div>
-
+        <section className="agenda11-workspace">
           <WeeklyAgenda
-            businessId={business.id}
-            businessName={business.name}
+            businessId={
+              business.id
+            }
+            businessName={
+              business.name
+            }
             initialWeekStart={
-              weekStart.toISOString()
+              weekStart
+                .toISOString()
             }
             services={
-              services ?? []
+              services ??
+              []
             }
             businessHours={
-              businessHours ?? []
+              businessHours ??
+              []
             }
             initialSlots={
-              slots ?? []
+              slots ??
+              []
             }
             initialBookings={
               normalizedBookings
             }
             initialBlocks={
-              blocks ?? []
+              blocks ??
+              []
             }
             initialManualBookings={
               normalizedManualBookings
@@ -476,48 +606,111 @@ export default async function AgendaPage({
           />
         </section>
 
-        <section
-  style={{
-    marginTop:
-      20,
+        {!fromSetup && (
+          <nav className="agenda11-footer" aria-label="Navegación de la agenda">
+            <Link
+              href="/business-dashboard"
+              className="btn"
+            >
+              <ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" />
+              Volver al panel
+            </Link>
+          </nav>
+        )}
+        </div>
 
-    display:
-      "flex",
+        <style>{`
+          .agenda11 {
+            min-height: 100vh;
+            padding: 22px 20px 58px;
+            background: #f8f8fb;
+          }
 
-    gap:
-      10,
+          .agenda11-shell {
+            width: min(1450px, 100%);
+            margin: 0 auto;
+          }
 
-    flexWrap:
-      "wrap",
-  }}
->
-  {fromSetup ? (
-    <Link
-      href="/business-dashboard/setup"
-      className="btn primary"
-    >
-      ← Volver a la configuración inicial
-    </Link>
-  ) : (
-    <Link
-      href="/business-dashboard"
-      className="btn"
-    >
-      ← Volver al panel
-    </Link>
-  )}
+          .agenda11-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 26px;
+            padding: 21px 23px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: radial-gradient(circle at 88% 10%, rgba(112,87,245,.1), transparent 32%), #fff;
+            box-shadow: 0 15px 40px rgba(31,27,48,.035);
+          }
 
-  <Link
-    href={
-      fromSetup
-        ? "/business-dashboard/calendar?setup=1"
-        : "/business-dashboard/calendar"
-    }
-    className="btn"
-  >
-    Calendario y disponibilidad
-  </Link>
-</section>
+          .agenda11-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-dark);
+            font-size: 11px;
+            font-weight: 850;
+          }
+
+          .agenda11-hero h1 {
+            margin: 5px 0 5px;
+            font-size: clamp(31px, 3vw, 39px);
+            line-height: 1.07;
+            letter-spacing: -.04em;
+          }
+
+          .agenda11-hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+          }
+
+          .agenda11-hero-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 9px;
+            flex-wrap: wrap;
+          }
+
+          .agenda11-hero-actions .btn,
+          .agenda11-footer .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          }
+
+          .agenda11-workspace {
+            margin-top: 14px;
+            padding: 19px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 12px 34px rgba(31,27,48,.03);
+          }
+
+          .agenda11-workspace > div {
+            margin-top: 0 !important;
+          }
+
+          .agenda11-footer {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 14px;
+          }
+
+          @media (max-width: 760px) {
+            .agenda11 { padding: 16px 10px 44px; }
+            .agenda11-hero { align-items: stretch; flex-direction: column; padding: 19px; }
+            .agenda11-hero h1 { font-size: 30px; }
+            .agenda11-hero-actions { display: grid; grid-template-columns: 1fr; }
+            .agenda11-hero-actions > *, .agenda11-hero-actions .btn { width: 100%; }
+            .agenda11-workspace { padding: 10px; border-radius: 16px; }
+            .agenda11-footer, .agenda11-footer .btn { width: 100%; }
+          }
+        `}</style>
       </main>
     </>
   );

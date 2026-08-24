@@ -19,6 +19,25 @@ import {
   createClient,
 } from "@/lib/supabase/client";
 
+import {
+  Bell,
+  BriefcaseBusiness,
+  CalendarDays,
+  ChevronDown,
+  CircleUserRound,
+  Clock3,
+  ExternalLink,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  Menu,
+  Settings2,
+  ShieldCheck,
+  UserRound,
+  Wrench,
+  X,
+} from "lucide-react";
+
 type Profile = {
   name: string | null;
   role: string | null;
@@ -400,13 +419,24 @@ setOnboardingPending(
    */
 
   useEffect(() => {
-    setMenuOpen(
-      false
-    );
+    const timeoutId =
+      window.setTimeout(
+        () => {
+          setMenuOpen(
+            false
+          );
 
-    setManagementOpen(
-      false
-    );
+          setManagementOpen(
+            false
+          );
+        },
+        0
+      );
+
+    return () =>
+      window.clearTimeout(
+        timeoutId
+      );
   }, [
     pathname,
   ]);
@@ -568,30 +598,27 @@ setOnboardingPending(
   const businessManagementLinks = [
     {
       href:
+        "/business-dashboard",
+
+      icon: "statistics",
+
+      label:
+        "Estadísticas",
+    },
+    {
+      href:
         "/business-dashboard/edit",
 
-      icon:
-        "✏️",
+      icon: "edit",
 
       label:
         "Editar mi negocio",
     },
     {
       href:
-        "/business-dashboard/images",
-
-      icon:
-        "📷",
-
-      label:
-        "Imágenes",
-    },
-    {
-      href:
         "/business-dashboard/hours",
 
-      icon:
-        "🕒",
+      icon: "hours",
 
       label:
         "Horarios",
@@ -600,8 +627,7 @@ setOnboardingPending(
       href:
         "/business-dashboard/services",
 
-      icon:
-        "🛠️",
+      icon: "services",
 
       label:
         "Servicios",
@@ -610,8 +636,7 @@ setOnboardingPending(
       href:
         "/business-dashboard/calendar",
 
-      icon:
-        "📅",
+      icon: "calendar",
 
       label:
         "Calendario y citas",
@@ -620,8 +645,7 @@ setOnboardingPending(
       href:
         "/business-dashboard/bookings",
 
-      icon:
-        "📋",
+      icon: "bookings",
 
       label:
         "Reservas",
@@ -630,754 +654,683 @@ setOnboardingPending(
       href:
         "/business-dashboard/subscribers",
 
-      icon:
-        "🔔",
+      icon: "subscribers",
 
       label:
         "Suscriptores",
     },
+    {
+      href:
+        "/account",
+
+      icon: "account",
+
+      label:
+        "Mi panel",
+    },
   ];
 
-  /*
-   * ============================================================
-   * ESTILOS
-   * ============================================================
-   */
+  function ManagementIcon({
+    icon,
+  }: {
+    icon: string;
+  }) {
+    const props = {
+      size: 18,
+      strokeWidth: 2,
+      "aria-hidden": true,
+    } as const;
 
-  const quickLinkStyle = {
-    display:
-      "inline-flex",
+    switch (icon) {
+      case "statistics":
+        return <LayoutDashboard {...props} />;
+      case "edit":
+        return <Settings2 {...props} />;
+      case "hours":
+        return <Clock3 {...props} />;
+      case "services":
+        return <Wrench {...props} />;
+      case "calendar":
+        return <CalendarDays {...props} />;
+      case "bookings":
+        return <BriefcaseBusiness {...props} />;
+      case "subscribers":
+        return <Bell {...props} />;
+      case "account":
+        return <CircleUserRound {...props} />;
+      default:
+        return <Settings2 {...props} />;
+    }
+  }
 
-    alignItems:
-      "center",
+  const isActive = (
+    href: string
+  ) => {
+    if (
+      href === "/business-dashboard"
+    ) {
+      return (
+        pathname ===
+        "/business-dashboard"
+      );
+    }
 
-    justifyContent:
-      "center",
+    if (href === "/account") {
+      return pathname === "/account";
+    }
 
-    minHeight:
-      42,
+    return (
+      pathname === href ||
+      (
+        href !== "/" &&
+        pathname.startsWith(
+          `${href}/`
+        )
+      )
+    );
+  };
 
-    padding:
-      "10px 15px",
+  const renderManagementLinks =
+    () =>
+      businessManagementLinks.map(
+        (
+          item
+        ) => (
+          <Link
+            key={
+              item.href
+            }
+            href={
+              item.href
+            }
+            role="menuitem"
+            className={
+              isActive(
+                item.href
+              )
+                ? "site-header-menu-link is-active"
+                : "site-header-menu-link"
+            }
+          >
+            <span className="site-header-menu-icon">
+              <ManagementIcon
+                icon={
+                  item.icon
+                }
+              />
+            </span>
 
-    border:
-      "1px solid var(--border)",
+            <span>
+              {item.label}
+            </span>
+          </Link>
+        )
+      );
 
-    borderRadius:
-      12,
+  const renderLogoutButton =
+    () => (
+      <button
+        type="button"
+        role="menuitem"
+        onClick={
+          handleLogout
+        }
+        className="site-header-menu-link site-header-logout-link"
+      >
+        <span className="site-header-menu-icon">
+          <LogOut
+            size={18}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+        </span>
 
-    background:
-      "#ffffff",
+        <span>
+          Cerrar sesión
+        </span>
+      </button>
+    );
 
-    color:
-      "var(--text)",
-
-    textDecoration:
-      "none",
-
-    fontSize:
-      14,
-
-    fontWeight:
-      700,
-
-    whiteSpace:
-      "nowrap",
-  } as const;
-
-  const dropdownLinkStyle = {
-    display:
-      "flex",
-
-    alignItems:
-      "center",
-
-    gap:
-      10,
-
-    width:
-      "100%",
-
-    padding:
-      "11px 12px",
-
-    borderRadius:
-      10,
-
-    color:
-      "var(--text)",
-
-    textDecoration:
-      "none",
-
-    fontSize:
-      14,
-
-    fontWeight:
-      650,
-  } as const;
-
-  /*
-   * ============================================================
-   * UI
-   * ============================================================
-   */
+  const renderMobileMenuButton =
+    () => (
+      <button
+        type="button"
+        className="site-header-mobile-trigger"
+        aria-label={
+          menuOpen
+            ? "Cerrar menú"
+            : "Abrir menú"
+        }
+        aria-expanded={
+          menuOpen
+        }
+        aria-controls="slottye-mobile-menu"
+        onClick={() =>
+          setMenuOpen(
+            (
+              current
+            ) =>
+              !current
+          )
+        }
+      >
+        {menuOpen ? (
+          <X
+            size={22}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+        ) : (
+          <Menu
+            size={22}
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+        )}
+      </button>
+    );
 
   return (
-    <header
-      className="shell header"
-      style={{
-        position:
-          "relative",
-      
-        zIndex:
-          2000,
-      
-        isolation:
-          "isolate",
-      }}
-    >
-      <Link
-        className="logo"
-        href={
-          businessUser &&
-          onboardingPending
-          ? onboardingHref
-            : "/"
-        }
-        aria-label={
-          businessUser &&
-          onboardingPending
-            ? "Slottye - Configuración inicial"
-            : "Slottye - Inicio"
-        }
-        style={{
-          display:
-            "flex",
-
-          alignItems:
-            "center",
-
-          gap:
-            9,
-
-          textDecoration:
-            "none",
-
-          flexShrink:
-            0,
-        }}
-      >
-        <Image
-          src="/slottye-icon.png"
-          alt=""
-          width={34}
-          height={34}
-          priority
-          aria-hidden="true"
-          style={{
-            width:
-              34,
-
-            height:
-              34,
-
-            objectFit:
-              "contain",
-
-            flexShrink:
-              0,
-          }}
-        />
-
-        <span
-          style={{
-            display:
-              "inline-flex",
-
-            alignItems:
-              "baseline",
-
-            color:
-              "var(--accent)",
-          }}
+    <header className="site-header">
+      <div className="shell site-header-inner">
+        <Link
+          className="site-header-brand"
+          href={
+            businessUser &&
+            onboardingPending
+              ? onboardingHref
+              : "/"
+          }
+          aria-label={
+            businessUser &&
+            onboardingPending
+              ? "Slottye - Configuración inicial"
+              : "Slottye - Inicio"
+          }
         >
-          Slotty
-
-          <span
-            style={{
-              color:
-                "#62c985",
-            }}
-          >
-            e
+          <span className="site-header-brand-icon">
+            <Image
+              src="/slottye-icon.png"
+              alt=""
+              width={38}
+              height={38}
+              priority
+              aria-hidden="true"
+            />
           </span>
-        </span>
-      </Link>
 
-      <nav
-        className="nav"
-        aria-label="Navegación principal"
-        style={{
-          display:
-            "flex",
+          <span className="site-header-wordmark">
+            Slotty
+            <span>
+              e
+            </span>
+          </span>
+        </Link>
 
-          alignItems:
-            "center",
-
-          gap:
-            10,
-
-          marginLeft:
-            "auto",
-        }}
-      >
-        {!loading &&
-        loggedIn ? (
-          businessUser &&
-          onboardingPending ? (
-            <>
-              {!mobile && (
-                <>
-                  {displayName && (
-                    <span
-                      className="muted"
-                      style={{
-                        display:
-                          "inline-flex",
-
-                        alignItems:
-                          "center",
-
-                        fontWeight:
-                          600,
-
-                        whiteSpace:
-                          "nowrap",
-                      }}
-                    >
-                      Hola,{" "}
-                      {displayName}
-                    </span>
-                  )}
-
-                  <Link
-                    href={
-                      onboardingHref
-                    }
-                    style={{
-                      ...quickLinkStyle,
-
-                      background:
-                        "#f0edff",
-
-                      borderColor:
-                        "#c4b5fd",
-
-                      color:
-                        "#5b43e6",
-                    }}
-                  >
-                    ⚙️ Configuración inicial
-                  </Link>
-
-                  <button
-                    type="button"
-                    className="btn primary"
-                    onClick={
-                      handleLogout
-                    }
-                  >
-                    Cerrar sesión
-                  </button>
-                </>
-              )}
-
-              {mobile && (
-                <div
-                  ref={
-                    menuRef
-                  }
-                  style={{
-                    position:
-                      "relative",
-                  }}
-                >
-                  <button
-                    type="button"
-                    aria-label={
-                      menuOpen
-                        ? "Cerrar menú"
-                        : "Abrir menú"
-                    }
-                    aria-expanded={
-                      menuOpen
-                    }
-                    aria-controls="slottye-mobile-menu"
-                    onClick={() =>
-                      setMenuOpen(
-                        (
-                          current
-                        ) =>
-                          !current
-                      )
-                    }
-                    style={{
-                      display:
-                        "inline-flex",
-
-                      alignItems:
-                        "center",
-
-                      justifyContent:
-                        "center",
-
-                      width:
-                        44,
-
-                      height:
-                        44,
-
-                      border:
-                        "1px solid var(--border)",
-
-                      borderRadius:
-                        12,
-
-                      background:
-                        "#ffffff",
-
-                      color:
-                        "var(--text)",
-
-                      cursor:
-                        "pointer",
-
-                      fontSize:
-                        22,
-
-                      lineHeight:
-                        1,
-                    }}
-                  >
-                    {menuOpen
-                      ? "×"
-                      : "☰"}
-                  </button>
-
-                  {menuOpen && (
-                    <div
-                      id="slottye-mobile-menu"
-                      role="menu"
-                      style={{
-                        position:
-                          "absolute",
-
-                        top:
-                          "calc(100% + 10px)",
-
-                        right:
-                          0,
-
-                        zIndex:
-                          2100,
-
-                        width:
-                          270,
-
-                        padding:
-                          10,
-
-                        border:
-                          "1px solid var(--border)",
-
-                        borderRadius:
-                          16,
-
-                        background:
-                          "#ffffff",
-
-                        boxShadow:
-                          "0 18px 45px rgba(15, 23, 42, 0.16)",
-                      }}
-                    >
-                      {displayName && (
-                        <div
-                          style={{
-                            padding:
-                              "9px 12px 12px",
-
-                            marginBottom:
-                              6,
-
-                            borderBottom:
-                              "1px solid var(--border)",
-
-                            color:
-                              "var(--muted)",
-
-                            fontSize:
-                              13,
-
-                            fontWeight:
-                              600,
-                          }}
-                        >
-                          Hola,{" "}
-                          {displayName}
-                        </div>
-                      )}
-
+        <nav
+          className="site-header-nav"
+          aria-label="Navegación principal"
+        >
+          {!loading &&
+          loggedIn ? (
+            businessUser &&
+            onboardingPending ? (
+              <>
+                {!mobile && (
+                  <div className="site-header-desktop-actions">
+                    <div className="site-header-main-actions">
                       <Link
                         href={
                           onboardingHref
                         }
-                        role="menuitem"
-                        style={{
-                          ...dropdownLinkStyle,
-
-                          background:
-                            "#f0edff",
-
-                          color:
-                            "#5b43e6",
-                        }}
+                        className="site-header-action is-highlighted"
                       >
-                        <span>
-                          ⚙️
-                        </span>
+                        <Settings2
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
 
                         Configuración inicial
                       </Link>
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={
-                          handleLogout
-                        }
-                        style={{
-                          ...dropdownLinkStyle,
-
-                          marginTop:
-                            6,
-
-                          border:
-                            "none",
-
-                          background:
-                            "#fef2f2",
-
-                          color:
-                            "#b91c1c",
-
-                          cursor:
-                            "pointer",
-
-                          font:
-                            "inherit",
-
-                          fontWeight:
-                            700,
-                        }}
-                      >
-                        <span>
-                          ↪
-                        </span>
-
-                        Cerrar sesión
-                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {!mobile && (
-                <>
-                  {displayName && (
-                    <span
-                      className="muted"
-                      style={{
-                        display:
-                          "inline-flex",
 
-                        alignItems:
-                          "center",
+                  </div>
+                )}
 
-                        fontWeight:
-                          600,
-
-                        whiteSpace:
-                          "nowrap",
-                      }}
-                    >
-                      Hola,{" "}
-                      {displayName}
-                    </span>
-                  )}
-
-                  <Link
-                    href={
-                      primaryActionHref
+                {mobile && (
+                  <div
+                    ref={
+                      menuRef
                     }
-                    style={{
-                      ...quickLinkStyle,
-
-                      background:
-                        pathname ===
-                        primaryActionHref
-                          ? "#f0edff"
-                          : "#ffffff",
-
-                      borderColor:
-                        pathname ===
-                        primaryActionHref
-                          ? "#c4b5fd"
-                          : "var(--border)",
-
-                      color:
-                        pathname ===
-                        primaryActionHref
-                          ? "#5b43e6"
-                          : "var(--text)",
-                    }}
+                    className="site-header-mobile"
                   >
-                    {businessUser
-                      ? "📅 Agenda"
-                      : "📅 Mis citas"}
-                  </Link>
+                    {renderMobileMenuButton()}
 
-                  {businessUser && (
-                    <Link
-                      href="/account/bookings"
-                      style={{
-                        ...quickLinkStyle,
-
-                        background:
-                          pathname ===
-                          "/account/bookings"
-                            ? "#f0edff"
-                            : "#ffffff",
-
-                        borderColor:
-                          pathname ===
-                          "/account/bookings"
-                            ? "#c4b5fd"
-                            : "var(--border)",
-
-                        color:
-                          pathname ===
-                          "/account/bookings"
-                            ? "#5b43e6"
-                            : "var(--text)",
-                      }}
-                    >
-                      📋 Mis citas
-                    </Link>
-                  )}
-
-                  {businessUser && (
-                    <div
-                      ref={
-                        managementMenuRef
-                      }
-                      style={{
-                        position:
-                          "relative",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="btn secondary"
-                        aria-haspopup="menu"
-                        aria-expanded={
-                          managementOpen
-                        }
-                        onClick={() =>
-                          setManagementOpen(
-                            (
-                              current
-                            ) =>
-                              !current
-                          )
-                        }
-                        style={{
-                          display:
-                            "inline-flex",
-
-                          alignItems:
-                            "center",
-
-                          gap:
-                            7,
-                        }}
+                    {menuOpen && (
+                      <div
+                        id="slottye-mobile-menu"
+                        role="menu"
+                        className="site-header-mobile-menu"
                       >
-                        Gestión
-
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            fontSize:
-                              11,
-
-                            transform:
-                              managementOpen
-                                ? "rotate(180deg)"
-                                : "rotate(0deg)",
-
-                            transition:
-                              "transform 0.15s ease",
-                          }}
-                        >
-                          ▼
-                        </span>
-                      </button>
-
-                      {managementOpen && (
-                        <div
-                          role="menu"
-                          style={{
-                            position:
-                              "absolute",
-
-                            zIndex:
-                              2100,
-
-                            top:
-                              "calc(100% + 10px)",
-
-                            right:
-                              0,
-
-                            width:
-                              270,
-
-                            padding:
-                              10,
-
-                            border:
-                              "1px solid var(--border)",
-
-                            borderRadius:
-                              16,
-
-                            background:
-                              "#ffffff",
-
-                            boxShadow:
-                              "0 18px 45px rgba(15, 23, 42, 0.16)",
-                          }}
-                        >
-                          {businessManagementLinks.map(
-                            (
-                              item
-                            ) => (
-                              <Link
-                                key={
-                                  item.href
-                                }
-                                href={
-                                  item.href
-                                }
-                                role="menuitem"
-                                style={{
-                                  ...dropdownLinkStyle,
-
-                                  background:
-                                    pathname ===
-                                    item.href
-                                      ? "#f0edff"
-                                      : "transparent",
-
-                                  color:
-                                    pathname ===
-                                    item.href
-                                      ? "#5b43e6"
-                                      : "var(--text)",
-                                }}
-                              >
-                                <span>
-                                  {item.icon}
-                                </span>
-
-                                {item.label}
-                              </Link>
-                            )
-                          )}
-
-                          {businessSlug && (
-                            <>
-                              <div
-                                style={{
-                                  height:
-                                    1,
-
-                                  margin:
-                                    "8px 4px",
-
-                                  background:
-                                    "var(--border)",
-                                }}
+                        {displayName && (
+                          <div className="site-header-mobile-profile">
+                            <span className="site-header-avatar is-large">
+                              <UserRound
+                                size={19}
+                                strokeWidth={2}
+                                aria-hidden="true"
                               />
+                            </span>
 
+                            <div>
+                              <span>
+                                Sesión iniciada
+                              </span>
+
+                              <strong>
+                                {displayName}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+
+                        <Link
+                          href={
+                            onboardingHref
+                          }
+                          role="menuitem"
+                          className="site-header-menu-link is-active"
+                        >
+                          <span className="site-header-menu-icon">
+                            <Settings2
+                              size={18}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+                          </span>
+
+                          Configuración inicial
+                        </Link>
+
+                        <div className="site-header-menu-separator" />
+
+                        {renderLogoutButton()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {!mobile && (
+                  <div className="site-header-desktop-actions">
+                    <div className="site-header-main-actions">
+                      <Link
+                        href={
+                          primaryActionHref
+                        }
+                        className={
+                          isActive(
+                            primaryActionHref
+                          )
+                            ? "site-header-action is-active"
+                            : "site-header-action"
+                        }
+                      >
+                        <CalendarDays
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
+                        {primaryActionText}
+                      </Link>
+
+                    {businessUser && (
+                      <Link
+                        href="/account/bookings"
+                        className={
+                          isActive(
+                            "/account/bookings"
+                          )
+                            ? "site-header-action is-active"
+                            : "site-header-action"
+                        }
+                      >
+                        <BriefcaseBusiness
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
+                        Mis citas
+                      </Link>
+                    )}
+
+                    {businessUser && (
+                      <div
+                        ref={
+                          managementMenuRef
+                        }
+                        className="site-header-dropdown"
+                      >
+                        <button
+                          type="button"
+                          className={
+                            managementOpen
+                              ? "site-header-action is-open"
+                              : "site-header-action"
+                          }
+                          aria-haspopup="menu"
+                          aria-expanded={
+                            managementOpen
+                          }
+                          onClick={() =>
+                            setManagementOpen(
+                              (
+                                current
+                              ) =>
+                                !current
+                            )
+                          }
+                        >
+                          <Settings2
+                            size={17}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+
+                          Gestión
+
+                          <ChevronDown
+                            size={15}
+                            strokeWidth={2.2}
+                            aria-hidden="true"
+                            className={
+                              managementOpen
+                                ? "site-header-chevron is-open"
+                                : "site-header-chevron"
+                            }
+                          />
+                        </button>
+
+                        {managementOpen && (
+                          <div
+                            role="menu"
+                            className="site-header-dropdown-menu"
+                          >
+                            <div className="site-header-menu-label">
+                              Gestionar negocio
+                            </div>
+
+                            {renderManagementLinks()}
+
+                            {businessSlug && (
+                              <>
+                                <div className="site-header-menu-separator" />
+
+                                <Link
+                                  href={`/business/${businessSlug}`}
+                                  role="menuitem"
+                                  className="site-header-menu-link site-header-public-link"
+                                >
+                                  <span className="site-header-menu-icon">
+                                    <ExternalLink
+                                      size={18}
+                                      strokeWidth={2}
+                                      aria-hidden="true"
+                                    />
+                                  </span>
+
+                                  Ver ficha pública
+                                </Link>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!businessUser && (
+                      <Link
+                        className={
+                          isActive(
+                            panelHref
+                          )
+                            ? "site-header-action is-active"
+                            : "site-header-action"
+                        }
+                        href={
+                          panelHref
+                        }
+                      >
+                        <LayoutDashboard
+                          size={17}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+
+                        Mi panel
+                      </Link>
+                    )}
+
+                      {adminUser && (
+                        <Link
+                          href="/admin"
+                          className={
+                            isActive(
+                              "/admin"
+                            )
+                              ? "site-header-action is-active"
+                              : "site-header-action"
+                          }
+                        >
+                          <ShieldCheck
+                            size={17}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+
+                          Administración
+                        </Link>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+
+                {mobile && (
+                  <div
+                    ref={
+                      menuRef
+                    }
+                    className="site-header-mobile"
+                  >
+                    {renderMobileMenuButton()}
+
+                    {menuOpen && (
+                      <div
+                        id="slottye-mobile-menu"
+                        role="menu"
+                        className="site-header-mobile-menu"
+                      >
+                        {displayName && (
+                          <div className="site-header-mobile-profile">
+                            <span className="site-header-avatar is-large">
+                              <UserRound
+                                size={19}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                              />
+                            </span>
+
+                            <div>
+                              <span>
+                                Hola
+                              </span>
+
+                              <strong>
+                                {displayName}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
+
+                        <Link
+                          href={
+                            primaryActionHref
+                          }
+                          role="menuitem"
+                          className={
+                            isActive(
+                              primaryActionHref
+                            )
+                              ? "site-header-menu-link is-active"
+                              : "site-header-menu-link"
+                          }
+                        >
+                          <span className="site-header-menu-icon">
+                            <CalendarDays
+                              size={18}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+                          </span>
+
+                          {primaryActionText}
+                        </Link>
+
+                        {businessUser && (
+                          <Link
+                            href="/account/bookings"
+                            role="menuitem"
+                            className={
+                              isActive(
+                                "/account/bookings"
+                              )
+                                ? "site-header-menu-link is-active"
+                                : "site-header-menu-link"
+                            }
+                          >
+                            <span className="site-header-menu-icon">
+                              <BriefcaseBusiness
+                                size={18}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                              />
+                            </span>
+
+                            Mis citas
+                          </Link>
+                        )}
+
+                        {businessUser && (
+                          <>
+                            <div className="site-header-menu-label">
+                              Gestión
+                            </div>
+
+                            {renderManagementLinks()}
+
+                            {businessSlug && (
                               <Link
                                 href={`/business/${businessSlug}`}
                                 role="menuitem"
-                                style={{
-                                  ...dropdownLinkStyle,
-
-                                  background:
-                                    "#f0edff",
-
-                                  color:
-                                    "#5b43e6",
-                                }}
+                                className="site-header-menu-link site-header-public-link"
                               >
-                                <span>
-                                  🌐
+                                <span className="site-header-menu-icon">
+                                  <ExternalLink
+                                    size={18}
+                                    strokeWidth={2}
+                                    aria-hidden="true"
+                                  />
                                 </span>
 
                                 Ver ficha pública
                               </Link>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                            )}
 
+                            <div className="site-header-menu-separator" />
+                          </>
+                        )}
+
+                        {!businessUser && (
+                          <Link
+                            href={
+                              panelHref
+                            }
+                            role="menuitem"
+                            className={
+                              isActive(
+                                panelHref
+                              )
+                                ? "site-header-menu-link is-active"
+                                : "site-header-menu-link"
+                            }
+                          >
+                            <span className="site-header-menu-icon">
+                              <CircleUserRound
+                                size={18}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                              />
+                            </span>
+
+                            Mi panel
+                          </Link>
+                        )}
+
+                        {adminUser && (
+                          <Link
+                            href="/admin"
+                            role="menuitem"
+                            className={
+                              isActive(
+                                "/admin"
+                              )
+                                ? "site-header-menu-link is-active"
+                                : "site-header-menu-link"
+                            }
+                          >
+                            <span className="site-header-menu-icon">
+                              <ShieldCheck
+                                size={18}
+                                strokeWidth={2}
+                                aria-hidden="true"
+                              />
+                            </span>
+
+                            Administración
+                          </Link>
+                        )}
+
+                        <div className="site-header-menu-separator" />
+
+                        {renderLogoutButton()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )
+          ) : !loading ? (
+            <>
+              {!mobile && (
+                <div className="site-header-desktop-actions">
                   <Link
-                    className="btn secondary"
-                    href={
-                      panelHref
-                    }
+                    className="site-header-login-button"
+                    href="/login"
                   >
-                    {businessUser
-                      ? "Panel negocio"
-                      : "Mi panel"}
+                    <LogIn
+                      size={17}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+
+                    Entrar o crear cuenta
                   </Link>
-
-                  {adminUser && (
-                    <Link
-                      href="/admin"
-                      className="btn secondary"
-                    >
-                      🛡 Administración
-                    </Link>
-                  )}
-
-                  <button
-                    type="button"
-                    className="btn primary"
-                    onClick={
-                      handleLogout
-                    }
-                  >
-                    Cerrar sesión
-                  </button>
-                </>
+                </div>
               )}
 
               {mobile && (
@@ -1385,517 +1338,77 @@ setOnboardingPending(
                   ref={
                     menuRef
                   }
-                  style={{
-                    position:
-                      "relative",
-                  }}
+                  className="site-header-mobile"
                 >
-                  <button
-                    type="button"
-                    aria-label={
-                      menuOpen
-                        ? "Cerrar menú"
-                        : "Abrir menú"
-                    }
-                    aria-expanded={
-                      menuOpen
-                    }
-                    aria-controls="slottye-mobile-menu"
-                    onClick={() =>
-                      setMenuOpen(
-                        (
-                          current
-                        ) =>
-                          !current
-                      )
-                    }
-                    style={{
-                      display:
-                        "inline-flex",
-
-                      alignItems:
-                        "center",
-
-                      justifyContent:
-                        "center",
-
-                      width:
-                        44,
-
-                      height:
-                        44,
-
-                      border:
-                        "1px solid var(--border)",
-
-                      borderRadius:
-                        12,
-
-                      background:
-                        "#ffffff",
-
-                      color:
-                        "var(--text)",
-
-                      cursor:
-                        "pointer",
-
-                      fontSize:
-                        22,
-
-                      lineHeight:
-                        1,
-                    }}
-                  >
-                    {menuOpen
-                      ? "×"
-                      : "☰"}
-                  </button>
+                  {renderMobileMenuButton()}
 
                   {menuOpen && (
                     <div
                       id="slottye-mobile-menu"
                       role="menu"
-                      style={{
-                        position:
-                          "absolute",
-
-                        top:
-                          "calc(100% + 10px)",
-
-                        right:
-                          0,
-
-                        zIndex:
-                          2100,
-
-                        width:
-                          270,
-
-                        padding:
-                          10,
-
-                        border:
-                          "1px solid var(--border)",
-
-                        borderRadius:
-                          16,
-
-                        background:
-                          "#ffffff",
-
-                        boxShadow:
-                          "0 18px 45px rgba(15, 23, 42, 0.16)",
-                      }}
+                      className="site-header-mobile-menu"
                     >
-                      {displayName && (
-                        <div
-                          style={{
-                            padding:
-                              "9px 12px 12px",
-
-                            marginBottom:
-                              6,
-
-                            borderBottom:
-                              "1px solid var(--border)",
-
-                            color:
-                              "var(--muted)",
-
-                            fontSize:
-                              13,
-
-                            fontWeight:
-                              600,
-                          }}
-                        >
-                          Hola,{" "}
-                          {displayName}
-                        </div>
-                      )}
-
                       <Link
-                        href={
-                          primaryActionHref
-                        }
+                        href="/login"
                         role="menuitem"
-                        style={{
-                          ...dropdownLinkStyle,
-
-                          background:
-                            pathname ===
-                            primaryActionHref
-                              ? "#f0edff"
-                              : "transparent",
-
-                          color:
-                            pathname ===
-                            primaryActionHref
-                              ? "#5b43e6"
-                              : "var(--text)",
-                        }}
+                        className="site-header-menu-link site-header-menu-login"
                       >
-                        <span>
-                          📅
-                        </span>
-
-                        {primaryActionText}
-                      </Link>
-
-                      {businessUser && (
-                        <Link
-                          href="/account/bookings"
-                          role="menuitem"
-                          style={{
-                            ...dropdownLinkStyle,
-
-                            background:
-                              pathname ===
-                              "/account/bookings"
-                                ? "#f0edff"
-                                : "transparent",
-
-                            color:
-                              pathname ===
-                              "/account/bookings"
-                                ? "#5b43e6"
-                                : "var(--text)",
-                          }}
-                        >
-                          <span>
-                            📋
-                          </span>
-
-                          Mis citas
-                        </Link>
-                      )}
-
-                      {businessUser && (
-                        <>
-                          <div
-                            style={{
-                              padding:
-                                "12px 12px 6px",
-
-                              color:
-                                "var(--muted)",
-
-                              fontSize:
-                                11,
-
-                              fontWeight:
-                                800,
-
-                              letterSpacing:
-                                "0.06em",
-
-                              textTransform:
-                                "uppercase",
-                            }}
-                          >
-                            Gestión
-                          </div>
-
-                          {businessManagementLinks.map(
-                            (
-                              item
-                            ) => (
-                              <Link
-                                key={
-                                  item.href
-                                }
-                                href={
-                                  item.href
-                                }
-                                role="menuitem"
-                                style={{
-                                  ...dropdownLinkStyle,
-
-                                  background:
-                                    pathname ===
-                                    item.href
-                                      ? "#f0edff"
-                                      : "transparent",
-
-                                  color:
-                                    pathname ===
-                                    item.href
-                                      ? "#5b43e6"
-                                      : "var(--text)",
-                                }}
-                              >
-                                <span>
-                                  {item.icon}
-                                </span>
-
-                                {item.label}
-                              </Link>
-                            )
-                          )}
-
-                          {businessSlug && (
-                            <Link
-                              href={`/business/${businessSlug}`}
-                              role="menuitem"
-                              style={{
-                                ...dropdownLinkStyle,
-
-                                color:
-                                  "#5b43e6",
-                              }}
-                            >
-                              <span>
-                                🌐
-                              </span>
-
-                              Ver ficha pública
-                            </Link>
-                          )}
-
-                          <div
-                            style={{
-                              height:
-                                1,
-
-                              margin:
-                                "8px 4px",
-
-                              background:
-                                "var(--border)",
-                            }}
+                        <span className="site-header-menu-icon">
+                          <LogIn
+                            size={18}
+                            strokeWidth={2}
+                            aria-hidden="true"
                           />
-                        </>
-                      )}
-
-                      <Link
-                        href={
-                          panelHref
-                        }
-                        role="menuitem"
-                        style={
-                          dropdownLinkStyle
-                        }
-                      >
-                        <span>
-                          {businessUser
-                            ? "🏢"
-                            : "👤"}
                         </span>
 
-                        {businessUser
-                          ? "Panel negocio"
-                          : "Mi panel"}
+                        Entrar o crear cuenta
                       </Link>
-
-                      {adminUser && (
-                        <Link
-                          href="/admin"
-                          role="menuitem"
-                          style={
-                            dropdownLinkStyle
-                          }
-                        >
-                          <span>
-                            🛡
-                          </span>
-
-                          Administración
-                        </Link>
-                      )}
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={
-                          handleLogout
-                        }
-                        style={{
-                          ...dropdownLinkStyle,
-
-                          marginTop:
-                            6,
-
-                          border:
-                            "none",
-
-                          background:
-                            "#fef2f2",
-
-                          color:
-                            "#b91c1c",
-
-                          cursor:
-                            "pointer",
-
-                          font:
-                            "inherit",
-
-                          fontWeight:
-                            700,
-                        }}
-                      >
-                        <span>
-                          ↪
-                        </span>
-
-                        Cerrar sesión
-                      </button>
                     </div>
                   )}
                 </div>
               )}
             </>
-          )
-        ) : !loading ? (
-          <>
-            {!mobile && (
-              <>
-                <Link
-                  className="btn secondary"
-                  href="/login?mode=signup&role=business"
-                >
-                  Para negocios
-                </Link>
+          ) : null}
+        </nav>
 
-                <Link
-                  className="btn primary"
-                  href="/login"
-                >
-                  Entrar
-                </Link>
-              </>
-            )}
+        {!loading &&
+          loggedIn &&
+          !mobile && (
+            <div className="site-header-account-zone">
+              {displayName && (
+                <div className="site-header-account-profile">
+                  <span className="site-header-avatar">
+                    <UserRound
+                      size={17}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </span>
 
-            {mobile && (
-              <div
-                ref={
-                  menuRef
+                  <strong>
+                    {displayName}
+                  </strong>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="site-header-logout-button"
+                onClick={
+                  handleLogout
                 }
-                style={{
-                  position:
-                    "relative",
-                }}
+                aria-label="Cerrar sesión"
+                title="Cerrar sesión"
               >
-                <button
-                  type="button"
-                  aria-label={
-                    menuOpen
-                      ? "Cerrar menú"
-                      : "Abrir menú"
-                  }
-                  aria-expanded={
-                    menuOpen
-                  }
-                  onClick={() =>
-                    setMenuOpen(
-                      (
-                        current
-                      ) =>
-                        !current
-                    )
-                  }
-                  style={{
-                    display:
-                      "inline-flex",
-
-                    alignItems:
-                      "center",
-
-                    justifyContent:
-                      "center",
-
-                    width:
-                      44,
-
-                    height:
-                      44,
-
-                    border:
-                      "1px solid var(--border)",
-
-                    borderRadius:
-                      12,
-
-                    background:
-                      "#ffffff",
-
-                    cursor:
-                      "pointer",
-
-                    fontSize:
-                      22,
-                  }}
-                >
-                  {menuOpen
-                    ? "×"
-                    : "☰"}
-                </button>
-
-                {menuOpen && (
-                  <div
-                    style={{
-                      position:
-                        "absolute",
-
-                      top:
-                        "calc(100% + 10px)",
-
-                      right:
-                        0,
-
-                      width:
-                        240,
-
-                      padding:
-                        10,
-
-                      border:
-                        "1px solid var(--border)",
-
-                      borderRadius:
-                        16,
-
-                      background:
-                        "#ffffff",
-
-                      boxShadow:
-                        "0 18px 45px rgba(15, 23, 42, 0.16)",
-                    }}
-                  >
-                    <Link
-                      href="/login?mode=signup&role=business"
-                      style={
-                        dropdownLinkStyle
-                      }
-                    >
-                      🏢 Para negocios
-                    </Link>
-
-                    <Link
-                      href="/login"
-                      style={{
-                        ...dropdownLinkStyle,
-
-                        marginTop:
-                          6,
-
-                        background:
-                          "var(--accent)",
-
-                        color:
-                          "#ffffff",
-                      }}
-                    >
-                      Entrar
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        ) : null}
-      </nav>
+                <LogOut
+                  size={17}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          )}
+      </div>
     </header>
   );
 }

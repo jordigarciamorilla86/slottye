@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  useEffect,
   useState,
 } from "react";
 
 import {
   useRouter,
 } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   businessId: string;
@@ -36,14 +36,8 @@ export default function AdminBusinessStatusButton({
     useState(
       active
     );
-
-  useEffect(() => {
-    setCurrentActive(
-      active
-    );
-  }, [
-    active,
-  ]);
+  const [open, setOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function changeStatus() {
     if (loading) {
@@ -52,17 +46,6 @@ export default function AdminBusinessStatusButton({
 
     const nextActive =
       !currentActive;
-
-    const confirmed =
-      window.confirm(
-        nextActive
-          ? `¿Reactivar "${businessName}"? Volverá a ser visible públicamente en Slottye.`
-          : `¿Desactivar "${businessName}"? Dejará de aparecer públicamente en Slottye.`
-      );
-
-    if (!confirmed) {
-      return;
-    }
 
     setLoading(true);
 
@@ -91,10 +74,7 @@ export default function AdminBusinessStatusButton({
         await response.json();
 
       if (!response.ok) {
-        window.alert(
-          result.error ??
-            "No se pudo cambiar el estado del negocio."
-        );
+        setErrorMessage(result.error ?? "No se pudo cambiar el estado del negocio.");
 
         return;
       }
@@ -102,6 +82,7 @@ export default function AdminBusinessStatusButton({
       setCurrentActive(
         result.active
       );
+      setErrorMessage("");
 
       router.refresh();
     } catch (error) {
@@ -110,24 +91,20 @@ export default function AdminBusinessStatusButton({
         error
       );
 
-      window.alert(
-        "No se pudo cambiar el estado del negocio."
-      );
+      setErrorMessage("No se pudo cambiar el estado del negocio.");
     } finally {
       setLoading(false);
     }
   }
 
-  return (
+  return (<>
     <button
       type="button"
       className="btn"
       disabled={
         loading
       }
-      onClick={
-        changeStatus
-      }
+      onClick={() => setOpen(true)}
       style={
         currentActive
           ? {
@@ -152,5 +129,7 @@ export default function AdminBusinessStatusButton({
           ? "Desactivar negocio"
           : "Reactivar negocio"}
     </button>
-  );
+    {errorMessage && <p role="alert" style={{ color: "#b91c1c", margin: "8px 0 0", fontSize: 13 }}>{errorMessage}</p>}
+    <ConfirmDialog open={open} onOpenChange={setOpen} title={currentActive ? "Desactivar negocio" : "Reactivar negocio"} description={currentActive ? `“${businessName}” dejará de aparecer públicamente en Slottye.` : `“${businessName}” volverá a ser visible públicamente en Slottye.`} variant="warning" confirmLabel={currentActive ? "Desactivar" : "Reactivar"} pending={loading} onConfirm={async () => { await changeStatus(); setOpen(false); }} />
+  </>);
 }

@@ -1,10 +1,34 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   FormEvent,
   useEffect,
   useState,
 } from "react";
+
+import {
+  Ban,
+  CalendarDays,
+  CalendarPlus,
+  CalendarRange,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
+  ExternalLink,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui/ConfirmDialog";
+
+type Confirmation = {
+  title: string;
+  description: string;
+  variant: ConfirmDialogVariant;
+  confirmLabel: string;
+  resolve: (confirmed: boolean) => void;
+};
 
 
 type Service = {
@@ -58,6 +82,16 @@ export default function CalendarManager({
   businessHours,
   initialBlocks,
 }: Props) {
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+
+  function requestConfirmation(config: Omit<Confirmation, "resolve">) {
+    return new Promise<boolean>((resolve) => setConfirmation({ ...config, resolve }));
+  }
+
+  function finishConfirmation(confirmed: boolean) {
+    confirmation?.resolve(confirmed);
+    setConfirmation(null);
+  }
   
 
   // ============================================================
@@ -252,6 +286,16 @@ export default function CalendarManager({
     setBlockLoading,
   ] =
     useState(false);
+
+  // ============================================================
+  // PAGINACIÓN
+  // ============================================================
+
+  const [blockPage, setBlockPage] = useState(1);
+  const [dayPage, setDayPage] = useState(1);
+
+  const BLOCKS_PER_PAGE = 5;
+  const DAYS_PER_PAGE = 7;
 
   /*
    * ============================================================
@@ -785,399 +829,6 @@ export default function CalendarManager({
     }
   }
 
-  /*
-   * ============================================================
-   * ELIMINAR UNA CITA
-   * ============================================================
-   */
-
-  async function deleteSlot(
-    slot:
-      Slot
-  ) {
-    if (
-      slot.status !==
-      "AVAILABLE"
-    ) {
-      showError(
-        "Solo se pueden eliminar huecos disponibles."
-      );
-  
-      return;
-    }
-  
-    const confirmed =
-      window.confirm(
-        "¿Eliminar definitivamente este hueco?"
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
-    clearMessage();
-  
-    try {
-      const response =
-        await fetch(
-          "/api/business/calendar/slots",
-          {
-            method:
-              "DELETE",
-  
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-  
-            body:
-              JSON.stringify({
-                slotIds: [
-                  slot.id,
-                ],
-              }),
-          }
-        );
-  
-      const result =
-        await response
-          .json()
-          .catch(
-            () => ({
-              error:
-                "La respuesta del servidor no es válida.",
-            })
-          );
-  
-      if (
-        !response.ok
-      ) {
-        showError(
-          result.error ??
-            "No se ha podido eliminar el hueco."
-        );
-  
-        return;
-      }
-  
-      const deletedIds =
-        new Set<string>(
-          Array.isArray(
-            result.deletedIds
-          )
-            ? result.deletedIds
-            : []
-        );
-  
-      const blockedIds =
-        new Set<string>(
-          Array.isArray(
-            result.blockedIds
-          )
-            ? result.blockedIds
-            : []
-        );
-  
-      /*
-       * ==========================================================
-       * ACTUALIZAR ESTADO LOCAL
-       * ==========================================================
-       */
-  
-      setSlots(
-        (
-          current
-        ) =>
-          current
-            .filter(
-              (
-                item
-              ) =>
-                !deletedIds.has(
-                  item.id
-                )
-            )
-            .map(
-              (
-                item
-              ) =>
-                blockedIds.has(
-                  item.id
-                )
-                  ? {
-                      ...item,
-  
-                      status:
-                        "BLOCKED",
-                    }
-                  : item
-            )
-      );
-  
-      /*
-       * ==========================================================
-       * MENSAJE
-       * ==========================================================
-       */
-  
-      if (
-        blockedIds.has(
-          slot.id
-        )
-      ) {
-        showWarning(
-          "Este hueco tenía historial de reservas. Se ha bloqueado en lugar de eliminarse."
-        );
-  
-        return;
-      }
-  
-      if (
-        deletedIds.has(
-          slot.id
-        )
-      ) {
-        showSuccess(
-          "Hueco eliminado definitivamente."
-        );
-  
-        return;
-      }
-  
-      /*
-       * No debería ocurrir, pero evitamos mostrar
-       * un éxito falso si la API no devuelve acción.
-       */
-  
-      showWarning(
-        "La operación se ha realizado, pero no se ha podido determinar el estado final del hueco."
-      );
-    } catch (
-      error
-    ) {
-      console.error(
-        "Error deleting calendar slot:",
-        error
-      );
-  
-      showError(
-        "No se ha podido eliminar el hueco."
-      );
-    }
-  }
-
-  /*
-   * ============================================================
-   * ELIMINAR DISPONIBLES DEL DÍA
-   * ============================================================
-   */
-
-  async function deleteAvailableSlotsForDay(
-    daySlots:
-      Slot[]
-  ) {
-    const availableSlots =
-      daySlots.filter(
-        (
-          slot
-        ) =>
-          slot.status ===
-          "AVAILABLE"
-      );
-  
-    if (
-      availableSlots.length ===
-      0
-    ) {
-      showError(
-        "No hay huecos disponibles que eliminar en este día."
-      );
-  
-      return;
-    }
-  
-    const confirmed =
-      window.confirm(
-        `¿Eliminar los ${availableSlots.length} huecos disponibles de este día?`
-      );
-  
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-  
-    clearMessage();
-  
-    const ids =
-      availableSlots.map(
-        (
-          slot
-        ) =>
-          slot.id
-      );
-  
-    try {
-      const response =
-        await fetch(
-          "/api/business/calendar/slots",
-          {
-            method:
-              "DELETE",
-  
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-  
-            body:
-              JSON.stringify({
-                slotIds:
-                  ids,
-              }),
-          }
-        );
-  
-      const result =
-        await response
-          .json()
-          .catch(
-            () => ({
-              error:
-                "La respuesta del servidor no es válida.",
-            })
-          );
-  
-      if (
-        !response.ok
-      ) {
-        showError(
-          result.error ??
-            "No se han podido eliminar los huecos."
-        );
-  
-        return;
-      }
-  
-      const deletedIds =
-        new Set<string>(
-          Array.isArray(
-            result.deletedIds
-          )
-            ? result.deletedIds
-            : []
-        );
-  
-      const blockedIds =
-        new Set<string>(
-          Array.isArray(
-            result.blockedIds
-          )
-            ? result.blockedIds
-            : []
-        );
-  
-      /*
-       * ==========================================================
-       * ACTUALIZAR ESTADO LOCAL
-       * ==========================================================
-       */
-  
-      setSlots(
-        (
-          current
-        ) =>
-          current
-            .filter(
-              (
-                slot
-              ) =>
-                !deletedIds.has(
-                  slot.id
-                )
-            )
-            .map(
-              (
-                slot
-              ) =>
-                blockedIds.has(
-                  slot.id
-                )
-                  ? {
-                      ...slot,
-  
-                      status:
-                        "BLOCKED",
-                    }
-                  : slot
-            )
-      );
-  
-      /*
-       * ==========================================================
-       * RESULTADO
-       * ==========================================================
-       */
-  
-      const deletedCount =
-        deletedIds.size;
-  
-      const blockedCount =
-        blockedIds.size;
-  
-      if (
-        deletedCount >
-          0 &&
-        blockedCount >
-          0
-      ) {
-        showWarning(
-          `${deletedCount} huecos eliminados · ${blockedCount} bloqueados porque tenían historial de reservas.`
-        );
-  
-        return;
-      }
-  
-      if (
-        deletedCount >
-        0
-      ) {
-        showSuccess(
-          `${deletedCount} huecos eliminados correctamente.`
-        );
-  
-        return;
-      }
-  
-      if (
-        blockedCount >
-        0
-      ) {
-        showWarning(
-          `${blockedCount} huecos tenían historial de reservas y se han bloqueado.`
-        );
-  
-        return;
-      }
-  
-      showWarning(
-        "No se ha modificado ningún hueco."
-      );
-    } catch (
-      error
-    ) {
-      console.error(
-        "Error deleting calendar day slots:",
-        error
-      );
-  
-      showError(
-        "No se han podido eliminar los huecos."
-      );
-    }
-  }
   /*
    * ============================================================
    * GENERAR CITAS EN BLOQUE
@@ -2453,10 +2104,12 @@ export default function CalendarManager({
       affectedBookedSlots.length >
       0
     ) {
-      const confirmed =
-        window.confirm(
-          `Hay ${affectedBookedSlots.length} reserva(s) dentro de este periodo. No se cancelarán. ¿Quieres bloquear igualmente el resto del horario?`
-        );
+      const confirmed = await requestConfirmation({
+        title: "El periodo contiene reservas",
+        description: `Hay ${affectedBookedSlots.length} reserva(s) dentro de este periodo. No se cancelarán; solo se bloqueará el resto del horario.`,
+        variant: "warning",
+        confirmLabel: "Bloquear horario libre",
+      });
   
       if (
         !confirmed
@@ -2735,10 +2388,12 @@ export default function CalendarManager({
     block:
       BusinessBlock
   ) {
-    const confirmed =
-      window.confirm(
-        "¿Eliminar este bloqueo?"
-      );
+    const confirmed = await requestConfirmation({
+      title: "Eliminar bloqueo",
+      description: "El horario volverá a quedar disponible según la configuración del calendario.",
+      variant: "danger",
+      confirmLabel: "Eliminar bloqueo",
+    });
   
     if (
       !confirmed
@@ -2945,12 +2600,6 @@ export default function CalendarManager({
         year:
           "numeric",
 
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-
         timeZone:
           "Europe/Madrid",
       }
@@ -2981,6 +2630,31 @@ export default function CalendarManager({
       new Date(
         value
       )
+    );
+  }
+
+
+  function isAllDayBlock(
+    block: BusinessBlock
+  ) {
+    const start = new Date(block.start_at);
+    const end = new Date(block.end_at);
+
+    const madridTime = (value: Date) =>
+      new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Europe/Madrid",
+      }).format(value);
+
+    const startDay = getDayKey(block.start_at);
+    const endDay = getDayKey(block.end_at);
+
+    return (
+      madridTime(start) === "00:00" &&
+      madridTime(end) === "00:00" &&
+      startDay !== endDay
     );
   }
 
@@ -3035,126 +2709,65 @@ export default function CalendarManager({
         )
     );
 
+
+  const blockPageCount = Math.max(
+    1,
+    Math.ceil(blocks.length / BLOCKS_PER_PAGE)
+  );
+  const safeBlockPage = Math.min(blockPage, blockPageCount);
+  const visibleBlocks = blocks.slice(
+    (safeBlockPage - 1) * BLOCKS_PER_PAGE,
+    safeBlockPage * BLOCKS_PER_PAGE
+  );
+
+  const dayPageCount = Math.max(
+    1,
+    Math.ceil(groupedDays.length / DAYS_PER_PAGE)
+  );
+  const safeDayPage = Math.min(dayPage, dayPageCount);
+  const visibleGroupedDays = groupedDays.slice(
+    (safeDayPage - 1) * DAYS_PER_PAGE,
+    safeDayPage * DAYS_PER_PAGE
+  );
+
   /*
    * ============================================================
    * UI
    * ============================================================
    */
 
-  return (
-    <div
-      style={{
-        marginTop:
-          28,
-      }}
-    >
-      {/* ======================================================
-          TOAST / NOTIFICACIÓN
-          ====================================================== */}
+  const availableTotal =
+    slots.filter(
+      (slot) =>
+        slot.status ===
+        "AVAILABLE"
+    ).length;
 
+  const bookedTotal =
+    slots.filter(
+      (slot) =>
+        slot.status ===
+        "BOOKED"
+    ).length;
+
+  const blockedTotal =
+    slots.filter(
+      (slot) =>
+        slot.status ===
+        "BLOCKED"
+    ).length;
+
+  return (
+    <div className="calendar10">
       {message && (
         <div
           role="alert"
           aria-live="polite"
-          style={{
-            position:
-              "fixed",
-
-            top:
-              24,
-
-            right:
-              24,
-
-            zIndex:
-              9999,
-
-            width:
-              "min(420px, calc(100vw - 32px))",
-
-            padding:
-              "16px 18px",
-
-            borderRadius:
-              16,
-
-            border:
-              messageType ===
-              "error"
-                ? "1px solid #ef4444"
-                : messageType ===
-                    "warning"
-                  ? "1px solid #f59e0b"
-                  : "1px solid #22c55e",
-
-            background:
-              messageType ===
-              "error"
-                ? "#fef2f2"
-                : messageType ===
-                    "warning"
-                  ? "#fffbeb"
-                  : "#f0fdf4",
-
-            color:
-              messageType ===
-              "error"
-                ? "#b91c1c"
-                : messageType ===
-                    "warning"
-                  ? "#92400e"
-                  : "#166534",
-
-            fontWeight:
-              600,
-
-            lineHeight:
-              1.5,
-
-            boxShadow:
-              "0 12px 40px rgba(0, 0, 0, 0.15)",
-
-            display:
-              "flex",
-
-            alignItems:
-              "flex-start",
-
-            justifyContent:
-              "space-between",
-
-            gap:
-              14,
-          }}
+          className={`calendar10-toast is-${messageType ?? "success"}`}
         >
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              alignItems:
-                "flex-start",
-            }}
-          >
-            <span
-              aria-hidden="true"
-            >
-              {messageType ===
-              "error"
-                ? "⚠️"
-                : messageType ===
-                    "warning"
-                  ? "ℹ️"
-                  : "✓"}
-            </span>
-
-            <span>
-              {message}
-            </span>
-          </div>
+          <span>
+            {message}
+          </span>
 
           <button
             type="button"
@@ -3162,178 +2775,324 @@ export default function CalendarManager({
               clearMessage
             }
             aria-label="Cerrar notificación"
-            style={{
-              border:
-                0,
-
-              background:
-                "transparent",
-
-              color:
-                "inherit",
-
-              cursor:
-                "pointer",
-
-              fontSize:
-                20,
-
-              lineHeight:
-                1,
-
-              padding:
-                0,
-
-              opacity:
-                0.7,
-
-              flexShrink:
-                0,
-            }}
           >
             ×
           </button>
         </div>
       )}
 
-      {/* ======================================================
-          CITA INDIVIDUAL
-          ====================================================== */}
+      <section className="calendar10-summary">
+        <div>
+          <span>
+            Próximos huecos
+          </span>
 
-      <form
-        onSubmit={
-          createSlot
-        }
-        style={{
-          display:
-            "grid",
+          <strong>
+            {slots.length}
+          </strong>
+        </div>
 
-          gap:
-            12,
-        }}
-      >
-        <h2>
-          Nueva cita disponible
-        </h2>
+        <div>
+          <span>
+            Disponibles
+          </span>
 
-        {services.length ===
-        0 ? (
-          <div className="panel">
+          <strong>
+            {availableTotal}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            Reservados
+          </span>
+
+          <strong>
+            {bookedTotal}
+          </strong>
+        </div>
+
+        <div>
+          <span>
+            Bloqueados
+          </span>
+
+          <strong>
+            {blockedTotal}
+          </strong>
+        </div>
+      </section>
+
+      <section className="calendar10-card">
+        <div className="calendar10-section-head">
+          <span className="calendar10-icon">
+            <CalendarPlus
+              size={19}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </span>
+
+          <div>
+            <span className="calendar10-kicker">
+              Disponibilidad
+            </span>
+
+            <h2>
+              Crear citas disponibles
+            </h2>
+
+            <p>
+              Añade un hueco puntual, genera varios seguidos o prepara una semana completa.
+            </p>
+          </div>
+        </div>
+
+        {services.length === 0 ? (
+          <div className="calendar10-empty">
             <strong>
               Primero necesitas crear un servicio.
             </strong>
 
-            <p className="muted">
-              Las citas se vinculan a uno de los servicios del negocio.
+            <p>
+              Las citas disponibles deben estar vinculadas a un servicio activo.
             </p>
           </div>
         ) : (
-          <>
-            <label>
-              <strong>
-                Servicio
-              </strong>
+          <div className="calendar10-create-grid">
+            <form
+              onSubmit={
+                createSlot
+              }
+              className="calendar10-create-box"
+            >
+              <div className="calendar10-create-title">
+                <span className="calendar10-mini-icon">
+                  <Plus
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                </span>
 
-              <select
-                required
-                value={
-                  serviceId
-                }
-                onChange={(
-                  e
-                ) =>
-                  handleServiceChange(
-                    e.target.value
-                  )
-                }
-                style={
-                  inputStyle
+                <div>
+                  <strong>
+                    Cita individual
+                  </strong>
+
+                  <span>
+                    Crea un único hueco.
+                  </span>
+                </div>
+              </div>
+
+              <label className="calendar10-field">
+                <strong>
+                  Servicio
+                </strong>
+
+                <select
+                  required
+                  value={
+                    serviceId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    handleServiceChange(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Selecciona un servicio
+                  </option>
+
+                  {services.map(
+                    (
+                      service
+                    ) => (
+                      <option
+                        key={
+                          service.id
+                        }
+                        value={
+                          service.id
+                        }
+                      >
+                        {service.name}
+                        {" · "}
+                        {service.duration_minutes} min
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <div className="calendar10-fields-2">
+                <label className="calendar10-field">
+                  <strong>
+                    Fecha
+                  </strong>
+
+                  <input
+                    required
+                    type="date"
+                    value={
+                      date
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setDate(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="calendar10-field">
+                  <strong>
+                    Hora
+                  </strong>
+
+                  <input
+                    required
+                    type="time"
+                    value={
+                      time
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setTime(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              <label className="calendar10-field">
+                <strong>
+                  Duración
+                </strong>
+
+                <div className="calendar10-number">
+                  <input
+                    required
+                    type="number"
+                    min={1}
+                    max={1440}
+                    step={1}
+                    value={
+                      slotDurationMinutes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSlotDurationMinutes(
+                        Number(
+                          event.target.value
+                        )
+                      )
+                    }
+                  />
+
+                  <span>
+                    min
+                  </span>
+                </div>
+              </label>
+
+              <button
+                className="btn primary calendar10-submit"
+                disabled={
+                  loading
                 }
               >
-                <option value="">
-                  Selecciona un servicio
-                </option>
+                <Plus
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
 
-                {services.map(
-                  (
-                    service
-                  ) => (
-                    <option
-                      key={
-                        service.id
-                      }
-                      value={
-                        service.id
-                      }
-                    >
-                      {
-                        service.name
-                      }
-                      {" · "}
-                      {
-                        service.duration_minutes
-                      }{" "}
-                      min
-                    </option>
-                  )
-                )}
-              </select>
-            </label>
-            <label>
-  <strong>
-    Duración exacta (minutos)
-  </strong>
+                {loading
+                  ? "Creando..."
+                  : "Añadir cita"}
+              </button>
+            </form>
 
-  <input
-    required
-    type="number"
-    min={1}
-    max={1440}
-    step={1}
-    value={
-      slotDurationMinutes
-    }
-    onChange={(
-      e
-    ) =>
-      setSlotDurationMinutes(
-        Number(
-          e.target.value
-        )
-      )
-    }
-    style={
-      inputStyle
-    }
-  />
-
-  <div
-    className="muted"
-    style={{
-      marginTop:
-        6,
-
-      fontSize:
-        12,
-    }}
-  >
-    Duración seleccionada:{" "}
-    {slotDurationMinutes} min
-  </div>
-</label>
-            <div
-              style={{
-                display:
-                  "grid",
-
-                gridTemplateColumns:
-                  "1fr 1fr",
-
-                gap:
-                  12,
-              }}
+            <form
+              onSubmit={
+                createBulkSlots
+              }
+              className="calendar10-create-box"
             >
-              <label>
+              <div className="calendar10-create-title">
+                <span className="calendar10-mini-icon">
+                  <CalendarRange
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                </span>
+
+                <div>
+                  <strong>
+                    Generar intervalo
+                  </strong>
+
+                  <span>
+                    Crea varios huecos seguidos.
+                  </span>
+                </div>
+              </div>
+
+              <label className="calendar10-field">
+                <strong>
+                  Servicio
+                </strong>
+
+                <select
+                  required
+                  value={
+                    bulkServiceId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    handleBulkServiceChange(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Selecciona un servicio
+                  </option>
+
+                  {services.map(
+                    (
+                      service
+                    ) => (
+                      <option
+                        key={
+                          service.id
+                        }
+                        value={
+                          service.id
+                        }
+                      >
+                        {service.name}
+                        {" · "}
+                        {service.duration_minutes} min
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label className="calendar10-field">
                 <strong>
                   Fecha
                 </strong>
@@ -3342,786 +3101,575 @@ export default function CalendarManager({
                   required
                   type="date"
                   value={
-                    date
+                    bulkDate
                   }
                   onChange={(
-                    e
+                    event
                   ) =>
-                    setDate(
-                      e.target
-                        .value
+                    setBulkDate(
+                      event.target.value
                     )
-                  }
-                  style={
-                    inputStyle
                   }
                 />
               </label>
 
-              <label>
+              <div className="calendar10-fields-2">
+                <label className="calendar10-field">
+                  <strong>
+                    Desde
+                  </strong>
+
+                  <input
+                    required
+                    type="time"
+                    value={
+                      bulkStartTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBulkStartTime(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="calendar10-field">
+                  <strong>
+                    Hasta
+                  </strong>
+
+                  <input
+                    required
+                    type="time"
+                    value={
+                      bulkEndTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBulkEndTime(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              <label className="calendar10-field">
                 <strong>
-                  Hora
+                  Duración por hueco
+                </strong>
+
+                <div className="calendar10-number">
+                  <input
+                    required
+                    type="number"
+                    min={1}
+                    max={1440}
+                    step={1}
+                    value={
+                      bulkDurationMinutes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBulkDurationMinutes(
+                        Number(
+                          event.target.value
+                        )
+                      )
+                    }
+                  />
+
+                  <span>
+                    min
+                  </span>
+                </div>
+              </label>
+
+              <button
+                type="submit"
+                className="btn primary calendar10-submit"
+                disabled={
+                  bulkLoading
+                }
+              >
+                <CalendarRange
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+
+                {bulkLoading
+                  ? "Generando..."
+                  : "Generar citas"}
+              </button>
+            </form>
+
+            <form
+              onSubmit={
+                createWeekSlots
+              }
+              className="calendar10-create-box"
+            >
+              <div className="calendar10-create-title">
+                <span className="calendar10-mini-icon">
+                  <CalendarDays
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                </span>
+
+                <div>
+                  <strong>
+                    Semana completa
+                  </strong>
+
+                  <span>
+                    Usa tu horario habitual.
+                  </span>
+                </div>
+              </div>
+
+              <label className="calendar10-field">
+                <strong>
+                  Servicio
+                </strong>
+
+                <select
+                  required
+                  value={
+                    weekServiceId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    handleWeekServiceChange(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Selecciona un servicio
+                  </option>
+
+                  {services.map(
+                    (
+                      service
+                    ) => (
+                      <option
+                        key={
+                          service.id
+                        }
+                        value={
+                          service.id
+                        }
+                      >
+                        {service.name}
+                        {" · "}
+                        {service.duration_minutes} min
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label className="calendar10-field">
+                <strong>
+                  Primer día de la semana
                 </strong>
 
                 <input
+                  type="date"
                   required
-                  type="time"
                   value={
-                    time
+                    weekStartDate
                   }
                   onChange={(
-                    e
+                    event
                   ) =>
-                    setTime(
-                      e.target
-                        .value
+                    setWeekStartDate(
+                      event.target.value
                     )
-                  }
-                  style={
-                    inputStyle
                   }
                 />
               </label>
+
+              <label className="calendar10-field">
+                <strong>
+                  Duración por hueco
+                </strong>
+
+                <div className="calendar10-number">
+                  <input
+                    required
+                    type="number"
+                    min={1}
+                    max={1440}
+                    step={1}
+                    value={
+                      weekDurationMinutes
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setWeekDurationMinutes(
+                        Number(
+                          event.target.value
+                        )
+                      )
+                    }
+                  />
+
+                  <span>
+                    min
+                  </span>
+                </div>
+              </label>
+
+              <div className="calendar10-week-note">
+                Slottye respetará los días cerrados, tus dos tramos horarios y los bloqueos existentes.
+              </div>
+
+              <button
+                type="submit"
+                className="btn primary calendar10-submit"
+                disabled={
+                  weekLoading
+                }
+              >
+                <CalendarDays
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+
+                {weekLoading
+                  ? "Generando..."
+                  : "Generar semana"}
+              </button>
+            </form>
+          </div>
+        )}
+      </section>
+
+      <section className="calendar10-grid">
+        <div className="calendar10-card">
+          <div className="calendar10-section-head">
+            <span className="calendar10-icon">
+              <Ban
+                size={19}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </span>
+
+            <div>
+              <span className="calendar10-kicker">
+                Bloqueos
+              </span>
+
+              <h2>
+                Bloquear disponibilidad
+              </h2>
+
+              <p>
+                Reserva vacaciones, reuniones o cierres sin aceptar nuevas citas.
+              </p>
             </div>
+          </div>
+
+          <form
+            onSubmit={
+              createBlock
+            }
+            className="calendar10-block-form"
+          >
+            <label className="calendar10-field">
+              <strong>
+                Fecha
+              </strong>
+
+              <input
+                required
+                type="date"
+                value={
+                  blockDate
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBlockDate(
+                    event.target.value
+                  )
+                }
+              />
+            </label>
+
+            <label className="calendar10-check">
+              <input
+                type="checkbox"
+                checked={
+                  blockAllDay
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBlockAllDay(
+                    event.target.checked
+                  )
+                }
+              />
+
+              <span>
+                Bloquear todo el día
+              </span>
+            </label>
+
+            {!blockAllDay && (
+              <div className="calendar10-fields-2">
+                <label className="calendar10-field">
+                  <strong>
+                    Desde
+                  </strong>
+
+                  <input
+                    type="time"
+                    value={
+                      blockStartTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBlockStartTime(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="calendar10-field">
+                  <strong>
+                    Hasta
+                  </strong>
+
+                  <input
+                    type="time"
+                    value={
+                      blockEndTime
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBlockEndTime(
+                        event.target.value
+                      )
+                    }
+                  />
+                </label>
+              </div>
+            )}
+
+            <label className="calendar10-field">
+              <strong>
+                Motivo
+              </strong>
+
+              <input
+                value={
+                  blockReason
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBlockReason(
+                    event.target.value
+                  )
+                }
+                placeholder="Vacaciones, reunión, cerrado..."
+              />
+            </label>
 
             <button
-              className="btn primary"
+              type="submit"
+              className="btn calendar10-block-button"
               disabled={
-                loading
+                blockLoading
               }
             >
-              {loading
-                ? "Creando..."
-                : "Añadir cita disponible"}
+              <Ban
+                size={15}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+
+              {blockLoading
+                ? "Bloqueando..."
+                : "Bloquear horario"}
             </button>
-          </>
-        )}
-      </form>
+          </form>
+        </div>
 
-      {/* ======================================================
-          GENERACIÓN EN BLOQUE
-          ====================================================== */}
-
-      <div
-        style={{
-          marginTop:
-            42,
-
-          paddingTop:
-            30,
-
-          borderTop:
-            "1px solid var(--border)",
-        }}
-      >
-        <form
-          onSubmit={
-            createBulkSlots
-          }
-          style={{
-            display:
-              "grid",
-
-            gap:
-              12,
-          }}
-        >
-          <div>
-            <h2>
-              Generar citas en bloque
-            </h2>
-
-            <p className="muted">
-  Slottye creará automáticamente todos los huecos usando la duración que indiques.
-</p>
-          </div>
-
-          <label>
-            <strong>
-              Servicio
-            </strong>
-
-            <select
-              required
-              value={
-                bulkServiceId
-              }
-              onChange={(
-                e
-              ) =>
-                handleBulkServiceChange(
-                  e.target.value
-                )
-              }
-              style={
-                inputStyle
-              }
-            >
-              <option value="">
-                Selecciona un servicio
-              </option>
-
-              {services.map(
-                (
-                  service
-                ) => (
-                  <option
-                    key={
-                      service.id
-                    }
-                    value={
-                      service.id
-                    }
-                  >
-                    {
-                      service.name
-                    }
-                    {" · "}
-                    {
-                      service.duration_minutes
-                    }{" "}
-                    min
-                  </option>
-                )
-              )}
-            </select>
-          </label>
-          <label>
-  <strong>
-    Duración de cada hueco (minutos)
-  </strong>
-
-  <input
-    required
-    type="number"
-    min={1}
-    max={1440}
-    step={1}
-    value={
-      bulkDurationMinutes
-    }
-    onChange={(
-      e
-    ) =>
-      setBulkDurationMinutes(
-        Number(
-          e.target.value
-        )
-      )
-    }
-    style={
-      inputStyle
-    }
-  />
-
-  <div
-    className="muted"
-    style={{
-      marginTop:
-        6,
-
-      fontSize:
-        12,
-    }}
-  >
-    Cada disponibilidad durará{" "}
-    {bulkDurationMinutes} min.
-  </div>
-</label>
-          <label>
-            <strong>
-              Fecha
-            </strong>
-
-            <input
-              required
-              type="date"
-              value={
-                bulkDate
-              }
-              onChange={(
-                e
-              ) =>
-                setBulkDate(
-                  e.target
-                    .value
-                )
-              }
-              style={
-                inputStyle
-              }
-            />
-          </label>
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "1fr 1fr",
-
-              gap:
-                12,
-            }}
-          >
-            <label>
-              <strong>
-                Desde
-              </strong>
-
-              <input
-                required
-                type="time"
-                value={
-                  bulkStartTime
-                }
-                onChange={(
-                  e
-                ) =>
-                  setBulkStartTime(
-                    e.target
-                      .value
-                  )
-                }
-                style={
-                  inputStyle
-                }
+        <div className="calendar10-card">
+          <div className="calendar10-section-head">
+            <span className="calendar10-icon">
+              <Clock3
+                size={19}
+                strokeWidth={2}
+                aria-hidden="true"
               />
-            </label>
+            </span>
 
-            <label>
-              <strong>
-                Hasta
-              </strong>
+            <div>
+              <span className="calendar10-kicker">
+                Próximos cierres
+              </span>
 
-              <input
-                required
-                type="time"
-                value={
-                  bulkEndTime
-                }
-                onChange={(
-                  e
-                ) =>
-                  setBulkEndTime(
-                    e.target
-                      .value
-                  )
-                }
-                style={
-                  inputStyle
-                }
-              />
-            </label>
-          </div>
+              <h2>
+                Bloqueos activos
+              </h2>
 
-          <button
-            type="submit"
-            className="btn primary"
-            disabled={
-              bulkLoading
-            }
-          >
-            {bulkLoading
-              ? "Generando..."
-              : "Generar citas"}
-          </button>
-        </form>
-      </div>
-
-      {/* ======================================================
-          GENERACIÓN SEMANAL
-          ====================================================== */}
-
-      <div
-        style={{
-          marginTop:
-            42,
-
-          paddingTop:
-            30,
-
-          borderTop:
-            "1px solid var(--border)",
-        }}
-      >
-        <form
-          onSubmit={
-            createWeekSlots
-          }
-          style={{
-            display:
-              "grid",
-
-            gap:
-              12,
-          }}
-        >
-          <div>
-            <h2>
-              Generar semana completa
-            </h2>
-
-            <p className="muted">
-  Slottye utilizará el horario configurado del negocio y generará huecos con la duración que indiques.
-</p>
-          </div>
-
-          <label>
-            <strong>
-              Servicio
-            </strong>
-
-            <select
-              required
-              value={
-                weekServiceId
-              }
-              onChange={(
-                e
-              ) =>
-                handleWeekServiceChange(
-                  e.target.value
-                )
-              }
-              style={
-                inputStyle
-              }
-            >
-              <option value="">
-                Selecciona un servicio
-              </option>
-
-              {services.map(
-                (
-                  service
-                ) => (
-                  <option
-                    key={
-                      service.id
-                    }
-                    value={
-                      service.id
-                    }
-                  >
-                    {
-                      service.name
-                    }
-                    {" · "}
-                    {
-                      service.duration_minutes
-                    }{" "}
-                    min
-                  </option>
-                )
-              )}
-            </select>
-          </label>
-          <label>
-  <strong>
-    Duración de cada hueco (minutos)
-  </strong>
-
-  <input
-    required
-    type="number"
-    min={1}
-    max={1440}
-    step={1}
-    value={
-      weekDurationMinutes
-    }
-    onChange={(
-      e
-    ) =>
-      setWeekDurationMinutes(
-        Number(
-          e.target.value
-        )
-      )
-    }
-    style={
-      inputStyle
-    }
-  />
-
-  <div
-    className="muted"
-    style={{
-      marginTop:
-        6,
-
-      fontSize:
-        12,
-    }}
-  >
-    Cada disponibilidad durará{" "}
-    {weekDurationMinutes} min.
-  </div>
-</label>
-          <label>
-            <strong>
-              Primer día de la semana
-            </strong>
-
-            <input
-              type="date"
-              required
-              value={
-                weekStartDate
-              }
-              onChange={(
-                e
-              ) =>
-                setWeekStartDate(
-                  e.target
-                    .value
-                )
-              }
-              style={
-                inputStyle
-              }
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="btn primary"
-            disabled={
-              weekLoading
-            }
-          >
-            {weekLoading
-              ? "Generando semana..."
-              : "Generar semana"}
-          </button>
-        </form>
-      </div>
-
-      {/* ======================================================
-          BLOQUEAR DISPONIBILIDAD
-          ====================================================== */}
-
-      <div
-        style={{
-          marginTop:
-            42,
-
-          paddingTop:
-            30,
-
-          borderTop:
-            "1px solid var(--border)",
-        }}
-      >
-        <form
-          onSubmit={
-            createBlock
-          }
-          style={{
-            display:
-              "grid",
-
-            gap:
-              12,
-          }}
-        >
-          <div>
-            <h2>
-              Bloquear disponibilidad
-            </h2>
-
-            <p className="muted">
-              Bloquea vacaciones, reuniones, cierres o cualquier periodo en el que no quieras aceptar nuevas reservas.
-            </p>
-          </div>
-
-          <label>
-            <strong>
-              Fecha
-            </strong>
-
-            <input
-              required
-              type="date"
-              value={
-                blockDate
-              }
-              onChange={(
-                e
-              ) =>
-                setBlockDate(
-                  e.target
-                    .value
-                )
-              }
-              style={
-                inputStyle
-              }
-            />
-          </label>
-
-          <label
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              gap:
-                8,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={
-                blockAllDay
-              }
-              onChange={(
-                e
-              ) =>
-                setBlockAllDay(
-                  e.target
-                    .checked
-                )
-              }
-            />
-
-            Bloquear todo el día
-          </label>
-
-          {!blockAllDay && (
-            <div
-              style={{
-                display:
-                  "grid",
-
-                gridTemplateColumns:
-                  "1fr 1fr",
-
-                gap:
-                  12,
-              }}
-            >
-              <label>
-                <strong>
-                  Desde
-                </strong>
-
-                <input
-                  type="time"
-                  value={
-                    blockStartTime
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setBlockStartTime(
-                      e.target
-                        .value
-                    )
-                  }
-                  style={
-                    inputStyle
-                  }
-                />
-              </label>
-
-              <label>
-                <strong>
-                  Hasta
-                </strong>
-
-                <input
-                  type="time"
-                  value={
-                    blockEndTime
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setBlockEndTime(
-                      e.target
-                        .value
-                    )
-                  }
-                  style={
-                    inputStyle
-                  }
-                />
-              </label>
+              <p>
+                Periodos que no aceptarán nuevas reservas.
+              </p>
             </div>
-          )}
+          </div>
 
-          <label>
-            <strong>
-              Motivo (opcional)
-            </strong>
+          {blocks.length === 0 ? (
+            <div className="calendar10-empty calendar10-empty-small">
+              <strong>
+                No hay bloqueos próximos
+              </strong>
 
-            <input
-              value={
-                blockReason
-              }
-              onChange={(
-                e
-              ) =>
-                setBlockReason(
-                  e.target
-                    .value
-                )
-              }
-              placeholder="Vacaciones, reunión, cerrado..."
-              style={
-                inputStyle
-              }
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="btn primary"
-            disabled={
-              blockLoading
-            }
-          >
-            {blockLoading
-              ? "Bloqueando..."
-              : "Bloquear horario"}
-          </button>
-        </form>
-
-        {blocks.length >
-          0 && (
-          <div
-            style={{
-              marginTop:
-                28,
-            }}
-          >
-            <h3>
-              Próximos bloqueos
-            </h3>
-
-            <div
-              style={{
-                display:
-                  "grid",
-
-                gap:
-                  10,
-
-                marginTop:
-                  12,
-              }}
-            >
-              {blocks.map(
+              <p>
+                Tu agenda está disponible según el horario habitual.
+              </p>
+            </div>
+          ) : (
+            <div className="calendar10-block-list">
+              {visibleBlocks.map(
                 (
                   block
                 ) => (
-                  <div
-                    className="card"
+                  <article
                     key={
                       block.id
                     }
+                    className="calendar10-block-row"
                   >
-                    <div className="card-body">
-                      <strong
-                        style={{
-                          textTransform:
-                            "capitalize",
-                        }}
-                      >
+                    <div>
+                      <strong>
                         {formatBlockDate(
                           block.start_at
                         )}
                       </strong>
 
-                      <div
-                        className="muted"
-                        style={{
-                          marginTop:
-                            6,
-                        }}
-                      >
-                        Hasta{" "}
-                        {formatBlockTime(
-                          block.end_at
-                        )}
-                      </div>
+                      <span>
+                        {isAllDayBlock(block)
+                          ? "Todo el día"
+                          : `${formatBlockTime(block.start_at)} – ${formatBlockTime(block.end_at)}`}
+                      </span>
 
                       {block.reason && (
-                        <div
-                          className="meta"
-                          style={{
-                            marginTop:
-                              8,
-                          }}
-                        >
-                          {
-                            block.reason
-                          }
-                        </div>
+                        <small>
+                          {block.reason}
+                        </small>
                       )}
-
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{
-                          marginTop:
-                            12,
-                        }}
-                        onClick={() =>
-                          deleteBlock(
-                            block
-                          )
-                        }
-                      >
-                        Eliminar bloqueo
-                      </button>
                     </div>
-                  </div>
+
+                    <button
+                      type="button"
+                      className="calendar10-icon-button is-danger"
+                      aria-label="Eliminar bloqueo"
+                      onClick={() =>
+                        deleteBlock(
+                          block
+                        )
+                      }
+                    >
+                      <Trash2
+                        size={15}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </article>
                 )
               )}
+
+              {blockPageCount > 1 && (
+                <div className="calendar10-pagination">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={safeBlockPage === 1}
+                    onClick={() => setBlockPage((page) => Math.max(1, page - 1))}
+                  >
+                    Anterior
+                  </button>
+
+                  <span>
+                    Página {safeBlockPage} de {blockPageCount}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={safeBlockPage === blockPageCount}
+                    onClick={() =>
+                      setBlockPage((page) => Math.min(blockPageCount, page + 1))
+                    }
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
             </div>
+          )}
+        </div>
+      </section>
+
+      <section className="calendar10-card calendar10-upcoming">
+        <div className="calendar10-section-head calendar10-upcoming-head">
+          <span className="calendar10-icon">
+            <CalendarDays
+              size={19}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </span>
+
+          <div>
+            <span className="calendar10-kicker">
+              Calendario
+            </span>
+
+            <h2>
+              Próxima disponibilidad
+            </h2>
+
+            <p>
+              Consulta los próximos huecos y reservas agrupados por día.
+            </p>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* ======================================================
-          PRÓXIMAS CITAS
-          ====================================================== */}
+        {slots.length === 0 ? (
+          <div className="calendar10-empty">
+            <strong>
+              No tienes citas creadas
+            </strong>
 
-      <div
-        style={{
-          marginTop:
-            40,
-        }}
-      >
-        <h2>
-          Próximas citas
-        </h2>
-
-        {slots.length ===
-        0 ? (
-          <p className="muted">
-            No tienes citas creadas.
-          </p>
+            <p>
+              Genera disponibilidad desde cualquiera de las opciones superiores.
+            </p>
+          </div>
         ) : (
-          <div
-            style={{
-              display:
-                "grid",
-
-              gap:
-                14,
-
-              marginTop:
-                16,
-            }}
-          >
-            {groupedDays.map(
+          <div className="calendar10-days">
+            {visibleGroupedDays.map(
               ([
                 dayKey,
                 daySlots,
@@ -4134,330 +3682,800 @@ export default function CalendarManager({
 
                 const availableCount =
                   daySlots.filter(
-                    (slot) =>
+                    (
+                      slot
+                    ) =>
                       slot.status ===
                       "AVAILABLE"
                   ).length;
 
                 const bookedCount =
                   daySlots.filter(
-                    (slot) =>
+                    (
+                      slot
+                    ) =>
                       slot.status ===
                       "BOOKED"
                   ).length;
 
                 const blockedCount =
                   daySlots.filter(
-                    (slot) =>
+                    (
+                      slot
+                    ) =>
                       slot.status ===
                       "BLOCKED"
                   ).length;
 
                 return (
-                  <div
-                    className="card"
+                  <article
+                    className="calendar10-day"
                     key={
                       dayKey
                     }
                   >
-                    <div className="card-body">
-                      <div
-                        style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          alignItems:
-                            "center",
-
-                          gap:
-                            16,
-
-                          flexWrap:
-                            "wrap",
-                        }}
+                    <div className="calendar10-day-head">
+                      <button
+                        type="button"
+                        className="calendar10-day-toggle"
+                        onClick={() =>
+                          setExpandedDays(
+                            (
+                              current
+                            ) => ({
+                              ...current,
+                              [dayKey]:
+                                !expanded,
+                            })
+                          )
+                        }
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedDays(
-                              (
-                                current
-                              ) => ({
-                                ...current,
-
-                                [dayKey]:
-                                  !expanded,
-                              })
-                            )
-                          }
-                          style={{
-                            flex:
-                              1,
-
-                            border:
-                              0,
-
-                            background:
-                              "transparent",
-
-                            padding:
-                              0,
-
-                            color:
-                              "inherit",
-
-                            cursor:
-                              "pointer",
-
-                            textAlign:
-                              "left",
-                          }}
-                        >
-                          <h3
-                            style={{
-                              margin:
-                                0,
-
-                              textTransform:
-                                "capitalize",
-                            }}
-                          >
+                        <div>
+                          <strong>
                             {formatDayTitle(
                               daySlots[
                                 0
                               ].start_at
                             )}
-                          </h3>
+                          </strong>
 
-                          <div
-                            className="meta"
-                            style={{
-                              marginTop:
-                                6,
-                            }}
-                          >
-                            {
-                              daySlots.length
-                            }{" "}
-                            huecos
+                          <span>
+                            {daySlots.length} huecos
                             {" · "}
-                            {
-                              availableCount
-                            }{" "}
-                            disponibles
+                            {availableCount} disponibles
                             {" · "}
-                            {
-                              bookedCount
-                            }{" "}
-                            reservados
+                            {bookedCount} reservados
                             {" · "}
-                            {
-                              blockedCount
-                            }{" "}
-                            bloqueados
-                          </div>
-                        </button>
-
-                        <div
-                          style={{
-                            display:
-                              "flex",
-
-                            alignItems:
-                              "center",
-
-                            gap:
-                              10,
-
-                            flexWrap:
-                              "wrap",
-                          }}
-                        >
-                          {availableCount >
-                            0 && (
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={() =>
-                                deleteAvailableSlotsForDay(
-                                  daySlots
-                                )
-                              }
-                            >
-                              Eliminar disponibles del día
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() =>
-                              setExpandedDays(
-                                (
-                                  current
-                                ) => ({
-                                  ...current,
-
-                                  [dayKey]:
-                                    !expanded,
-                                })
-                              )
-                            }
-                          >
-                            {expanded
-                              ? "−"
-                              : "+"}
-                          </button>
+                            {blockedCount} bloqueados
+                          </span>
                         </div>
-                      </div>
 
-                      {expanded && (
-                        <div
-                          style={{
-                            display:
-                              "grid",
+                        {expanded ? (
+                          <ChevronUp
+                            size={18}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <ChevronDown
+                            size={18}
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
 
-                            gap:
-                              10,
+                      <Link
+                        href={`/business-dashboard/agenda?date=${encodeURIComponent(
+                          dayKey
+                        )}`}
+                        className="btn calendar10-view-agenda"
+                      >
+                        Ver en agenda
 
-                            marginTop:
-                              18,
-
-                            paddingTop:
-                              18,
-
-                            borderTop:
-                              "1px solid var(--border)",
-                          }}
-                        >
-                          {daySlots.map(
-                            (
-                              slot
-                            ) => (
-                              <div
-                                key={
-                                  slot.id
-                                }
-                                style={{
-                                  display:
-                                    "flex",
-
-                                  justifyContent:
-                                    "space-between",
-
-                                  alignItems:
-                                    "center",
-
-                                  gap:
-                                    16,
-
-                                  flexWrap:
-                                    "wrap",
-
-                                  padding:
-                                    "10px 0",
-                                }}
-                              >
-                                <div>
-                                  <strong>
-                                    {formatSlotTime(
-                                      slot.start_at
-                                    )}
-                                  </strong>
-
-                                  <span
-                                    style={{
-                                      marginLeft:
-                                        10,
-                                    }}
-                                  >
-                                    {getServiceName(
-                                      slot.service_id
-                                    )}
-                                  </span>
-
-                                  <div
-                                    className="muted"
-                                    style={{
-                                      marginTop:
-                                        4,
-
-                                      fontSize:
-                                        13,
-                                    }}
-                                  >
-                                    {slot.status ===
-                                    "AVAILABLE"
-                                      ? "Disponible"
-                                      : slot.status ===
-                                          "BOOKED"
-                                        ? "Reservado"
-                                        : slot.status ===
-                                            "BLOCKED"
-                                          ? "Bloqueado"
-                                          : slot.status}
-                                  </div>
-                                </div>
-
-                                {slot.status ===
-                                  "AVAILABLE" && (
-                                  <button
-                                    type="button"
-                                    className="btn"
-                                    onClick={() =>
-                                      deleteSlot(
-                                        slot
-                                      )
-                                    }
-                                  >
-                                    Eliminar
-                                  </button>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                      )}
+                        <ExternalLink
+                          size={14}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      </Link>
                     </div>
-                  </div>
+
+                    {expanded && (
+                      <div className="calendar10-slot-list">
+                        {daySlots.map(
+                          (
+                            slot
+                          ) => (
+                            <div
+                              key={
+                                slot.id
+                              }
+                              className="calendar10-slot"
+                            >
+                              <div className="calendar10-slot-main">
+                                <strong>
+                                  {formatSlotTime(
+                                    slot.start_at
+                                  )}
+                                </strong>
+
+                                <span>
+                                  {getServiceName(
+                                    slot.service_id
+                                  )}
+                                </span>
+                              </div>
+
+                              <div className="calendar10-slot-right">
+                                <span
+                                  className={`calendar10-status is-${slot.status.toLowerCase()}`}
+                                >
+                                  {slot.status === "AVAILABLE"
+                                    ? "Disponible"
+                                    : slot.status === "BOOKED"
+                                      ? "Reservado"
+                                      : slot.status === "BLOCKED"
+                                        ? "Bloqueado"
+                                        : slot.status}
+                                </span>
+
+
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </article>
                 );
               }
             )}
+
+            {dayPageCount > 1 && (
+              <div className="calendar10-pagination calendar10-pagination-days">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={safeDayPage === 1}
+                  onClick={() => setDayPage((page) => Math.max(1, page - 1))}
+                >
+                  Anterior
+                </button>
+
+                <span>
+                  Página {safeDayPage} de {dayPageCount}
+                </span>
+
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={safeDayPage === dayPageCount}
+                  onClick={() =>
+                    setDayPage((page) => Math.min(dayPageCount, page + 1))
+                  }
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </section>
+
+      <style jsx>{`
+        .calendar10 {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+        }
+
+        .calendar10-toast {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          z-index: 9999;
+          width: min(420px, calc(100vw - 32px));
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 13px 15px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 750;
+          line-height: 1.45;
+          box-shadow: 0 14px 40px rgba(0,0,0,.12);
+        }
+
+        .calendar10-toast.is-success {
+          border: 1px solid #b9eccb;
+          background: #edf9f1;
+          color: #237549;
+        }
+
+        .calendar10-toast.is-error {
+          border: 1px solid #ffc9c9;
+          background: #fff0f0;
+          color: #b42318;
+        }
+
+        .calendar10-toast.is-warning {
+          border: 1px solid #f5d795;
+          background: #fff8e8;
+          color: #8b5a00;
+        }
+
+        .calendar10-toast button {
+          border: 0;
+          padding: 0;
+          background: transparent;
+          color: inherit;
+          font-size: 19px;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .calendar10-summary {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+        }
+
+        .calendar10-summary > div {
+          padding: 13px 15px;
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          background: #fff;
+        }
+
+        .calendar10-summary span,
+        .calendar10-summary strong {
+          display: block;
+        }
+
+        .calendar10-summary span {
+          color: var(--muted);
+          font-size: 12px;
+        }
+
+        .calendar10-summary strong {
+          margin-top: 3px;
+          font-size: 21px;
+          line-height: 1;
+        }
+
+        .calendar10-card {
+          border: 1px solid var(--border);
+          border-radius: 18px;
+          background: #fff;
+          box-shadow: 0 12px 32px rgba(31,27,48,.025);
+          overflow: hidden;
+        }
+
+        .calendar10-section-head {
+          display: flex;
+          align-items: flex-start;
+          gap: 11px;
+          padding: 18px 19px 14px;
+        }
+
+        .calendar10-icon,
+        .calendar10-mini-icon {
+          display: grid;
+          place-items: center;
+          border-radius: 10px;
+          background: #f0ecff;
+          color: var(--accent);
+        }
+
+        .calendar10-icon {
+          width: 36px;
+          height: 36px;
+          flex: 0 0 36px;
+        }
+
+        .calendar10-mini-icon {
+          width: 34px;
+          height: 34px;
+          min-width: 34px;
+          min-height: 34px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 34px;
+          align-self: center;
+          padding: 0;
+          margin: 0;
+          line-height: 1;
+        }
+
+        .calendar10-mini-icon > :global(svg) {
+          display: block;
+          width: 17px;
+          height: 17px;
+          flex: 0 0 17px;
+          margin: 0;
+        }
+
+        .calendar10-kicker {
+          color: var(--accent-dark);
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .calendar10-section-head h2 {
+          margin: 2px 0 3px;
+          font-size: 22px;
+          line-height: 1.18;
+          letter-spacing: -.025em;
+        }
+
+        .calendar10-section-head p {
+          margin: 0;
+          color: var(--muted);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .calendar10-create-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          padding: 0 18px 18px;
+        }
+
+        .calendar10-create-box {
+          display: flex;
+          flex-direction: column;
+          gap: 13px;
+          min-width: 0;
+          padding: 15px;
+          border: 1px solid #e5e2ec;
+          border-radius: 14px;
+          background: #fcfbff;
+        }
+
+        .calendar10-create-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 38px;
+        }
+
+        .calendar10-create-title > div > strong,
+        .calendar10-create-title > div > span {
+          display: block;
+        }
+
+        .calendar10-create-title > div > strong {
+          font-size: 14px;
+          line-height: 1.25;
+        }
+
+        .calendar10-create-title > div > span {
+          margin-top: 3px;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
+        .calendar10-field {
+          display: grid;
+          gap: 6px;
+          min-width: 0;
+        }
+
+        .calendar10-field strong {
+          font-size: 12.5px;
+          line-height: 1.25;
+        }
+
+        .calendar10-field input,
+        .calendar10-field select {
+          width: 100%;
+          min-width: 0;
+          height: 38px;
+          padding: 0 10px;
+          border: 1px solid #dedbe5;
+          border-radius: 9px;
+          background: #fff;
+          color: var(--text);
+          font: inherit;
+          font-size: 13px;
+          outline: none;
+        }
+
+        .calendar10-field input:focus,
+        .calendar10-field select:focus {
+          border-color: #b9adff;
+          box-shadow: 0 0 0 3px rgba(112,87,245,.07);
+        }
+
+        .calendar10-fields-2 {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .calendar10-number {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .calendar10-number span {
+          color: var(--muted);
+          font-size: 11.5px;
+          font-weight: 700;
+        }
+
+        .calendar10-submit {
+          width: 100%;
+          margin-top: auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+        }
+
+        .calendar10-week-note {
+          padding: 10px 11px;
+          border-radius: 9px;
+          background: #f7f5ff;
+          color: #625c70;
+          font-size: 11.5px;
+          line-height: 1.45;
+        }
+
+        .calendar10-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 14px;
+        }
+
+        .calendar10-block-form {
+          display: grid;
+          gap: 11px;
+          padding: 0 18px 18px;
+        }
+
+        .calendar10-check {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 10px;
+          border-radius: 10px;
+          background: #f8f7fb;
+          font-size: 11px;
+          font-weight: 750;
+        }
+
+        .calendar10-block-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+        }
+
+        .calendar10-block-list {
+          display: grid;
+          padding: 0 18px 18px;
+        }
+
+        .calendar10-block-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          padding: 11px 0;
+          border-bottom: 1px solid #efedf2;
+        }
+
+        .calendar10-block-row:last-child {
+          border-bottom: 0;
+        }
+
+        .calendar10-block-row strong,
+        .calendar10-block-row span,
+        .calendar10-block-row small {
+          display: block;
+        }
+
+        .calendar10-block-row strong {
+          font-size: 14px;
+          text-transform: capitalize;
+        }
+
+        .calendar10-block-row span {
+          margin-top: 3px;
+          color: var(--muted);
+          font-size: 12px;
+        }
+
+        .calendar10-block-row small {
+          margin-top: 4px;
+          color: #635d69;
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
+        .calendar10-icon-button {
+          width: 34px;
+          height: 34px;
+          display: grid;
+          place-items: center;
+          border: 1px solid var(--border);
+          border-radius: 9px;
+          background: #fff;
+          cursor: pointer;
+        }
+
+        .calendar10-icon-button.is-danger {
+          border-color: #ffc9c9;
+          color: #c72f2f;
+        }
+
+        .calendar10-upcoming-head {
+          border-bottom: 1px solid #efedf2;
+        }
+
+        .calendar10-days {
+          display: grid;
+        }
+
+        .calendar10-day {
+          border-bottom: 1px solid #efedf2;
+        }
+
+        .calendar10-day:last-child {
+          border-bottom: 0;
+        }
+
+        .calendar10-day-head {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+        }
+
+        .calendar10-day-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          min-width: 0;
+          border: 0;
+          padding: 0;
+          background: transparent;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .calendar10-day-toggle strong,
+        .calendar10-day-toggle span {
+          display: block;
+        }
+
+        .calendar10-day-toggle strong {
+          font-size: 15px;
+          text-transform: capitalize;
+        }
+
+        .calendar10-day-toggle span {
+          margin-top: 3px;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .calendar10-view-agenda {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 750;
+        }
+
+        .calendar10-slot-list {
+          display: grid;
+          padding: 0 16px 10px 48px;
+        }
+
+        .calendar10-slot {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          min-height: 46px;
+          padding: 8px 0;
+          border-top: 1px solid #f1eff4;
+        }
+
+        .calendar10-slot-main {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .calendar10-slot-main strong {
+          width: 48px;
+          flex: 0 0 48px;
+          font-size: 13px;
+        }
+
+        .calendar10-slot-main span {
+          overflow: hidden;
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .calendar10-slot-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .calendar10-status {
+          display: inline-flex;
+          align-items: center;
+          padding: 3px 7px;
+          border-radius: 999px;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .calendar10-status.is-available {
+          background: #eaf8ef;
+          color: #24774c;
+        }
+
+        .calendar10-status.is-booked {
+          background: #f0ecff;
+          color: var(--accent-dark);
+        }
+
+        .calendar10-status.is-blocked {
+          background: #f1eff4;
+          color: #706a75;
+        }
+
+        .calendar10-pagination {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 14px 0 2px;
+          border-top: 1px solid #efedf2;
+        }
+
+        .calendar10-pagination-days {
+          padding: 16px;
+          border-top: 1px solid #efedf2;
+        }
+
+        .calendar10-pagination span {
+          min-width: 110px;
+          text-align: center;
+          color: var(--muted);
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .calendar10-pagination .btn {
+          min-width: 92px;
+          justify-content: center;
+          font-size: 11px;
+        }
+
+        .calendar10-pagination .btn:disabled {
+          opacity: .45;
+          cursor: not-allowed;
+        }
+
+        .calendar10-empty {
+          padding: 28px 18px;
+          text-align: center;
+        }
+
+        .calendar10-empty-small {
+          padding-top: 16px;
+        }
+
+        .calendar10-empty strong {
+          display: block;
+          font-size: 13px;
+        }
+
+        .calendar10-empty p {
+          margin: 4px 0 0;
+          color: var(--muted);
+          font-size: 11px;
+        }
+
+        @media (max-width: 920px) {
+          .calendar10-create-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .calendar10-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .calendar10 {
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .calendar10-summary {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .calendar10-section-head {
+            padding: 15px;
+          }
+
+          .calendar10-create-grid,
+          .calendar10-block-form,
+          .calendar10-block-list {
+            padding-left: 14px;
+            padding-right: 14px;
+          }
+
+          .calendar10-fields-2 {
+            grid-template-columns: 1fr;
+          }
+
+          .calendar10-day-head {
+            grid-template-columns: 1fr;
+            align-items: stretch;
+          }
+
+          .calendar10-view-agenda {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .calendar10-slot-list {
+            padding-left: 14px;
+            padding-right: 14px;
+          }
+
+          .calendar10-slot {
+            grid-template-columns: 1fr;
+          }
+
+          .calendar10-slot-right {
+            justify-content: space-between;
+          }
+
+          .calendar10-toast {
+            top: 12px;
+            right: 16px;
+            left: 16px;
+            width: auto;
+          }
+        }
+      `}</style>
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        onOpenChange={(open) => { if (!open) finishConfirmation(false); }}
+        title={confirmation?.title ?? "Confirmar acción"}
+        description={confirmation?.description ?? ""}
+        variant={confirmation?.variant}
+        confirmLabel={confirmation?.confirmLabel}
+        onConfirm={() => finishConfirmation(true)}
+      />
     </div>
   );
 }
 
-/*
- * ============================================================
- * ESTILO INPUT
- * ============================================================
- */
-
-const inputStyle = {
-  width:
-    "100%",
-
-  padding:
-    14,
-
-  border:
-    "1px solid var(--border)",
-
-  borderRadius:
-    14,
-
-  marginTop:
-    8,
-
-  background:
-    "var(--card)",
-
-  color:
-    "var(--text)",
-};

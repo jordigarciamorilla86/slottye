@@ -15,6 +15,10 @@ import {
   createAdminClient,
 } from "@/lib/supabase/admin";
 
+import {
+  checkRateLimit,
+} from "@/lib/api/rate-limit";
+
 type RequestBody = {
   businessId?: unknown;
   serviceId?: unknown;
@@ -458,6 +462,20 @@ export async function POST(
           status:
             403,
         }
+      );
+    }
+
+    const rateLimit = await checkRateLimit({
+      identifier: user.id,
+      prefix: "business-calendar-slots-bulk-create",
+      limit: 20,
+      window: "1 h",
+    });
+
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: rateLimit.status }
       );
     }
 

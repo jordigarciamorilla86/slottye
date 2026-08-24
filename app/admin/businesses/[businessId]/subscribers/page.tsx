@@ -8,6 +8,11 @@ import {
 import {
   Header,
 } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, AdminSubnav } from "@/components/admin/AdminShell";
+
+import {
+  ServerPagination,
+} from "@/components/ServerPagination";
 
 import {
   createClient,
@@ -23,15 +28,37 @@ type Props = {
   params: Promise<{
     businessId: string;
   }>;
+  searchParams: Promise<{
+    page?: string;
+  }>;
 };
+
+const PAGE_SIZE = 25;
 
 export default async function AdminBusinessSubscribersPage({
   params,
+  searchParams,
 }: Props) {
   const {
     businessId,
   } =
     await params;
+
+  const requestedPage =
+    Number.parseInt(
+      (
+        await searchParams
+      ).page ?? "1",
+      10
+    );
+
+  const currentPage =
+    Number.isFinite(
+      requestedPage
+    ) &&
+    requestedPage > 0
+      ? requestedPage
+      : 1;
 
   const supabase =
     await createClient();
@@ -141,6 +168,7 @@ export default async function AdminBusinessSubscribersPage({
       subscriptions,
     error:
       subscriptionsError,
+    count,
   } =
     await admin
       .from(
@@ -159,7 +187,9 @@ export default async function AdminBusinessSubscribersPage({
           email,
           is_blocked
         )
-      `)
+      `, {
+        count: "exact",
+      })
       .eq(
         "business_id",
         business.id
@@ -170,7 +200,19 @@ export default async function AdminBusinessSubscribersPage({
           ascending:
             false,
         }
+      )
+      .range(
+        (currentPage - 1) * PAGE_SIZE,
+        currentPage * PAGE_SIZE - 1
       );
+
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        (count ?? 0) / PAGE_SIZE
+      )
+    );
 
   if (
     subscriptionsError
@@ -206,34 +248,8 @@ export default async function AdminBusinessSubscribersPage({
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1100,
-        }}
-      >
-        <section
-          className="panel"
-          style={{
-            borderColor:
-              "#c4b5fd",
-
-            background:
-              "linear-gradient(135deg, #f5f3ff 0%, #ffffff 75%)",
-          }}
-        >
-          <div className="kicker">
-            Slottye Super Admin
-          </div>
-
-          <h1 className="business-title">
-            Suscriptores de {business.name}
-          </h1>
-
-          <p className="muted">
-            Gestiona quién recibe avisos cuando este negocio publica nuevas citas.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader eyebrow="Audiencia" title="Suscriptores" description={`Gestiona quién recibe avisos de nuevas citas de ${business.name}.`}>
 
           {!business.active && (
             <div
@@ -264,21 +280,7 @@ export default async function AdminBusinessSubscribersPage({
             </div>
           )}
 
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                10,
-
-              flexWrap:
-                "wrap",
-
-              marginTop:
-                18,
-            }}
-          >
+          <AdminSubnav>
             <Link
               href={`/admin/businesses/${business.id}`}
               className="btn primary"
@@ -292,16 +294,10 @@ export default async function AdminBusinessSubscribersPage({
             >
               Ver ficha pública
             </Link>
-          </div>
-        </section>
+          </AdminSubnav>
+        </AdminPageHeader>
+        <AdminContent>
 
-        <section
-          className="panel"
-          style={{
-            marginTop:
-              16,
-          }}
-        >
           <AdminSubscribersManager
             businessId={
               business.id
@@ -310,8 +306,18 @@ export default async function AdminBusinessSubscribersPage({
               normalizedSubscriptions
             }
           />
-        </section>
-      </main>
+
+          <ServerPagination
+            currentPage={
+              currentPage
+            }
+            totalPages={
+              totalPages
+            }
+            pathname={`/admin/businesses/${business.id}/subscribers`}
+          />
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

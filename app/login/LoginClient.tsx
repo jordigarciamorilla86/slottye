@@ -30,7 +30,8 @@ type Role =
  */
 
 function translateAuthError(
-  message: string
+  message: string,
+  code?: string
 ) {
   const text =
     message.toLowerCase();
@@ -47,6 +48,8 @@ function translateAuthError(
   }
 
   if (
+    code ===
+      "invalid_credentials" ||
     text.includes(
       "invalid login credentials"
     )
@@ -55,6 +58,8 @@ function translateAuthError(
   }
 
   if (
+    code ===
+      "email_not_confirmed" ||
     text.includes(
       "email not confirmed"
     )
@@ -478,7 +483,8 @@ export default function Login() {
     if (error) {
       setMessage(
         translateAuthError(
-          error.message
+          error.message,
+          error.code
         )
       );
 
@@ -570,7 +576,8 @@ export default function Login() {
       if (error) {
         setMessage(
           translateAuthError(
-            error.message
+            error.message,
+            error.code
           )
         );
 
@@ -655,9 +662,22 @@ export default function Login() {
         });
 
     if (error) {
+      console.error(
+        "Email login failed:",
+        {
+          code:
+            error.code,
+          status:
+            error.status,
+          message:
+            error.message,
+        }
+      );
+
       setMessage(
         translateAuthError(
-          error.message
+          error.message,
+          error.code
         )
       );
 
@@ -767,13 +787,9 @@ router.refresh();
       <Header />
 
       <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            600,
-        }}
+        className="auth-page"
       >
-        <section className="panel">
+        <section className="auth-card">
           <div className="kicker">
             Tu cuenta Slottye
           </div>
@@ -797,6 +813,7 @@ router.refresh();
               ================================================== */}
 
           <div
+            className="auth-tabs"
             style={{
               display:
                 "grid",
@@ -852,6 +869,7 @@ router.refresh();
           {mode ===
             "signup" && (
             <div
+              className="auth-role-tabs"
               style={{
                 display:
                   "grid",
@@ -907,7 +925,7 @@ router.refresh();
 
           <button
             type="button"
-            className="btn"
+            className="btn auth-google"
             style={{
               width:
                 "100%",
@@ -956,7 +974,7 @@ router.refresh();
           </button>
 
           <div
-            className="muted"
+            className="auth-divider muted"
             style={{
               textAlign:
                 "center",
@@ -979,6 +997,8 @@ router.refresh();
           >
             {mode ===
               "signup" && (
+              <label className="auth-field">
+                <span>{role === "business" ? "Nombre del responsable" : "Nombre"}</span>
               <input
                 required
                 value={
@@ -999,12 +1019,13 @@ router.refresh();
                     : "Tu nombre"
                 }
                 autoComplete="name"
-                style={
-                  inputStyle
-                }
+                className="auth-input"
               />
+              </label>
             )}
 
+            <label className="auth-field">
+              <span>Correo electrónico</span>
             <input
               required
               type="email"
@@ -1021,16 +1042,18 @@ router.refresh();
               }
               placeholder="tu@email.com"
               autoComplete="email"
-              style={
-                inputStyle
-              }
+              className="auth-input"
             />
+            </label>
 
             {/* ==================================================
                 CONTRASEÑA + OJO
                 ================================================== */}
 
+            <label className="auth-field">
+              <span>Contraseña</span>
             <div
+              className="auth-password"
               style={{
                 position:
                   "relative",
@@ -1070,8 +1093,8 @@ router.refresh();
                     ? "current-password"
                     : "new-password"
                 }
+                className="auth-input"
                 style={{
-                  ...inputStyle,
 
                   marginBottom:
                     0,
@@ -1155,6 +1178,7 @@ router.refresh();
                 />
               </button>
             </div>
+            </label>
 
             {/* ==================================================
                 REQUISITOS CONTRASEÑA
@@ -1163,7 +1187,7 @@ router.refresh();
             {mode ===
               "signup" && (
               <div
-                className="muted"
+                className="auth-hint"
                 style={{
                   fontSize:
                     12,
@@ -1193,6 +1217,7 @@ router.refresh();
             {mode ===
               "signup" && (
               <label
+                className="auth-consent"
                 style={{
                   display:
                     "flex",
@@ -1317,6 +1342,7 @@ router.refresh();
             {mode ===
               "login" && (
               <div
+                className="auth-forgot"
                 style={{
                   display:
                     "flex",
@@ -1332,6 +1358,7 @@ router.refresh();
                 }}
               >
                 <Link
+                  className="auth-link"
                   href="/forgot-password"
                   style={{
                     fontSize:
@@ -1387,6 +1414,7 @@ router.refresh();
 
           {message && (
             <div
+              className="auth-alert auth-alert-error"
               role="alert"
               style={{
                 marginTop:
@@ -1432,25 +1460,3 @@ router.refresh();
  * ============================================================
  */
 
-const inputStyle = {
-  width:
-    "100%",
-
-  padding:
-    14,
-
-  border:
-    "1px solid var(--border)",
-
-  borderRadius:
-    14,
-
-  marginBottom:
-    10,
-
-  background:
-    "var(--card)",
-
-  color:
-    "var(--text)",
-};

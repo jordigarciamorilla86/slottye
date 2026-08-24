@@ -2,11 +2,26 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Header } from "@/components/Header";
+import { AdminContent, AdminPageHeader, AdminShell, EmptyState, StatusBadge } from "@/components/admin/AdminShell";
+import { ServerPagination } from "@/components/ServerPagination";
 import { createClient } from "@/lib/supabase/server";
 import AdminUserBlockButton from "./AdminUserBlockButton";
 import AdminUserDeleteButton from "./AdminUserDeleteButton";
+import collectionStyles from "../AdminCollections.module.css";
 
-export default async function AdminUsersPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; user?: string }>;
+}) {
+  const params = await searchParams;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const selectedUserId = params.user?.trim() || null;
+  const currentPage = Number.isFinite(requestedPage) && requestedPage > 0
+    ? requestedPage
+    : 1;
   const supabase =
     await createClient();
 
@@ -60,30 +75,34 @@ export default async function AdminUsersPage() {
    * ============================================================
    */
 
+  let usersQuery = supabase
+    .from("profiles")
+    .select(`
+      id,
+      name,
+      email,
+      avatar_url,
+      role,
+      created_at,
+      updated_at,
+      is_admin,
+      is_blocked
+    `, { count: "exact" })
+    .order("created_at", { ascending: false });
+
+  if (selectedUserId) {
+    usersQuery = usersQuery.eq("id", selectedUserId);
+  }
+
   const {
     data: users,
     error,
+    count,
   } =
-    await supabase
-      .from("profiles")
-      .select(`
-        id,
-        name,
-        email,
-        avatar_url,
-        role,
-        created_at,
-        updated_at,
-        is_admin,
-        is_blocked
-      `)
-      .order(
-        "created_at",
-        {
-          ascending:
-            false,
-        }
-      );
+    await usersQuery
+      .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   if (error) {
     console.error(
@@ -137,27 +156,18 @@ export default async function AdminUsersPage() {
     <>
       <Header />
 
-      <main
-        className="shell detail"
-        style={{
-          maxWidth:
-            1100,
-        }}
-      >
-        <section className="panel">
-          <div className="kicker">
-            Slottye Admin
-          </div>
-
-          <h1 className="business-title">
-            Usuarios
-          </h1>
-
-          <p className="muted">
-            Consulta y gestiona las cuentas registradas en Slottye.
-          </p>
+      <AdminShell maxWidth={1180}>
+        <AdminPageHeader
+          title={selectedUserId ? "Propietario del negocio" : "Usuarios"}
+          description={selectedUserId ? "Consulta y gestiona directamente esta cuenta." : "Consulta y gestiona las cuentas registradas en Slottye."}
+        >
+          {selectedUserId && <Link href="/admin/users" className="btn">Ver todos los usuarios</Link>}
+        </AdminPageHeader>
+        <AdminContent>
+        <section className={`panel ${collectionStyles.panel}`}>
 
           <div
+            className={collectionStyles.grid}
             style={{
               marginTop:
                 24,
@@ -225,55 +235,11 @@ export default async function AdminUsersPage() {
                           </strong>
 
                           {profile.is_admin && (
-                            <span
-                              style={{
-                                padding:
-                                  "4px 8px",
-
-                                borderRadius:
-                                  999,
-
-                                background:
-                                  "#ede9fe",
-
-                                color:
-                                  "#6d28d9",
-
-                                fontSize:
-                                  12,
-
-                                fontWeight:
-                                  800,
-                              }}
-                            >
-                              ADMIN
-                            </span>
+                            <StatusBadge tone="accent">ADMIN</StatusBadge>
                           )}
 
                           {profile.is_blocked && (
-                            <span
-                              style={{
-                                padding:
-                                  "4px 8px",
-
-                                borderRadius:
-                                  999,
-
-                                background:
-                                  "#fee2e2",
-
-                                color:
-                                  "#b91c1c",
-
-                                fontSize:
-                                  12,
-
-                                fontWeight:
-                                  800,
-                              }}
-                            >
-                              BLOQUEADO
-                            </span>
+                            <StatusBadge tone="danger">BLOQUEADO</StatusBadge>
                           )}
                         </div>
 
@@ -412,18 +378,14 @@ export default async function AdminUsersPage() {
           {(users ?? [])
             .length ===
             0 && (
-            <div
-              className="panel"
-              style={{
-                marginTop:
-                  20,
-              }}
-            >
-              <p className="muted">
-                No hay usuarios registrados.
-              </p>
-            </div>
+            <EmptyState title="No hay usuarios registrados" />
           )}
+
+          <ServerPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pathname="/admin/users"
+          />
         </section>
 
         <section
@@ -455,7 +417,8 @@ export default async function AdminUsersPage() {
             Volver a Slottye
           </Link>
         </section>
-      </main>
+        </AdminContent>
+      </AdminShell>
     </>
   );
 }

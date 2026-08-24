@@ -1,171 +1,61 @@
 import type { MetadataRoute } from "next";
+
+import {
+  buildPublicSitemap,
+  getCanonicalBaseUrl,
+  type SitemapRecord,
+} from "@/lib/seo/sitemap";
 import { createClient } from "@/lib/supabase/server";
 
+const PAGE_SIZE = 500;
+
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "https://slottye.com";
+  const baseUrl = getCanonicalBaseUrl(
+    process.env.NEXT_PUBLIC_APP_URL
+  );
+  const supabase = await createClient();
+  const businesses: SitemapRecord[] = [];
+  const categories: SitemapRecord[] = [];
 
-  const supabase =
-    await createClient();
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("slug, updated_at")
+      .eq("active", true)
+      .order("slug", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  /*
-   * ============================================================
-   * NEGOCIOS PÚBLICOS
-   * ============================================================
-   */
+    if (error) {
+      console.error("Error generating business sitemap:", error);
+      break;
+    }
 
-  const {
-    data: businesses,
-    error: businessesError,
-  } = await supabase
-    .from("businesses")
-    .select(`
-      slug,
-      updated_at
-    `)
-    .eq("active", true);
-
-  if (businessesError) {
-    console.error(
-      "Error generando sitemap de negocios:",
-      businessesError
-    );
+    businesses.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) break;
   }
 
-  /*
-   * ============================================================
-   * CATEGORÍAS
-   * ============================================================
-   */
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("slug")
+      .eq("active", true)
+      .order("slug", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  const {
-    data: categories,
-    error: categoriesError,
-  } = await supabase
-    .from("categories")
-    .select(`
-      slug
-    `)
-    .eq("active", true);
+    if (error) {
+      console.error("Error generating category sitemap:", error);
+      break;
+    }
 
-  if (categoriesError) {
-    console.error(
-      "Error generando sitemap de categorías:",
-      categoriesError
-    );
+    categories.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) break;
   }
 
-  /*
-   * ============================================================
-   * PÁGINAS ESTÁTICAS
-   * ============================================================
-   */
-
-  const staticPages: MetadataRoute.Sitemap =
-    [
-      {
-        url: baseUrl,
-        lastModified:
-          new Date(),
-        changeFrequency:
-          "daily",
-        priority: 1,
-      },
-
-      {
-        url:
-          `${baseUrl}/category/todos`,
-        lastModified:
-          new Date(),
-        changeFrequency:
-          "daily",
-        priority: 0.9,
-      },
-
-      {
-        url:
-          `${baseUrl}/privacy`,
-        changeFrequency:
-          "monthly",
-        priority: 0.3,
-      },
-
-      {
-        url:
-          `${baseUrl}/terms`,
-        changeFrequency:
-          "monthly",
-        priority: 0.3,
-      },
-
-      {
-        url:
-          `${baseUrl}/cookies`,
-        changeFrequency:
-          "monthly",
-        priority: 0.3,
-      },
-
-      {
-        url:
-          `${baseUrl}/legal`,
-        changeFrequency:
-          "monthly",
-        priority: 0.3,
-      },
-    ];
-
-  /*
-   * ============================================================
-   * CATEGORÍAS
-   * ============================================================
-   */
-
-  const categoryPages: MetadataRoute.Sitemap =
-    (categories ?? []).map(
-      (category) => ({
-        url:
-          `${baseUrl}/category/${category.slug}`,
-
-        changeFrequency:
-          "daily",
-
-        priority:
-          0.8,
-      })
-    );
-
-  /*
-   * ============================================================
-   * NEGOCIOS
-   * ============================================================
-   */
-
-  const businessPages: MetadataRoute.Sitemap =
-    (businesses ?? []).map(
-      (business) => ({
-        url:
-          `${baseUrl}/business/${business.slug}`,
-
-        lastModified:
-          business.updated_at
-            ? new Date(
-                business.updated_at
-              )
-            : new Date(),
-
-        changeFrequency:
-          "daily",
-
-        priority:
-          0.8,
-      })
-    );
-
-  return [
-    ...staticPages,
-    ...categoryPages,
-    ...businessPages,
-  ];
+  return buildPublicSitemap({
+    baseUrl,
+    categories,
+    businesses,
+  });
 }
