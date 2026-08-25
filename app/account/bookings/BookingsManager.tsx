@@ -1750,12 +1750,12 @@ export default function BookingsManager({
           <div className="mybookings10-pagination">
             <Link className="btn" aria-disabled={upcomingPage <= 1}
               href={pageHref("upcomingPage", Math.max(1, upcomingPage - 1))}>
-              <ChevronLeft size={15} aria-hidden="true" style={{ transform: "translateY(2px)" }} /> Anterior
+              <ChevronLeft size={15} aria-hidden="true" /> Anterior
             </Link>
             <span>Página {upcomingPage} de {Math.ceil(totals.upcoming / pageSize)}</span>
             <Link className="btn" aria-disabled={upcomingPage >= Math.ceil(totals.upcoming / pageSize)}
               href={pageHref("upcomingPage", Math.min(Math.ceil(totals.upcoming / pageSize), upcomingPage + 1))}>
-              Siguiente <ChevronRight size={15} aria-hidden="true" style={{ transform: "translateY(2px)" }} />
+              Siguiente <ChevronRight size={15} aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -2080,7 +2080,6 @@ export default function BookingsManager({
                     size={15}
                     strokeWidth={2}
                     aria-hidden="true"
-                    style={{ transform: "translateY(2px)" }}
                   />
 
                   Anterior
@@ -2101,7 +2100,6 @@ export default function BookingsManager({
                     size={15}
                     strokeWidth={2}
                     aria-hidden="true"
-                    style={{ transform: "translateY(2px)" }}
                   />
                 </Link>
               </div>
@@ -2896,6 +2894,8 @@ export default function BookingsManager({
           display: grid;
           place-items: center;
           padding: 20px;
+          overscroll-behavior: none;
+          touch-action: pan-y;
           background: rgba(23, 20, 38, .42);
           backdrop-filter: blur(3px);
         }
@@ -2904,6 +2904,8 @@ export default function BookingsManager({
           width: min(680px, 100%);
           max-height: min(760px, calc(100vh - 40px));
           overflow: auto;
+          overscroll-behavior: contain;
+          touch-action: pan-y;
           padding: 18px;
           border: 1px solid var(--border);
           border-radius: 18px;
@@ -2973,7 +2975,9 @@ export default function BookingsManager({
           gap: 5px;
           padding: 8px 12px;
           font-size: 11px;
-          line-height: 16px;
+          line-height: 1;
+          flex-direction: row !important;
+          white-space: nowrap;
         }
 
         .mybookings10-pagination .btn svg {
@@ -2983,6 +2987,7 @@ export default function BookingsManager({
           flex: 0 0 16px;
           stroke-width: 2.4;
           align-self: center;
+          transform: none !important;
         }
 
         .mybookings10-pagination .btn[aria-disabled="true"] {
@@ -3129,7 +3134,9 @@ export default function BookingsManager({
           .mybookings10-pagination .btn {
             width: 100%;
             min-width: 0;
-            padding: 8px 9px;
+            gap: 3px;
+            padding: 9px 7px;
+            font-size: 12px;
           }
 
           .mybookings10-pagination span {

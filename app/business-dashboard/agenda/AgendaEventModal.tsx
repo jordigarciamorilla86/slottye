@@ -2,10 +2,12 @@
 
 import {
   FormEvent,
+  useRef,
   useState,
 } from "react";
 
 import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui";
+import { useAccessibleDialog } from "@/components/ui/useAccessibleDialog";
 import { X } from "lucide-react";
 import styles from "./AgendaModal.module.css";
 
@@ -237,7 +239,12 @@ function timeInputValue(
 export default function AgendaEventModal(
   props: Props
 ) {
-  
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onDialogKeyDown = useAccessibleDialog({
+    open: true,
+    onClose: props.onClose,
+    dialogRef,
+  });
 
   const [
     loading,
@@ -1992,7 +1999,9 @@ export default function AgendaEventModal(
           setConfirmationAction(null);
         }}
       />
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Detalle de agenda"
+      <div ref={dialogRef} className={styles.sheet} role="dialog" aria-modal="true" aria-label="Detalle de agenda"
+        tabIndex={-1}
+        onKeyDown={onDialogKeyDown}
         style={{
           width:
             "100%",

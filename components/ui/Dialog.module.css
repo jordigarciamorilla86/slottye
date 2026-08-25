@@ -6,6 +6,8 @@
   place-items: center;
   padding: 24px;
   overflow-y: auto;
+  overscroll-behavior: none;
+  touch-action: pan-y;
   background: rgb(19 17 35 / 62%);
   backdrop-filter: blur(5px);
   animation: backdrop-in 160ms ease-out;
@@ -15,6 +17,8 @@
   width: min(100%, 520px);
   max-height: min(720px, calc(100dvh - 48px));
   overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   color: #211f2d;
   background: #fff;
   border: 1px solid rgb(116 103 173 / 18%);

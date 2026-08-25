@@ -707,7 +707,7 @@ export default async function AgendaPage({
             .agenda11-hero h1 { font-size: 30px; }
             .agenda11-hero-actions { display: grid; grid-template-columns: 1fr; }
             .agenda11-hero-actions > *, .agenda11-hero-actions .btn { width: 100%; }
-            .agenda11-workspace { padding: 10px; border-radius: 16px; }
+            .agenda11-workspace { min-width: 0; padding: 10px; overflow: hidden; border-radius: 16px; }
             .agenda11-footer, .agenda11-footer .btn { width: 100%; }
           }
         `}</style>

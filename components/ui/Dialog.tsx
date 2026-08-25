@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 import styles from "./Dialog.module.css";
+import { lockPageScroll } from "./useAccessibleDialog";
 
 const FOCUSABLE = [
   "a[href]",
@@ -22,29 +23,6 @@ const FOCUSABLE = [
   "textarea:not([disabled])",
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
-
-let openDialogs = 0;
-let originalOverflow = "";
-let originalPaddingRight = "";
-
-function lockPageScroll() {
-  if (openDialogs === 0) {
-    originalOverflow = document.body.style.overflow;
-    originalPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
-  }
-  openDialogs += 1;
-
-  return () => {
-    openDialogs = Math.max(0, openDialogs - 1);
-    if (openDialogs === 0) {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
-    }
-  };
-}
 
 export type DialogProps = {
   open: boolean;

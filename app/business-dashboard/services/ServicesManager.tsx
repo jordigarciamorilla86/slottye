@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  useRef,
   useState,
 } from "react";
 
@@ -17,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { ConfirmDialog, type ConfirmDialogVariant } from "@/components/ui/ConfirmDialog";
+import { useAccessibleDialog } from "@/components/ui/useAccessibleDialog";
 
 type Confirmation = {
   title: string;
@@ -46,6 +48,7 @@ export default function ServicesManager({
   initialServices,
   endpoint = "/api/business/services",
 }: Props) {
+  const editDialogRef = useRef<HTMLDivElement>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
   function requestConfirmation(config: Omit<Confirmation, "resolve">) {
@@ -414,6 +417,12 @@ export default function ServicesManager({
       null
     );
   }
+
+  const onEditDialogKeyDown = useAccessibleDialog({
+    open: editingService !== null,
+    onClose: closeEditing,
+    dialogRef: editDialogRef,
+  });
 
   /*
    * ============================================================
@@ -1028,10 +1037,13 @@ export default function ServicesManager({
 
       {editingService && (
         <div
+          ref={editDialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="services10-edit-title"
+          tabIndex={-1}
           className="services10-modal-backdrop"
+          onKeyDown={onEditDialogKeyDown}
           onMouseDown={(
             event
           ) => {
@@ -1568,6 +1580,8 @@ export default function ServicesManager({
           align-items: center;
           justify-content: center;
           padding: 20px;
+          overscroll-behavior: none;
+          touch-action: pan-y;
           background:
             rgba(15,23,42,.52);
         }
@@ -1576,6 +1590,8 @@ export default function ServicesManager({
           width: min(560px, 100%);
           max-height: 90vh;
           overflow-y: auto;
+          overscroll-behavior: contain;
+          touch-action: pan-y;
           padding: 22px;
           border: 1px solid var(--border);
           border-radius: 18px;

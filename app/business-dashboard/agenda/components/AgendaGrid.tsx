@@ -257,17 +257,17 @@ export default function AgendaGrid({
       style={{
         marginLeft:
           isMobile
-            ? -16
+            ? 0
             : 0,
 
         marginRight:
           isMobile
-            ? -16
+            ? 0
             : 0,
 
         width:
           isMobile
-            ? "calc(100% + 32px)"
+            ? "100%"
             : "100%",
       }}
     >
@@ -326,7 +326,7 @@ export default function AgendaGrid({
             "contain",
 
           overscrollBehaviorY:
-            "auto",
+            "contain",
 
           opacity:
             loadingWeek

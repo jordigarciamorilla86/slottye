@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { Header } from "@/components/Header";
 import { createClient } from "@/lib/supabase/server";
@@ -582,7 +583,7 @@ export default async function BusinessPage({
             "categories"
           )
           .select(
-            "name"
+            "name, slug"
           )
           .eq(
             "id",
@@ -1377,6 +1378,14 @@ if (
 
       <main className="business6-page">
         <div className="business6-shell">
+          <Link
+            href={category?.slug ? `/category/${category.slug}` : "/"}
+            className="business6-mobile-back"
+          >
+            <ArrowLeft size={17} strokeWidth={2.2} aria-hidden="true" />
+            Volver
+          </Link>
+
           <nav
             className="business6-breadcrumb"
             aria-label="Migas de pan"

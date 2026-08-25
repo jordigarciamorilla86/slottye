@@ -15,6 +15,8 @@ import {
 import {
   CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Mail,
 } from "lucide-react";
@@ -1128,7 +1130,8 @@ if (
                   )
                 }
               >
-                ← Anterior
+                <ChevronLeft size={16} strokeWidth={2.3} aria-hidden="true" />
+                Anterior
               </button>
 
               <div className="slots6-pages">
@@ -1187,7 +1190,8 @@ if (
                   )
                 }
               >
-                Siguiente →
+                Siguiente
+                <ChevronRight size={16} strokeWidth={2.3} aria-hidden="true" />
               </button>
             </div>
           )}
@@ -1498,6 +1502,8 @@ if (
           align-items: center;
           justify-content: center;
           padding: 20px;
+          overscroll-behavior: none;
+          touch-action: pan-y;
           background: rgba(24, 22, 34, 0.56);
           backdrop-filter: blur(5px);
         }
@@ -1505,6 +1511,10 @@ if (
         .slottye-booking-modal {
           width: 100%;
           max-width: 520px;
+          max-height: calc(100dvh - 40px);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          touch-action: pan-y;
           padding: 26px;
           border: 1px solid #e8e5ef;
           border-radius: 20px;

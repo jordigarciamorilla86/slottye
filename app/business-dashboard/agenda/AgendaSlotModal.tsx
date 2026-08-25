@@ -3,9 +3,11 @@
 import {
   FormEvent,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { X } from "lucide-react";
+import { useAccessibleDialog } from "@/components/ui/useAccessibleDialog";
 import styles from "./AgendaModal.module.css";
 
 
@@ -158,7 +160,12 @@ export default function AgendaSlotModal({
   services,
   onClose,
 }: Props) {
-  
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const onDialogKeyDown = useAccessibleDialog({
+      open: true,
+      onClose,
+      dialogRef,
+    });
 
     const [
       selectedTime,
@@ -1055,7 +1062,9 @@ export default function AgendaSlotModal({
         }
       }}
     >
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-label="Crear elemento de agenda"
+      <div ref={dialogRef} className={styles.sheet} role="dialog" aria-modal="true" aria-label="Crear elemento de agenda"
+        tabIndex={-1}
+        onKeyDown={onDialogKeyDown}
         style={{
           width:
             "100%",

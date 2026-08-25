@@ -6457,6 +6457,75 @@
 .auth-check-email { text-align: center; }
 .auth-email-icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 16px !important; border-radius: 20px; background: color-mix(in srgb, var(--accent) 12%, var(--card)); font-size: 30px !important; }
 .auth-email-address { margin-top: 18px !important; padding: 13px 15px !important; overflow-wrap: anywhere; border-radius: 13px !important; }
+
+.business6-mobile-back {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .business6-mobile-back {
+    width: fit-content;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 12px;
+    padding: 0 13px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .slots6-times {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .slots6-time {
+    width: 100%;
+    min-width: 0 !important;
+    padding: 8px 5px;
+    box-sizing: border-box;
+  }
+
+  .slots6-time strong {
+    font-size: 13px;
+  }
+
+  .slots6-time span {
+    font-size: 9.5px;
+  }
+
+  .slots6-pagination {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
+    flex-wrap: nowrap;
+  }
+
+  .slots6-pagination > .btn {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding-inline: 7px;
+    white-space: nowrap;
+  }
+
+  .slots6-pages .slots6-page:not(.is-active),
+  .slots6-pages .slots6-ellipsis {
+    display: none;
+  }
+}
 .auth-notice { margin-top: 20px !important; padding: 15px 16px !important; border-radius: 14px !important; }
 .auth-resend { margin-top: 24px !important; padding-top: 22px !important; }
 .auth-actions { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; margin-top: 24px !important; }
