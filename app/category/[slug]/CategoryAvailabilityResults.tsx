@@ -2364,6 +2364,26 @@ export default async function CategoryAvailabilityResults({
           pointer-events: none;
         }
 
+        .availability14-media.has-image {
+        filter: saturate(.88)
+          contrast(.96)
+          brightness(1.015);
+        }
+
+        .availability14-media.has-image::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: rgba(
+        255,
+        255,
+        255,
+        .065
+        );
+        }
+
         .availability14-distance-badge,
         .availability14-first-badge {
           position: absolute;
@@ -2378,6 +2398,12 @@ export default async function CategoryAvailabilityResults({
           box-shadow: 0 4px 14px rgba(31, 27, 48, .1);
           font-size: 12px;
           font-weight: 800;
+        }
+
+        .availability14-media.has-image {
+         filter: saturate(.88)
+        contrast(.96)
+        brightness(1.015);
         }
 
         .availability14-distance-badge { top: 12px; left: 12px; }
@@ -2758,10 +2784,11 @@ export default async function CategoryAvailabilityResults({
         }
 
         .availability14-time {
-          margin-top: 3px;
-          font-size: 24px;
-          font-weight: 850;
-          line-height: 1;
+        margin-top: 3px;
+        color: #16a34a;
+        font-size: 24px;
+        font-weight: 850;
+        line-height: 1;
         }
 
         .availability14-reserve {

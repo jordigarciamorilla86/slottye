@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import CategoryAvailabilityResults from "./CategoryAvailabilityResults";
 import CategorySearchControls from "./CategorySearchControls";
 import CategoryNearbyBusinesses from "./CategoryNearbyBusinesses";
+import { getPublicCategories } from "@/lib/public/public-data";
 
 type Props = {
   params: Promise<{
@@ -147,28 +148,9 @@ export async function generateMetadata({
    * ============================================================
    */
 
-  const supabase =
-    await createClient();
-
-  const {
-    data: category,
-    error,
-  } = await supabase
-    .from("categories")
-    .select(`
-      name,
-      slug
-    `)
-    .eq("slug", slug)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (error) {
-    console.error(
-      "Error loading category metadata:",
-      error
-    );
-  }
+  const category = (await getPublicCategories()).find(
+    (item) => item.slug === slug
+  );
 
   if (!category) {
     return {
@@ -268,38 +250,7 @@ export default async function CategoryPage({
   const supabase =
     await createClient();
   
-    const {
-      data:
-        searchCategories,
-      error:
-        searchCategoriesError,
-    } =
-      await supabase
-        .from(
-          "categories"
-        )
-        .select(`
-          id,
-          name,
-          slug,
-          icon
-        `)
-        .eq(
-          "active",
-          true
-        )
-        .order(
-          "name"
-        );
-    
-    if (
-      searchCategoriesError
-    ) {
-      console.error(
-        "Error loading search categories:",
-        searchCategoriesError
-      );
-    }
+  const searchCategories = await getPublicCategories();
 
   let categoryName =
     "Todos los negocios";
@@ -315,25 +266,9 @@ export default async function CategoryPage({
    */
 
   if (slug !== "todos") {
-    const {
-      data: category,
-      error: categoryError,
-    } = await supabase
-      .from("categories")
-      .select(`
-        id,
-        name
-      `)
-      .eq("slug", slug)
-      .eq("active", true)
-      .maybeSingle();
-
-    if (categoryError) {
-      console.error(
-        "Error loading category:",
-        categoryError
-      );
-    }
+    const category = searchCategories.find(
+      (item) => item.slug === slug
+    );
 
     if (!category) {
       notFound();

@@ -10,6 +10,7 @@ import { BusinessBookingSection } from "@/components/BusinessBookingSection";
 import { BusinessSubscriptionButton } from "@/components/BusinessSubscriptionButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import PublicBusinessMap from "@/components/PublicBusinessMap";
+import { getPublicBusiness } from "@/lib/public/public-data";
 
 type Props = {
   params: Promise<{
@@ -44,39 +45,8 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { slug } = await params;
 
-  const supabase =
-    await createClient();
-
-  const {
-    data: business,
-    error,
-  } = await supabase
-    .from("businesses")
-    .select(`
-      id,
-      name,
-      description,
-      address,
-      city,
-      postal_code,
-      slug,
-      category_id,
-
-      business_images (
-        image_url,
-        position
-      )
-    `)
-    .eq("slug", slug)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (error) {
-    console.error(
-      "Error loading business metadata:",
-      error
-    );
-  }
+  const publicData = await getPublicBusiness(slug);
+  const business = publicData?.business ?? null;
 
   if (!business) {
     return {
@@ -99,28 +69,7 @@ export async function generateMetadata({
    * ============================================================
    */
 
-  let categoryName:
-    | string
-    | null = null;
-
-  if (
-    business.category_id
-  ) {
-    const {
-      data: category,
-    } = await supabase
-      .from("categories")
-      .select("name")
-      .eq(
-        "id",
-        business.category_id
-      )
-      .maybeSingle();
-
-    categoryName =
-      category?.name ??
-      null;
-  }
+  const categoryName = publicData?.category?.name ?? null;
 
   /*
    * ============================================================
@@ -166,9 +115,9 @@ export async function generateMetadata({
 
   const images =
     Array.isArray(
-      business.business_images
+      publicData?.images
     )
-      ? business.business_images
+      ? publicData?.images ?? []
       : [];
 
   const mainImage =
@@ -324,38 +273,8 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const {
-    data: business,
-    error,
-  } = await supabase
-    .from("businesses")
-    .select(`
-      id,
-      name,
-      slug,
-      description,
-      address,
-      city,
-      postal_code,
-      phone,
-      email,
-      website,
-      latitude,
-      longitude,
-      category_id,
-      google_place_id,
-      show_google_reviews
-    `)
-    .eq("slug", slug)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (error) {
-    console.error(
-      "Error loading business:",
-      error
-    );
-  }
+  const publicData = await getPublicBusiness(slug);
+  const business = publicData?.business ?? null;
 
   if (!business) {
     notFound();
@@ -462,29 +381,7 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const {
-    data: images,
-  } =
-    await supabase
-      .from(
-        "business_images"
-      )
-      .select(`
-        id,
-        image_url,
-        position
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .order(
-        "position",
-        {
-          ascending:
-            true,
-        }
-      );
+  const images = publicData?.images ?? [];
 
   /*
    * ============================================================
@@ -574,26 +471,7 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const {
-    data: category,
-  } =
-    business.category_id
-      ? await supabase
-          .from(
-            "categories"
-          )
-          .select(
-            "name, slug"
-          )
-          .eq(
-            "id",
-            business.category_id
-          )
-          .maybeSingle()
-      : {
-          data:
-            null,
-        };
+  const category = publicData?.category ?? null;
 
   /*
    * ============================================================
@@ -601,30 +479,7 @@ export default async function BusinessPage({
    * ============================================================
    */
 
-  const {
-    data: services,
-  } =
-    await supabase
-      .from(
-        "services"
-      )
-      .select(`
-        id,
-        name,
-        description,
-        duration_minutes
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .eq(
-        "active",
-        true
-      )
-      .order(
-        "name"
-      );
+  const services = publicData?.services ?? [];
 /*
  * ============================================================
  * CITA SOLICITADA DESDE EL BUSCADOR DE DISPONIBILIDAD
@@ -702,28 +557,7 @@ if (
    * ============================================================
    */
 
-  const {
-    data: hours,
-  } =
-    await supabase
-      .from(
-        "business_hours"
-      )
-      .select(`
-        day_of_week,
-        open_time,
-        close_time,
-        open_time_2,
-        close_time_2,
-        closed
-      `)
-      .eq(
-        "business_id",
-        business.id
-      )
-      .order(
-        "day_of_week"
-      );
+  const hours = publicData?.hours ?? [];
 
   
   /*

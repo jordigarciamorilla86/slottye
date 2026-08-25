@@ -19,6 +19,7 @@ import {
 import {
   writeAdminAuditLog,
 } from "@/lib/admin/audit";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 type RouteContext = {
   params: Promise<{
@@ -730,6 +731,8 @@ export async function PUT(
           [],
       },
     });
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       hours:

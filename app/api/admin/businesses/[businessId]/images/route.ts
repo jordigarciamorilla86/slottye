@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   writeAdminAuditLog,
 } from "@/lib/admin/audit";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 type RouteContext = {
   params: Promise<{
@@ -599,6 +600,8 @@ export async function POST(
         },
       });
     }
+    invalidatePublicBusinessData();
+
     return NextResponse.json({
       image,
     });
@@ -951,6 +954,8 @@ export async function PATCH(
         },
       });
     }
+    invalidatePublicBusinessData();
+
     return NextResponse.json({
       images:
         savedImages ??
@@ -1471,6 +1476,8 @@ export async function DELETE(
      * RESPUESTA
      * ============================================================
      */
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       success:

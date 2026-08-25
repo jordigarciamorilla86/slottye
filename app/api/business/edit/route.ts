@@ -18,6 +18,7 @@ import {
 import {
   checkRateLimit,
 } from "@/lib/api/rate-limit";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 type RequestBody = {
   businessId?: unknown;
@@ -839,6 +840,8 @@ export async function PUT(
         }
       );
     }
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       business,

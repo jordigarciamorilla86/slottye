@@ -11,6 +11,7 @@ import {
 import {
   createClient,
 } from "@/lib/supabase/server";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 import {
   createAdminClient,
@@ -563,6 +564,8 @@ export async function POST(
       );
     }
 
+    invalidatePublicBusinessData();
+
     return NextResponse.json({
       service,
     });
@@ -817,6 +820,8 @@ export async function PATCH(
         );
       }
 
+      invalidatePublicBusinessData();
+
       return NextResponse.json({
         service,
       });
@@ -905,6 +910,8 @@ export async function PATCH(
         }
       );
     }
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       service,
@@ -1202,6 +1209,8 @@ export async function DELETE(
      * OK
      * ============================================================
      */
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       success:

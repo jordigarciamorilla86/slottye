@@ -19,6 +19,7 @@ import {
 import {
   writeAdminAuditLog,
 } from "@/lib/admin/audit";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 type Props = {
   params: Promise<{
@@ -411,6 +412,8 @@ export async function PATCH(
           business.owner_id,
       },
     });
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       success:

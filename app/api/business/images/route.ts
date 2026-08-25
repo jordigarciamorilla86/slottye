@@ -10,6 +10,7 @@ import {
 import {
   createClient,
 } from "@/lib/supabase/server";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 import {
   createAdminClient,
@@ -601,6 +602,8 @@ export async function POST(
       );
     }
 
+    invalidatePublicBusinessData();
+
     return NextResponse.json({
       image,
     });
@@ -888,6 +891,8 @@ export async function PATCH(
         { status: rateLimit.status }
       );
     }
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       images:
@@ -1239,6 +1244,8 @@ export async function DELETE(
           "La imagen se ha eliminado de Slottye, pero no se ha podido borrar el archivo físico.";
       }
     }
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       success:

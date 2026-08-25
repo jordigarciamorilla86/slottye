@@ -10,6 +10,7 @@ import {
 import {
   createClient,
 } from "@/lib/supabase/server";
+import { invalidatePublicBusinessData } from "@/lib/public/public-data";
 
 import {
   createAdminClient,
@@ -581,6 +582,8 @@ export async function PUT(
         }
       );
     }
+
+    invalidatePublicBusinessData();
 
     return NextResponse.json({
       hours:
