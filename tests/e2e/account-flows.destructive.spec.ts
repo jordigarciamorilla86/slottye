@@ -192,8 +192,14 @@ test.describe.serial("flujos destructivos restaurables de cuenta", () => {
         name: "Quitar favorito",
       }).first();
       await expect(removeButton).toBeVisible();
-      page.once("dialog", (dialog) => dialog.accept());
       await removeButton.click();
+
+      const confirmation = page.getByRole("dialog", {
+        name: "Quitar de favoritos",
+      });
+      await expect(confirmation).toBeVisible();
+      await confirmation.getByRole("button", { name: "Quitar" }).click();
+
       await expect(
         page.getByText("Negocio eliminado de favoritos.")
       ).toBeVisible();
@@ -326,7 +332,7 @@ test.describe.serial("flujos destructivos restaurables de cuenta", () => {
         .fill("Reseña temporal creada por la prueba E2E.");
       await dialog.getByRole("button", { name: "Publicar reseña" }).click();
       await expect(
-        dialog.getByText("Reseña publicada correctamente.")
+        page.getByText("Valoración guardada correctamente.").first()
       ).toBeVisible({ timeout: 15_000 });
 
       const { data: created, error: createdError } = await admin

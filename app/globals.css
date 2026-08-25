@@ -3849,6 +3849,11 @@
       min-width: 0;
       color: #34323c;
       font-size: 13px;
+      text-decoration: none;
+    }
+
+    a.site-header-account-profile:hover {
+      color: var(--accent-dark);
     }
   
     .site-header-account-profile strong {

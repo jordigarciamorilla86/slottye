@@ -26,7 +26,6 @@ import {
   ChevronDown,
   CircleUserRound,
   Clock3,
-  ExternalLink,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -639,7 +638,7 @@ setOnboardingPending(
       icon: "calendar",
 
       label:
-        "Calendario y citas",
+        "Calendario y disponibilidad",
     },
     {
       href:
@@ -658,15 +657,6 @@ setOnboardingPending(
 
       label:
         "Suscriptores",
-    },
-    {
-      href:
-        "/account",
-
-      icon: "account",
-
-      label:
-        "Mi panel",
     },
   ];
 
@@ -1066,27 +1056,6 @@ setOnboardingPending(
 
                             {renderManagementLinks()}
 
-                            {businessSlug && (
-                              <>
-                                <div className="site-header-menu-separator" />
-
-                                <Link
-                                  href={`/business/${businessSlug}`}
-                                  role="menuitem"
-                                  className="site-header-menu-link site-header-public-link"
-                                >
-                                  <span className="site-header-menu-icon">
-                                    <ExternalLink
-                                      size={18}
-                                      strokeWidth={2}
-                                      aria-hidden="true"
-                                    />
-                                  </span>
-
-                                  Ver ficha pública
-                                </Link>
-                              </>
-                            )}
                           </div>
                         )}
                       </div>
@@ -1156,25 +1125,34 @@ setOnboardingPending(
                         className="site-header-mobile-menu"
                       >
                         {displayName && (
-                          <div className="site-header-mobile-profile">
-                            <span className="site-header-avatar is-large">
-                              <UserRound
-                                size={19}
-                                strokeWidth={2}
-                                aria-hidden="true"
-                              />
-                            </span>
-
-                            <div>
-                              <span>
-                                Hola
+                          businessUser ? (
+                            <Link
+                              href="/account"
+                              role="menuitem"
+                              className="site-header-mobile-profile"
+                              aria-label="Ir a mi panel"
+                            >
+                              <span className="site-header-avatar is-large">
+                                <Settings2 size={19} strokeWidth={2} aria-hidden="true" />
                               </span>
 
-                              <strong>
-                                {displayName}
-                              </strong>
+                              <div>
+                                <span>Mi panel</span>
+                                <strong>{displayName}</strong>
+                              </div>
+                            </Link>
+                          ) : (
+                            <div className="site-header-mobile-profile">
+                              <span className="site-header-avatar is-large">
+                                <UserRound size={19} strokeWidth={2} aria-hidden="true" />
+                              </span>
+
+                              <div>
+                                <span>Hola</span>
+                                <strong>{displayName}</strong>
+                              </div>
                             </div>
-                          </div>
+                          )
                         )}
 
                         <Link
@@ -1232,24 +1210,6 @@ setOnboardingPending(
                             </div>
 
                             {renderManagementLinks()}
-
-                            {businessSlug && (
-                              <Link
-                                href={`/business/${businessSlug}`}
-                                role="menuitem"
-                                className="site-header-menu-link site-header-public-link"
-                              >
-                                <span className="site-header-menu-icon">
-                                  <ExternalLink
-                                    size={18}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                  />
-                                </span>
-
-                                Ver ficha pública
-                              </Link>
-                            )}
 
                             <div className="site-header-menu-separator" />
                           </>
@@ -1376,19 +1336,28 @@ setOnboardingPending(
           !mobile && (
             <div className="site-header-account-zone">
               {displayName && (
-                <div className="site-header-account-profile">
-                  <span className="site-header-avatar">
-                    <UserRound
-                      size={17}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                  </span>
+                businessUser ? (
+                  <Link
+                    href="/account"
+                    className="site-header-account-profile"
+                    aria-label="Ir a mi panel"
+                    title="Ir a mi panel"
+                  >
+                    <span className="site-header-avatar">
+                      <Settings2 size={17} strokeWidth={2} aria-hidden="true" />
+                    </span>
 
-                  <strong>
-                    {displayName}
-                  </strong>
-                </div>
+                    <strong>{displayName}</strong>
+                  </Link>
+                ) : (
+                  <div className="site-header-account-profile">
+                    <span className="site-header-avatar">
+                      <UserRound size={17} strokeWidth={2} aria-hidden="true" />
+                    </span>
+
+                    <strong>{displayName}</strong>
+                  </div>
+                )
               )}
 
               <button

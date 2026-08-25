@@ -151,8 +151,16 @@ test.describe.serial("ciclo destructivo controlado de una reserva", () => {
           response.url().includes("/api/account/bookings/manage") &&
           response.request().method() === "POST"
       );
-      page.once("dialog", (dialog) => dialog.accept());
       await bookingCard.getByRole("button", { name: "Cancelar cita" }).click();
+
+      const cancellationDialog = page.getByRole("dialog", {
+        name: "Cancelar cita",
+      });
+      await expect(cancellationDialog).toBeVisible();
+      await cancellationDialog
+        .getByRole("button", { name: "Cancelar cita" })
+        .click();
+
       const cancelResponse = await cancelResponsePromise;
       expect(cancelResponse.ok()).toBe(true);
       cleaned = true;

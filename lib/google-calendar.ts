@@ -193,6 +193,11 @@ async function getAccessToken(
             grant_type:
               "refresh_token",
           }),
+
+        signal:
+          AbortSignal.timeout(
+            10000
+          ),
       }
     );
 
@@ -1283,6 +1288,11 @@ export async function deleteBookingGoogleCalendarEvent(
           Authorization:
             `Bearer ${accessToken}`,
         },
+
+        signal:
+          AbortSignal.timeout(
+            10000
+          ),
       }
     );
 

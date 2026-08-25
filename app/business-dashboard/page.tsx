@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/Header";
 import { requireActiveUser } from "@/lib/auth/requireActiveUser";
+import { ArrowLeft } from "lucide-react";
 
 export default async function BusinessDashboardPage() {
   const {
@@ -784,10 +785,11 @@ if (
             </div>
 
             <Link
-              href={`/business/${business.slug}`}
+              href="/account"
               className="btn stats8-public-link"
             >
-              Ver ficha pública →
+              <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+              Volver a mi panel
             </Link>
           </section>
 
@@ -1223,6 +1225,10 @@ if (
           }
 
           .stats8-public-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
             flex-shrink: 0;
             font-weight: 800;
           }

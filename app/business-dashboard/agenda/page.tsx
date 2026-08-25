@@ -554,20 +554,31 @@ export default async function AgendaPage({
                 Volver a la configuración inicial
               </Link>
             )}
-
-            <GoogleCalendarAgendaButton businessId={business.id} />
-
             {!fromSetup && (
               <Link
-                href="/business-dashboard/calendar"
-                className="btn primary"
+                href="/account"
+                className="btn"
               >
-                <CalendarRange size={16} strokeWidth={2.1} aria-hidden="true" />
-                Calendario y disponibilidad
+                <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+                Volver a mi panel
               </Link>
             )}
           </div>
         </section>
+
+        <nav className="agenda11-utilities" aria-label="Herramientas de agenda">
+          <GoogleCalendarAgendaButton businessId={business.id} />
+
+          {!fromSetup && (
+            <Link
+              href="/business-dashboard/calendar"
+              className="btn agenda11-utility-link"
+            >
+              <CalendarRange size={15} strokeWidth={2.1} aria-hidden="true" />
+              Calendario y disponibilidad
+            </Link>
+          )}
+        </nav>
 
         <section className="agenda11-workspace">
           <WeeklyAgenda
@@ -606,17 +617,6 @@ export default async function AgendaPage({
           />
         </section>
 
-        {!fromSetup && (
-          <nav className="agenda11-footer" aria-label="Navegación de la agenda">
-            <Link
-              href="/business-dashboard"
-              className="btn"
-            >
-              <ArrowLeft size={15} strokeWidth={2.2} aria-hidden="true" />
-              Volver al panel
-            </Link>
-          </nav>
-        )}
         </div>
 
         <style>{`
@@ -674,11 +674,32 @@ export default async function AgendaPage({
           }
 
           .agenda11-hero-actions .btn,
-          .agenda11-footer .btn {
+          .agenda11-utilities .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+          }
+
+          .agenda11-utilities {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 10px;
+          }
+
+          .agenda11-utilities .btn {
+            min-height: 34px;
+            padding: 7px 11px;
+            border-radius: 10px;
+            color: var(--muted);
+            font-size: 11px;
+            box-shadow: none;
+          }
+
+          .agenda11-utilities .btn:hover {
+            color: var(--accent-dark);
           }
 
           .agenda11-workspace {
@@ -694,21 +715,15 @@ export default async function AgendaPage({
             margin-top: 0 !important;
           }
 
-          .agenda11-footer {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            margin-top: 14px;
-          }
-
           @media (max-width: 760px) {
             .agenda11 { padding: 16px 10px 44px; }
             .agenda11-hero { align-items: stretch; flex-direction: column; padding: 19px; }
             .agenda11-hero h1 { font-size: 30px; }
             .agenda11-hero-actions { display: grid; grid-template-columns: 1fr; }
             .agenda11-hero-actions > *, .agenda11-hero-actions .btn { width: 100%; }
+            .agenda11-utilities { align-items: stretch; flex-direction: column; }
+            .agenda11-utilities > *, .agenda11-utilities .btn { width: 100%; }
             .agenda11-workspace { min-width: 0; padding: 10px; overflow: hidden; border-radius: 16px; }
-            .agenda11-footer, .agenda11-footer .btn { width: 100%; }
           }
         `}</style>
       </main>

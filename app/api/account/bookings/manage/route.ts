@@ -1,4 +1,5 @@
 import {
+  after,
   NextRequest,
   NextResponse,
 } from "next/server";
@@ -944,18 +945,20 @@ export async function POST(
 * ============================================================
 */
 
-try {
-await deleteBookingGoogleCalendarEvent(
-  booking.id
-);
-} catch (
-calendarError
-) {
-console.error(
-  "Customer booking cancelled but Google Calendar delete failed:",
-  calendarError
-);
-}
+after(async () => {
+  try {
+    await deleteBookingGoogleCalendarEvent(
+      booking.id
+    );
+  } catch (
+    calendarError
+  ) {
+    console.error(
+      "Customer booking cancelled but Google Calendar delete failed:",
+      calendarError
+    );
+  }
+});
 
       return NextResponse.json({
         success:

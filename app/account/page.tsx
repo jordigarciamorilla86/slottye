@@ -1,9 +1,17 @@
 import Link from "next/link";
 
 import {
+  ArrowLeft,
+  Bell,
+  BriefcaseBusiness,
   CalendarDays,
+  CalendarRange,
+  Clock3,
+  ExternalLink,
   LayoutDashboard,
+  Settings2,
   Store,
+  Wrench,
 } from "lucide-react";
 
 import { Header } from "@/components/Header";
@@ -14,6 +22,7 @@ import { SignOutButton } from "./sign-out-button";
 
 export default async function AccountPage() {
   const {
+    supabase,
     user,
     profile,
   } =
@@ -36,6 +45,29 @@ export default async function AccountPage() {
     role ===
     "business";
 
+  const { data: business } = isBusiness
+    ? await supabase
+        .from("businesses")
+        .select("slug")
+        .eq("owner_id", user.id)
+        .maybeSingle()
+    : { data: null };
+
+  const businessShortcuts = [
+    { href: "/business-dashboard", label: "Estadísticas", detail: "Rendimiento de tu negocio", icon: LayoutDashboard },
+    { href: "/business-dashboard/agenda", label: "Agenda", detail: "Gestiona el día a día", icon: CalendarDays },
+    { href: "/account/bookings", label: "Mis citas", detail: "Tus reservas como usuario", icon: BriefcaseBusiness },
+    { href: "/business-dashboard/edit", label: "Editar mi negocio", detail: "Ficha, imágenes y políticas", icon: Settings2 },
+    { href: "/business-dashboard/services", label: "Servicios", detail: "Oferta y duraciones", icon: Wrench },
+    { href: "/business-dashboard/hours", label: "Horarios", detail: "Horario habitual", icon: Clock3 },
+    { href: "/business-dashboard/calendar", label: "Calendario", detail: "Disponibilidad múltiple", icon: CalendarRange },
+    { href: "/business-dashboard/bookings", label: "Reservas", detail: "Gestión e historial", icon: BriefcaseBusiness },
+    { href: "/business-dashboard/subscribers", label: "Suscriptores", detail: "Personas que te siguen", icon: Bell },
+    ...(business?.slug
+      ? [{ href: `/business/${business.slug}`, label: "Ver ficha pública", detail: "Así te ven tus clientes", icon: ExternalLink }]
+      : []),
+  ];
+
   return (
     <>
       <Header />
@@ -55,6 +87,11 @@ export default async function AccountPage() {
               <p>
                 Gestiona tu cuenta, seguridad y accesos desde un único lugar.
               </p>
+
+              <Link href="/" className="btn account10-home-link">
+                <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+                Volver a Slottye
+              </Link>
             </div>
 
             <div className="account10-profile">
@@ -82,30 +119,28 @@ export default async function AccountPage() {
             </div>
           </header>
 
-          <section className="account10-shortcuts">
+          <section className={`account10-shortcuts${isBusiness ? " is-business" : ""}`}>
             {isBusiness ? (
-              <Link
-                href="/business-dashboard"
-                className="account10-shortcut is-primary"
-              >
-                <span className="account10-shortcut-icon">
-                  <LayoutDashboard
-                    size={19}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
-                </span>
+              businessShortcuts.map((item, index) => {
+                const Icon = item.icon;
 
-                <div>
-                  <strong>
-                    Panel del negocio
-                  </strong>
+                return (
+                  <Link
+                    href={item.href}
+                    key={item.href}
+                    className={`account10-shortcut${index < 3 ? " is-primary" : ""}`}
+                  >
+                    <span className="account10-shortcut-icon">
+                      <Icon size={19} strokeWidth={2} aria-hidden="true" />
+                    </span>
 
-                  <span>
-                    Gestiona agenda, reservas y configuración.
-                  </span>
-                </div>
-              </Link>
+                    <div>
+                      <strong>{item.label}</strong>
+                      <span>{item.detail}</span>
+                    </div>
+                  </Link>
+                );
+              })
             ) : (
               <>
                 <Link
@@ -229,6 +264,14 @@ export default async function AccountPage() {
             font-size: 13px;
           }
 
+          .account10-home-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 14px;
+          }
+
           .account10-profile {
             min-width: 290px;
             display: grid;
@@ -260,6 +303,10 @@ export default async function AccountPage() {
             grid-template-columns: repeat(2,minmax(0,1fr));
             gap: 10px;
             margin-top: 14px;
+          }
+
+          .account10-shortcuts.is-business {
+            grid-template-columns: repeat(3,minmax(0,1fr));
           }
 
           .account10-shortcut {
@@ -378,6 +425,10 @@ export default async function AccountPage() {
             }
 
             .account10-shortcuts {
+              grid-template-columns: 1fr;
+            }
+
+            .account10-shortcuts.is-business {
               grid-template-columns: 1fr;
             }
 

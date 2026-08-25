@@ -7,7 +7,6 @@ import {
 import {
   ArrowLeft,
   CalendarDays,
-  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -232,16 +231,11 @@ export default async function CalendarPage({
                 </Link>
               ) : (
                 <Link
-                  href={`/business/${business.slug}`}
+                  href="/account"
                   className="btn"
                 >
-                  Ver ficha pública
-
-                  <ExternalLink
-                    size={16}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
+                  <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+                  Volver a mi panel
                 </Link>
               )}
             </div>

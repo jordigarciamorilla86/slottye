@@ -1,4 +1,5 @@
 import {
+  after,
   NextRequest,
   NextResponse,
 } from "next/server";
@@ -677,18 +678,20 @@ if (
 action ===
 "cancel"
 ) {
-try {
-  await deleteBookingGoogleCalendarEvent(
-    booking.id
-  );
-} catch (
-  calendarError
-) {
-  console.error(
-    "Booking cancelled but Google Calendar delete failed:",
+after(async () => {
+  try {
+    await deleteBookingGoogleCalendarEvent(
+      booking.id
+    );
+  } catch (
     calendarError
-  );
-}
+  ) {
+    console.error(
+      "Booking cancelled but Google Calendar delete failed:",
+      calendarError
+    );
+  }
+});
 }
 
     /*

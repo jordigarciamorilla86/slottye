@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import {
   ArrowLeft,
-  ExternalLink,
 } from "lucide-react";
 
 import { Header } from "@/components/Header";
@@ -127,16 +126,11 @@ export default async function ServicesPage({
                 </Link>
               ) : (
                 <Link
-                  href={`/business/${business.slug}`}
+                  href="/account"
                   className="btn"
                 >
-                  Ver ficha pública
-
-                  <ExternalLink
-                    size={16}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
+                  <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+                  Volver a mi panel
                 </Link>
               )}
             </div>

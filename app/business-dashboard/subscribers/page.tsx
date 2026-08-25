@@ -6,7 +6,6 @@ import {
   BellOff,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Mail,
   UserRound,
   Users,
@@ -405,16 +404,11 @@ export default async function SubscribersPage({
 
             <div className="subscribers10-hero-actions">
               <Link
-                href={`/business/${business.slug}`}
+                href="/account"
                 className="btn"
               >
-                Ver ficha pública
-
-                <ExternalLink
-                  size={16}
-                  strokeWidth={2}
-                  aria-hidden="true"
-                />
+                <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+                Volver a mi panel
               </Link>
             </div>
           </section>
