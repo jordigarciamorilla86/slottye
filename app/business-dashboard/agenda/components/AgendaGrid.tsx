@@ -326,7 +326,7 @@ export default function AgendaGrid({
             "contain",
 
           overscrollBehaviorY:
-            "contain",
+            "auto",
 
           opacity:
             loadingWeek
